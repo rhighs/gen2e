@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "moduleResolution": "Node",
+    "module": "CommonJS",
+    "noEmit": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "strict": true,
+    "target": "ES2022",
+    "useUnknownInCatchVariables": false
+  },
+  "include": ["src", "tests"]
+}
