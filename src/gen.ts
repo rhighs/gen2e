@@ -33,8 +33,9 @@ export const gen: GenType = async (
     );
   }
 
-  const _ = async () => unrwrapResult(await runTask(task, page, options));
-  return test ? test.step(`gen-playwright.ai '${task}'`, _) : _();
+  const _ = async () =>
+    unrwrapResult(await runTask(task, config.page, options));
+  return config.test ? config.test.step(`gen-playwright.ai '${task}'`, _) : _();
 };
 
 gen.test = (testFunction: TestFunction): PlaywrightTestFunction => {

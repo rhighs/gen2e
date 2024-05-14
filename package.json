@@ -25,6 +25,7 @@
   "scripts": {
     "start": "tsx ./tests/bin/startServer.ts",
     "build": "tsc --project tsconfig.build.json",
+    "static:clear": "rm -rf .static/*",
     "format": "prettier --write ./src",
     "lint": "prettier --check ./src",
     "semantic-release": "semantic-release",

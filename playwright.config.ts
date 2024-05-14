@@ -1,7 +1,5 @@
 import { defineConfig } from "@playwright/test";
 
-process.env.AUTO_PLAYWRIGHT_DEBUG = 'true'
-
 export default defineConfig({
   webServer: {
     command: "npm run start",

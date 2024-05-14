@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { type Page, TaskMessage, TaskResult } from "./types";
 
-const defaultDebug = process.env.AUTO_PLAYWRIGHT_DEBUG === "true";
+const defaultDebug = process.env.GEN2E_PLAYWRIGHT_DEBUG === "true";
 
 const prompt = (message: TaskMessage) => {
   return `This is your task: ${message.task}

@@ -104,3 +104,18 @@ test(
     expect(headerText).toBe("Hello, Gen2E!");
   })
 );
+
+test(
+  "inputs 'ciao' in the search box, clicks button 10 times, and checks count",
+  gen.test(async ({ page, gen }) => {
+    await page.goto("/");
+
+    await gen(`type "ciao" in the search box`, { page, test });
+    await expect(page.getByTestId("search-input")).toHaveValue("ciao");
+
+    await gen("click the button 10 times", { page, test });
+
+    const count = await gen("get the current count", { page, test });
+    await expect(parseInt(count)).toBeGreaterThan(5);
+  })
+);
