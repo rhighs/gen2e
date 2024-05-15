@@ -1,0 +1,16 @@
+Navigate to the login page https://prolocal.mywellness.com:12443/auth/login
+Wait for the network to be idle, no return value
+Type in the form this email: runner@e2e.it
+Type in the form this password: tgsTGS123
+Verify no email error in username helper text, should not contain any letter use a regex
+Verify no password error in password helper text, should not contain any letter use a regex
+Click the login button
+Click on Test Automation single club
+Click on the left tab item with id automation
+Click on the the Campaign or Campagne item with id automationCampaigns
+Click on the button to create a new Campaign, it has a data-testid create-campaign-action
+Wait for at least two seconds so that the modal apperears
+Click the div with inner text "Notifica push", many match this pattern but this is it is the last one
+Click on the button that says "Crea"
+Wait for at least one second so that the modal goes away and wait for the network to be idle
+Click on the button that says "Salva"

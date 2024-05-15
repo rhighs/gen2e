@@ -7,8 +7,8 @@
     "module": "CommonJS",
     "noEmit": true,
     "noImplicitReturns": true,
-    "noUnusedLocals": true,
     "noUnusedParameters": false,
+    "noImplicitAny": false,
     "strict": true,
     "target": "ES2022",
     "useUnknownInCatchVariables": false

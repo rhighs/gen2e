@@ -23,14 +23,14 @@ export type TaskMessage = {
   options?: StepOptions;
 };
 
-export type TaskResult =
+export type TaskResult<T> =
   | {
       type: "error";
       errorMessage: string;
     }
   | {
       type: "success";
-      code: string;
+      result: T;
     };
 
 export type TestArgs = PlaywrightTestArgs & { gen: GenStepFunction };

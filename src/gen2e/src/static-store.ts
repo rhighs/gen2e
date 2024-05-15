@@ -1,5 +1,6 @@
 import { StaticGenStep } from "./types";
 import path from "path";
+import crypto from "crypto";
 import {
   readdirSync,
   readFileSync,
@@ -9,10 +10,11 @@ import {
 } from "fs";
 
 const shouldPreload = !!process.env.GEN2E_PRELOAD_ENABLED;
-const BASE_STATIC_PATH = process.env.GEN2E_STATIC_PATH ?? ".static";
+const BASE_STATIC_PATH =
+  process.env.GEN2E_STATIC_PATH ?? path.join(process.cwd(), ".static");
 const stepsDirPath = `${BASE_STATIC_PATH}/steps`;
 
-const wrapIdent = (ident: string) => `${ident.replaceAll(" ", "_")}.gen.step`;
+const wrapIdent = (ident: string) => `${crypto.hash("md5", ident)}.gen.step`;
 const stepFilePath = (ident: string) =>
   `${BASE_STATIC_PATH}/steps/${wrapIdent(ident)}`;
 
@@ -28,8 +30,11 @@ if (shouldPreload) {
   preloadedSteps = preload();
 }
 
-export const makeStatic = (staticInfo: StaticGenStep) =>
-  writeFileSync(stepFilePath(staticInfo.ident), staticInfo.expression);
+export const makeStatic = (staticInfo: StaticGenStep) => {
+  return writeFileSync(stepFilePath(staticInfo.ident), staticInfo.expression, {
+    flag: "wx",
+  });
+};
 
 export const fetchStatic = (ident: string): StaticGenStep | undefined => {
   if (!existsSync(stepsDirPath)) {
