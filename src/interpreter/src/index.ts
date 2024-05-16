@@ -55,7 +55,7 @@ program
             info(
               `task step "${result.task}" has generated code:\n${result.expression}`
             );
-          } 
+          }
         }
       })
       .on("task-error", (_, __, error: Error | string) => {
@@ -77,12 +77,12 @@ program
   .option("-d, --debug", "enabled debug mode, shows debug logs and more")
   .option("--openai-api-key", "api key for openai services")
   .option("--model", "openai model to use for each task")
-  .option("--browser <browser>", "playwright browser to use (chromium, firefox)")
-  .option("--headless", "start browser in headless mode")
   .option(
-    "-v, --verbose",
-    "show more REPL activity logging"
+    "--browser <browser>",
+    "playwright browser to use (chromium, firefox)"
   )
+  .option("--headless", "start browser in headless mode")
+  .option("-v, --verbose", "show more REPL activity logging")
   .action(async (options) => {
     const verbose = options.verbose ? true : false;
     const debug = options.debug ? true : undefined;
@@ -92,13 +92,13 @@ program
       : undefined;
 
     const REPL = makeREPL({
-        debug,
-        model,
-        openaiApiKey: apiKey,
-        verbose
-    })
+      debug,
+      model,
+      openaiApiKey: apiKey,
+      verbose,
+    });
 
-    await REPL.start()
+    await REPL.start();
   });
 
 program.parse();

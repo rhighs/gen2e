@@ -35,8 +35,10 @@ export const makeStatic = (staticInfo: StaticGenStep) => {
   });
 };
 
-export const makeIdent = (testTitle: string, task: string) => `gen2e - [${testTitle}](${task})`
-export const wrapIdent = (ident: string) => `${crypto.hash("md5", ident)}.gen.step`;
+export const makeIdent = (testTitle: string, task: string) =>
+  `gen2e - [${testTitle}](${task})`;
+export const wrapIdent = (ident: string) =>
+  `${crypto.hash("md5", ident)}.gen.step`;
 
 export const fetchStatic = (ident: string): StaticGenStep | undefined => {
   if (!existsSync(stepsDirPath)) {

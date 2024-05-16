@@ -7,7 +7,7 @@ import {
   type PlaywrightTestFunction,
   StepOptions,
 } from "./types";
-import { generatePlaywrightExpr } from "./gen/playwright";
+import { generatePlaywrightExpr } from "./gen/pw";
 import { PlainGenResultError, TestStepGenResultError } from "./errors";
 import { getSnapshot } from "./snapshot";
 import { fetchStatic, makeIdent, makeStatic } from "./static-store";

@@ -9,8 +9,12 @@ import {
 import readline from "node:readline";
 import OpenAI from "openai";
 
-import gen, { generateGen2EExpr, type GenFunction, enableStepLogging } from "@righs/gen2e";
-enableStepLogging()
+import gen, {
+  generateGen2EExpr,
+  type GenFunction,
+  enableStepLogging,
+} from "@righs/gen2e";
+enableStepLogging();
 
 import { info, err } from "./log";
 
@@ -142,7 +146,7 @@ NOTE: code that depends on anything besides \`page\` and '\test\' and \'gen\' sh
 
       if (result.type === "success") {
         this.results.push(result.result.expression);
-        info('evaluating expression: [', result.result.expression, ']');
+        info("evaluating expression: [", result.result.expression, "]");
         await evalExpression(result.result.expression, gen, this.page!);
       }
     } catch (error) {

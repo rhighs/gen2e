@@ -1,10 +1,10 @@
 import { gen } from "./gen";
 export * from "./gen/gen2e";
-export * from "./gen/playwright";
+export * from "./gen/pw";
 export * from "./errors";
 export type * from "./types";
 export default gen;
 
-import * as consts from './constants'
+import * as consts from "./constants";
 
-export const enableStepLogging = () => consts.default.GEN_STEP_LOG = true
+export const enableStepLogging = () => (consts.default.GEN_STEP_LOG = true);

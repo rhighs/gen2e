@@ -2,16 +2,16 @@ import jscodeshift, { API, FileInfo } from "jscodeshift";
 
 /**
  * Translates source code from the gen2e library into native playwright JavaScript code.
- * 
+ *
  * This function processes the given source code to replace gen2e IL syntax with
  * equivalent native Playwright expressions assumed to be fetched from a static store, where to code is at.
  * It performs the following transformations:
- * 
+ *
  * 1. Replaces calls to `gen("<task>", { page, test })` with corresponding static Playwright expressions
  * 2. Edits test titles to indicate the compilation output process
  * 3. Converts `gen.test(({ page, gen }) => { ... })` calls into native Playwright test expressions,
  *    removing dependencies on the gen2e library
- * 
+ *
  * @param {string} source - The source code to be compiled.
  * @param {Object} options - The options object.
  * @param {Function} options.fetchStatic - A function to fetch static code snippets based on the test title and task.
