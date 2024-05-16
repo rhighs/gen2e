@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.2.0",
+    "@types/jscodeshift": "^0.11.11",
     "hono": "^3.9.2",
+    "jscodeshift": "^0.15.2",
     "openai": "^4.17.3",
     "sanitize-html": "^2.11.0",
     "zod": "^3.22.4"

@@ -14,7 +14,6 @@ const BASE_STATIC_PATH =
   process.env.GEN2E_STATIC_PATH ?? path.join(process.cwd(), ".static");
 const stepsDirPath = `${BASE_STATIC_PATH}/steps`;
 
-const wrapIdent = (ident: string) => `${crypto.hash("md5", ident)}.gen.step`;
 const stepFilePath = (ident: string) =>
   `${BASE_STATIC_PATH}/steps/${wrapIdent(ident)}`;
 
@@ -35,6 +34,9 @@ export const makeStatic = (staticInfo: StaticGenStep) => {
     flag: "wx",
   });
 };
+
+export const makeIdent = (testTitle: string, task: string) => `gen2e - [${testTitle}](${task})`
+export const wrapIdent = (ident: string) => `${crypto.hash("md5", ident)}.gen.step`;
 
 export const fetchStatic = (ident: string): StaticGenStep | undefined => {
   if (!existsSync(stepsDirPath)) {

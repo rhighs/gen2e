@@ -10,8 +10,9 @@ import {
 import { generatePlaywrightExpr } from "./gen/playwright";
 import { PlainGenResultError, TestStepGenResultError } from "./errors";
 import { getSnapshot } from "./snapshot";
-import { fetchStatic, makeStatic } from "./static-store";
-import { DEFAULT_MODEL, DEBUG_MODE } from "./constants";
+import { fetchStatic, makeIdent, makeStatic } from "./static-store";
+import consts from "./constants";
+import { info } from "./log";
 
 export const gen: GenType = async (
   task: string,
@@ -24,7 +25,14 @@ export const gen: GenType = async (
     );
   }
   const page = config.page;
-  const debug = options?.debug ?? DEBUG_MODE;
+  const debug = options?.debug ?? consts.DEBUG_MODE;
+
+  if (consts.GEN_STEP_LOG) {
+    info(`generating playwright expression with task:
+=================================================================
+Task: "${task}"
+=================================================================\n`);
+  }
 
   const result = await generatePlaywrightExpr(
     page,
@@ -33,7 +41,7 @@ export const gen: GenType = async (
       snapshot: await getSnapshot(page),
       options: options
         ? {
-            model: options.model ?? DEFAULT_MODEL,
+            model: options.model ?? consts.DEFAULT_MODEL,
             debug,
             openaiApiKey: options.openaiApiKey,
           }
@@ -50,6 +58,15 @@ export const gen: GenType = async (
 
   if (result.type == "error") {
     throw new PlainGenResultError(result.errorMessage);
+  }
+
+  const expression = result.result;
+
+  if (consts.GEN_STEP_LOG) {
+    info(`evaluating expression via eval(...):
+=================================================================
+Expression: ${expression}
+=================================================================\n`);
   }
 
   return eval(`${result.result}()`);
@@ -70,15 +87,21 @@ gen.test = (testFunction: TestFunction): PlaywrightTestFunction => {
         );
       }
       const { test, page } = config;
-      const debug = options?.debug ?? DEBUG_MODE;
+      const debug = options?.debug ?? consts.DEBUG_MODE;
 
-      const testIdent = `gen2e - [${title}](${task})`;
+      const testIdent = makeIdent(title, task);
       const maybeStatic = fetchStatic(testIdent);
       if (maybeStatic?.expression) {
         return eval(`${maybeStatic.expression}()`);
       }
 
       return test.step(testIdent, async () => {
+        if (consts.GEN_STEP_LOG) {
+          info(`generating playwright expression with task:
+=================================================================
+Task: "${task}"
+=================================================================\n`);
+        }
         const result = await generatePlaywrightExpr(
           page,
           {
@@ -86,8 +109,8 @@ gen.test = (testFunction: TestFunction): PlaywrightTestFunction => {
             snapshot: await getSnapshot(page),
             options: options
               ? {
-                  model: options.model ?? DEFAULT_MODEL,
-                  debug: options.debug ?? DEBUG_MODE,
+                  model: options.model ?? consts.DEFAULT_MODEL,
+                  debug,
                   openaiApiKey: options.openaiApiKey,
                 }
               : undefined,
@@ -111,6 +134,13 @@ gen.test = (testFunction: TestFunction): PlaywrightTestFunction => {
           ident: testIdent,
           expression: expression,
         });
+
+        if (consts.GEN_STEP_LOG) {
+          info(`evaluating expression via eval(...):
+=================================================================
+Expression: ${expression}
+=================================================================\n`);
+        }
 
         return eval(`${expression}()`);
       });

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { type Page, TaskMessage, TaskResult } from "../types";
 import { makeTool } from "./tools/code-validation-tool";
-import { DEBUG_MODE, DEFAULT_MODEL } from "../constants";
+import consts from "../constants";
 import { LLMCodeError } from "../errors";
 import { validateJSCode } from "./tools/parse-js";
 
@@ -19,31 +19,28 @@ const systemMessage = `
 You are a professional testing engineer, an expert in end-to-end testing using Playwright for HTML web
 applications. You are extremely capable of finding patterns between HTML code and the images a user provides,
 assuming they resemble the rendered page. You are a Playwright expert and professional end-to-end test code writer,
-primarily working with TypeScript and React codebases. You meticulously follow a set of rules when proposing solutions:
+primarily working with JavaScript and React codebases. You meticulously follow a set of rules when proposing solutions:
 
-- Do not show imports or unnecessary setup. Just spit out the line/lines of code needed to react the task
-- Skip initialization boilerplates; focus on useful code.
-- Keep the code short and use TypeScript.
+- Do not show imports or unnecessary setup. Just spit out the line/lines of code needed to react the task, keep the code short and use Javascript.
+- Avoid verbosity at all costs, skip initialization boilerplates; focus on useful code.
 - Use specific locator functions and ARIA accessibility roles whenever possible.
 - Use the element id if it has one
-- Reach deeply nested elements contextually, referring to meaningful parents or containers.
-- Avoid referencing items by class names, strange generated IDs, or 'makeStyles' keywords.
-- If other locators fail, refer to items by their rendered text.
-- Include documentation in page object models to explain function behavior.
-- Speak only with TypeScript code. No need to format code blocks as "\`\`\`typescript".
-- When clicking elements using a locator, make sure to only click the last one using .last().click()
-  if no particular order is specified
-- When clicking elements using a locator and asked to fill or click something by "first" or "last" explicitly make
-  sure to use .first or .last before performing .click or .fill
-- Avoid verbosity; communicate efficiently with engineers.
-- Use config languages or plain English only when explicitly asked for config settings or detailed explanations,
-  properly formatted for a markdown document.
-- When creating CSS selectors, ensure they are unique and specific enough to select only one element, even if
- there are multiple elements of the same type (like multiple h1 elements).
+- Reach deeply nested elements leveraging the html structure, you can resolve locators using tree relationships thus
+  reaching elements structurally rather than absolutely if you cannot do it with ids or better selectors.
 - Avoid using generic tags like 'h1' alone. Instead, combine them with other attributes or structural relationships
   to form a unique selector.
-- You must not derive data from the page if you are able to do so by using one of the provided functions, e.g. locator_evaluate.
-- Do not use console.logs or other unnecessary stuff
+- Avoid referencing items by class names, strange generated IDs, or 'makeStyles' keywords.
+- If other locators fail, refer to items by their text content.
+- If all the above fail you can try and use CSS selectors, ensure they are unique and specific
+  enough to select only one element, even if there are multiple elements of the same type (like multiple h1 elements).
+- You only use playwright locators, thus you must check if a selector resolves to multiple elements.
+  If so you must only use the last element the selector resolves to. This must be done to avoid errors in strict mode.
+  If the last fails, you try with the second last, then the third last and so on.
+- When asked specifically to click an element it's always better to click the parent that only contains that element,
+  this recursively until an element contains multiple nodes and clicking it would result in unwanted behavior, make
+  sure the click propagates down only to the element you're asked for.
+- As you only speak JavaScript code do NOT format code blocks as "\`\`\`javascript".
+- Do not use console.logs or other unnecessary and non third party dependencies, stick to playwright and plain javascript
 - If the task you receive include some sort of query sentinment, then the user is expecting a result.
   In this case you generate a an expression like the following:
   \`\`\`
@@ -71,9 +68,9 @@ primarily working with TypeScript and React codebases. You meticulously follow a
 Use these guidelines to generate precise and efficient Playwright test expressions.
 
 *** IMPORTANT ***
-You always follow these rules and never violate them under any condition:
-a. Speak only with TypeScript code.
-b. Never respond with markdown style codeblocks like:
+You always follow these rules in relation with the ones above and never violate them under any condition:
+1. Speak only with JavaScript code.
+3. Never respond with markdown style codeblocks like:
   \`\`\`<lang_here>.
   \`\`\`.
 
@@ -82,7 +79,7 @@ b. Never respond with markdown style codeblocks like:
   \`\`\`.
   \`\`\`.
 
-c. Your responses are code as plain text, not markdown
+3. Your responses are code as plain text, not markdown
 `;
 
 export const generatePlaywrightExpr = async (
@@ -93,11 +90,11 @@ export const generatePlaywrightExpr = async (
   ) => Promise<void> | void
 ): Promise<TaskResult<string>> => {
   const openai = new OpenAI({ apiKey: task.options?.openaiApiKey });
-  const debug = task.options?.debug ?? DEBUG_MODE;
+  const debug = task.options?.debug ?? consts.DEBUG_MODE;
 
   const runner = openai.beta.chat.completions
     .runTools({
-      model: task.options?.model ?? DEFAULT_MODEL,
+      model: task.options?.model ?? consts.DEFAULT_MODEL,
       temperature: 0,
       messages: [
         { role: "system", content: systemMessage },

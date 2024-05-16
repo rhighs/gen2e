@@ -9,7 +9,8 @@ import {
 import readline from "node:readline";
 import OpenAI from "openai";
 
-import gen, { generateGen2EExpr, type GenFunction } from "@righs/gen2e";
+import gen, { generateGen2EExpr, type GenFunction, enableStepLogging } from "@righs/gen2e";
+enableStepLogging()
 
 import { info, err } from "./log";
 
@@ -43,7 +44,7 @@ class InterpreterREPL {
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: "Gen2E Interpreter REPL >>> ",
+      prompt: "\x1b[33mGen2E Interpreter REPL >>>\x1b[0m ",
     });
     this.startup = (async () => {
       let b: BrowserType | undefined = undefined;
@@ -81,8 +82,8 @@ class InterpreterREPL {
     this.rl.prompt();
 
     this.rl
-      .on("line", (input) => {
-        this.evaluate(input);
+      .on("line", async (input) => {
+        await this.evaluate(input);
         this.rl.prompt();
       })
       .on("close", () => {
@@ -132,7 +133,8 @@ class InterpreterREPL {
 
     try {
       const result = await generateGen2EExpr({
-        task: input,
+        task: `${input}
+NOTE: code that depends on anything besides \`page\` and '\test\' and \'gen\' should be commented out`,
         options: {
           debug: this.options.debug,
         },
@@ -140,8 +142,8 @@ class InterpreterREPL {
 
       if (result.type === "success") {
         this.results.push(result.result.expression);
-        console.log(result.result.expression);
-        evalExpression(result.result.expression, gen, this.page!);
+        info('evaluating expression: [', result.result.expression, ']');
+        await evalExpression(result.result.expression, gen, this.page!);
       }
     } catch (error) {
       err("calling generateGen2EExpr(...) gave", error.message);

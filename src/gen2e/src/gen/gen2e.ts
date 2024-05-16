@@ -210,7 +210,6 @@ export const generateGen2EExpr = async (
 ): Promise<TaskResult<Gen2EExpression>> => {
   openai = openai ?? new OpenAI({ apiKey: task.options?.openaiApiKey });
   const debug = task.options?.debug ?? false;
-
   const runner = openai.beta.chat.completions
     .runTools({
       model: task.options?.model ?? "gpt-4o-2024-05-13",
@@ -246,6 +245,7 @@ export const generateGen2EExpr = async (
   let expression: string | null;
   try {
     expression = await runner.finalContent();
+
     if (!expression) {
       return {
         type: "error",
