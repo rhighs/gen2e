@@ -1,9 +1,9 @@
 import OpenAI from "openai";
 import { type Page, TaskMessage, TaskResult } from "../types";
-import { makeTool } from "./tools/code-validation-tool";
+import { makeTool } from "./tools/js-validate";
 import consts from "../constants";
 import { LLMCodeError } from "../errors";
-import { validateJSCode } from "./tools/parse-js";
+import { validateJSCode } from "./tools/js-parse";
 
 const prompt = (message: TaskMessage) => {
   return `This is your task: ${message.task}

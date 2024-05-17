@@ -83,9 +83,7 @@ test(
 test(
   "executes query, action and assertion",
   gen.test(async ({ page, gen }) => {
-    await page.goto("/");
     const headerText = await gen("get the header text", { page, test });
-
     await gen(`type "${headerText}" in the search box`, { page, test });
 
     const searchInputHasHeaderText = await gen(

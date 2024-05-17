@@ -20,7 +20,7 @@ until this function returns true. First thing to try if this fails is to remove 
 for spacing. Also make sure to pass a valid json to this function like so: { "code": "<code_string_here>" }.
 ${
   details?.length
-    ? `Otherwise also consider these further instructions ${details}`
+    ? `Additionally, consider these instructions as well: ${details}`
     : ""
 }`,
   name: "code_validation_tool",

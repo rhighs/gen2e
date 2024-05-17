@@ -6,6 +6,7 @@ import {
 
 export { type Page };
 import { type Page } from "@playwright/test";
+import { StaticStore } from "./static/store/store";
 
 export type Test = TestType<any, any>;
 
@@ -50,20 +51,27 @@ export interface GenFunction {
   (
     task: string,
     config: { page: Page; test?: Test },
-    options?: StepOptions
+    options?: StepOptions,
+    evalCode?: (code: string, p: Page) => Function
   ): Promise<any>;
 }
+
+export type GenTestFunction = (
+  testFunction: TestFunction,
+  store?: StaticStore
+) => PlaywrightTestFunction;
 
 export interface GenStepFunction {
   (
     task: string,
     config: { page: Page; test: Test },
-    options?: StepOptions
+    options?: StepOptions,
+    evalCode?: (code: string, p: Page) => Function
   ): Promise<any>;
 }
 
 export interface GenType extends GenFunction {
-  test: (arg: TestFunction) => PlaywrightTestFunction;
+  test: GenTestFunction;
 }
 
 export type StaticGenStep = {

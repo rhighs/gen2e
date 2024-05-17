@@ -1,35 +1,9 @@
-import jscodeshift, { API, FileInfo } from "jscodeshift";
+import { API, FileInfo } from "jscodeshift";
+import { StaticStore } from "../static/store/store";
+import { FSStaticStore } from "../static/store/fs";
+import { Gen2ECompileFunction, makeCompiler } from "./compiler";
 
-/**
- * Translates source code from the gen2e library into native playwright JavaScript code.
- *
- * This function processes the given source code to replace gen2e IL syntax with
- * equivalent native Playwright expressions assumed to be fetched from a static store, where to code is at.
- * It performs the following transformations:
- *
- * 1. Replaces calls to `gen("<task>", { page, test })` with corresponding static Playwright expressions
- * 2. Edits test titles to indicate the compilation output process
- * 3. Converts `gen.test(({ page, gen }) => { ... })` calls into native Playwright test expressions,
- *    removing dependencies on the gen2e library
- *
- * @param {string} source - The source code to be compiled.
- * @param {Object} options - The options object.
- * @param {Function} options.fetchStatic - A function to fetch static code snippets based on the test title and task.
- * @returns {string} compile step output.
- */
-export const compile = (
-  source: string,
-  {
-    fetchStatic,
-  }: {
-    fetchStatic: (title: string, task: string) => string;
-  }
-) => {
-  const fileInfo = {
-    path: "",
-    source: source,
-  };
-
+const compiler = (store: StaticStore): Gen2ECompileFunction => {
   const transform = (fileInfo: FileInfo, api: API): string => {
     const j = api.jscodeshift;
     const root = j(fileInfo.source);
@@ -69,9 +43,8 @@ export const compile = (
                     ? genFirstArg.value
                     : undefined;
                 if (genArg) {
-                  const code = fetchStatic(
-                    testTitle as string,
-                    genArg as string
+                  const code = store.fetchStatic(
+                    store.makeIdent(testTitle as string, genArg as string)
                   );
 
                   if (code) {
@@ -86,7 +59,7 @@ export const compile = (
                     }
 
                     return j.awaitExpression(
-                      j.callExpression(j.identifier(code), [])
+                      j.callExpression(j.identifier(code.expression), [])
                     );
                   }
                 }
@@ -151,10 +124,26 @@ export const compile = (
     return root.toSource();
   };
 
-  return transform(fileInfo, {
-    j: jscodeshift,
-    jscodeshift: jscodeshift,
-    stats: () => {},
-    report: () => {},
-  });
+  return makeCompiler(transform);
 };
+
+/**
+ * Translates source code from the gen2e library into native playwright JavaScript code.
+ *
+ * This function processes the given source code to replace gen2e IL syntax with
+ * equivalent native Playwright expressions assumed to be fetched from a static store, where to code is at.
+ * It performs the following transformations:
+ *
+ * 1. Replaces calls to `gen("<task>", { page, test })` with corresponding static Playwright expressions
+ * 2. Edits test titles to indicate the compilation output process
+ * 3. Converts `gen.test(({ page, gen }) => { ... })` calls into native Playwright test expressions,
+ *    removing dependencies on the gen2e library
+ *
+ * @param {string} source - The source code to be compiled.
+ * @param {StaticStore} store - The static code store used to fetch playwright expressions.
+ * @returns {string} compile step output.
+ */
+export const compile = (
+  source: string,
+  store: StaticStore = FSStaticStore
+): string => compiler(store)(source);

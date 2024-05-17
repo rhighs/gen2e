@@ -1,4 +1,5 @@
 import { parseScript } from "esprima";
+
 export const validateJSCode = (code: string): boolean => {
   try {
     parseScript(`(async () => {${code}})`);

@@ -1,8 +1,8 @@
 import { TaskResult } from "../types";
 import OpenAI from "openai";
 
-import { makeTool } from "./tools/code-validation-tool";
-import { validateJSCode } from "./tools/parse-js";
+import { makeTool } from "./tools/js-validate";
+import { validateJSCode } from "./tools/js-parse";
 import { LLMCodeError } from "../errors";
 
 const ASSERTIONS_CHEATSHEET: string = `
