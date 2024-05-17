@@ -14,6 +14,12 @@ program
 program
   .argument("<file>", "file containg tasks specs")
   .option("--debug", "enabled debug mode, shows debug logs and more")
+  .option(
+    "--imode <imode>",
+    "interpeter output mode, eihter gen2e IL or plain generated playwright code",
+    /^(gen2e|playwright)$/,
+    "gen2e"
+  )
   .option("--openai-api-key", "api key for openai services")
   .option("--model", "openai model to use for each task")
   .option(
@@ -24,6 +30,7 @@ program
     const verbose = options.verbose ? true : false;
     const debug = options.debug ? true : undefined;
     const model = options.model ? String(options.model).trim() : undefined;
+    const imode = options.imode;
     const apiKey = options.openaiApiKey
       ? String(options.openaiApiKey).trim()
       : undefined;
