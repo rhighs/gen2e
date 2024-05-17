@@ -1,11 +1,4 @@
-import {
-  Browser,
-  BrowserContext,
-  BrowserType,
-  Page,
-  chromium,
-  firefox,
-} from "@playwright/test";
+import { Page } from "@playwright/test";
 import readline from "node:readline";
 import OpenAI from "openai";
 
@@ -16,11 +9,12 @@ import gen, {
 } from "@righs/gen2e";
 enableStepLogging();
 
-import { info, err } from "./log";
+import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
+import { err, info } from "./log";
+import { evalGen2EExpression } from "./eval";
 
 type InterpeterREPLOptions = {
-  browser?: "chromium" | "firefox";
-  headless?: boolean;
+  browserOptions?: Gen2EBrowserOptions;
   verbose?: boolean;
   debug?: boolean;
   model?: string;
@@ -31,15 +25,13 @@ class InterpreterREPL {
   options: InterpeterREPLOptions = {};
   instance: OpenAI | undefined;
 
-  browser: Browser | undefined;
-  context: BrowserContext | undefined;
-  page: Page | undefined;
-
   verbose: boolean = false;
   results: string[] = [];
   rl: readline.Interface;
 
+  browser: Gen2EBrowser;
   startup: Promise<any>;
+  page: Page | undefined;
 
   constructor(options: InterpeterREPLOptions) {
     this.instance = new OpenAI({ apiKey: options?.openaiApiKey });
@@ -50,38 +42,14 @@ class InterpreterREPL {
       output: process.stdout,
       prompt: "\x1b[33mGen2E Interpreter REPL >>>\x1b[0m ",
     });
-    this.startup = (async () => {
-      let b: BrowserType | undefined = undefined;
-      const browser = this.options.browser ?? "chromium";
-      if (this.verbose) {
-        info(`Starting browser ${browser}...`);
-      }
 
-      try {
-        switch (browser) {
-          case "firefox":
-            b = firefox;
-            break;
-          case "chromium":
-          default:
-            b = chromium;
-        }
-
-        this.browser = await b.launch({
-          headless: this.options.headless ?? false,
-          args: ["--ignore-certificate-errors"],
-        });
-        this.context = await this.browser.newContext();
-        this.page = await this.context.newPage();
-      } catch (err) {
-        err("Failed stating browser, got error", err);
-        throw err;
-      }
-    })();
+    this.browser = new Gen2EBrowser(options.browserOptions);
+    this.startup = this.browser.startup();
   }
 
   async start(): Promise<void> {
     await this.startup;
+    this.page = this.browser.page;
 
     this.rl.prompt();
 
@@ -113,28 +81,6 @@ class InterpreterREPL {
   }
 
   async evaluate(input: string): Promise<void> {
-    const evalExpression = async (
-      genExpr: string,
-      gen: GenFunction,
-      page: Page
-    ) => {
-      try {
-        if (page) {
-          // rob: weird trick, don't let the compiler strip this away
-          let test = null;
-          (() => {
-            test = null;
-            return test;
-          })();
-
-          const expr = `(async () => {${genExpr}})()`;
-          await eval(expr);
-        }
-      } catch (error) {
-        err("eval() error", error.message);
-      }
-    };
-
     try {
       const result = await generateGen2EExpr({
         task: `${input}
@@ -147,7 +93,7 @@ NOTE: code that depends on anything besides \`page\` and '\test\' and \'gen\' sh
       if (result.type === "success") {
         this.results.push(result.result.expression);
         info("evaluating expression: [", result.result.expression, "]");
-        await evalExpression(result.result.expression, gen, this.page!);
+        await evalGen2EExpression(result.result.expression, gen, this.page!);
       }
     } catch (error) {
       err("calling generateGen2EExpr(...) gave", error.message);

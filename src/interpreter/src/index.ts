@@ -1,5 +1,5 @@
 import { program } from "commander";
-import { tasksInterpreter } from "./immediate";
+import { tasksInterpreter } from "./interpreter";
 import * as pjson from "../package.json";
 import { readFileSync } from "fs";
 import { Gen2EExpression } from "@righs/gen2e";
@@ -34,11 +34,16 @@ program
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
-    const result = await tasksInterpreter({
-      model,
-      debug,
-      openaiApiKey: apiKey,
-    })
+    const result = await tasksInterpreter(
+      {
+        mode: "playwright",
+      },
+      {
+        model,
+        debug,
+        openaiApiKey: apiKey,
+      }
+    )
       .on("start", () => {
         if (!debug) {
           info("Generating expressions...");
