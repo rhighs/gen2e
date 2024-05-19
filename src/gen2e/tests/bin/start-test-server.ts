@@ -46,4 +46,4 @@ export const startServer = (port: number) => {
   });
 };
 
-startServer(3000);
+startServer(9999);

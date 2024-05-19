@@ -15,7 +15,7 @@ export const makeTool = (
     return validator(args);
   },
   description: `This is a function you use to pass it generated code, this is your simple compiler.
-If this function returns true you can go on and return the code to the user, otherwise you keep generating code
+If this function returns true you can go on and go to the next tools if there are any, otherwise you keep generating code
 until this function returns true. First thing to try if this fails is to remove escaped new lines and special characters
 for spacing. Also make sure to pass a valid json to this function like so: { "code": "<code_string_here>" }.
 ${
