@@ -1,11 +1,10 @@
 import OpenAI from "openai";
-import { type Page, TaskMessage, TaskResult } from "../types";
-import consts from "../constants";
-import { LLMGenericError } from "../errors";
-import constants from "../constants";
+import { debug } from "../log";
+import env from "../env";
+import { TaskMessage, TaskResult, LLMGenericError } from "@rhighs/gen2e";
 
 const prompt = (message: TaskMessage) => {
-  return `This is your task: ${message.task}
+  return `This is your list tasks you'll give me a title for:\n ${message.task}
 `;
 };
 
@@ -19,17 +18,22 @@ Rules:
 - Identify the primary actions and objectives described in the steps.
 - Generate a test title that summarizes these actions and objectives in a clear and concise manner.
 - The test title you generate must be lowercase only and must not end with '.'
+- You must only respond with plain text and your response must contains the title ONLY.
+- You must not use markdown or any type of text styling format.
 `;
 
 export const generateTestName = async (
-  page: Page,
   task: TaskMessage
 ): Promise<TaskResult<string>> => {
   const openai = new OpenAI({ apiKey: task.options?.openaiApiKey });
-  const debug = task.options?.debug ?? consts.DEBUG_MODE;
+  const isDebug = task.options?.debug ?? env.DEFAULT_MODEL_DEBUG;
+
+  if (isDebug) {
+    debug("generating title for tasks:\n", task.task);
+  }
 
   const response = await openai.chat.completions.create({
-    model: task.options?.model ?? constants.DEFAULT_MODEL,
+    model: task.options?.model ?? env.DEFAULT_OPENAI_MODEL,
     temperature: 0,
     messages: [
       { role: "system", content: systemMessage },
@@ -44,12 +48,18 @@ export const generateTestName = async (
       throw new LLMGenericError("empty or null response " + title);
     }
 
+    if (isDebug) {
+      debug('title generated: "', task.task, '"');
+    }
+
     return {
       type: "success",
       result: title,
     };
   } catch (error) {
-    console.error(error.stack);
+    if (isDebug) {
+      debug("title generation gave error", error);
+    }
     return {
       type: "error",
       errorMessage: error.toString(),

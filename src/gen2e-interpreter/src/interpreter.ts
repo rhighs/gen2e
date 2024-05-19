@@ -1,14 +1,10 @@
-import gen, {
-  Gen2EError,
-  Gen2EExpression,
-  Page,
-  generateGen2EExpr,
-} from "@righs/gen2e";
+import gen, { Gen2EError, Gen2EExpression, Page } from "@rhighs/gen2e";
 import OpenAI from "openai";
 import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
 import { info, warn } from "./log";
-import { StaticStore } from "@righs/gen2e/src/static/store/store";
-import { compile as pwCompile } from "@righs/gen2e/src/ast-utils/pw-compile";
+import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
+import { generateGen2EExpr } from "./gen/gen2e";
+import { compile as pwCompile } from "./ast/pw-compile";
 import { evalGen2EExpression } from "./eval";
 import { sandboxEval } from "./test-sandbox";
 

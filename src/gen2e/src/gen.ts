@@ -5,18 +5,18 @@ import {
   type GenType,
   type GenStepFunction,
   type PlaywrightTestFunction,
-  StepOptions,
+  ModelOptions,
 } from "./types";
 import { generatePlaywrightExpr } from "./gen/pw";
 import { PlainGenResultError, TestStepGenResultError } from "./errors";
 import { getSnapshot } from "./snapshot";
 import { StaticStore } from "./static/store/store";
-import consts from "./constants";
+import env from "./env";
 import { info } from "./log";
 import { FSStaticStore } from "./static/store/fs";
 
 const logStart = (message: string, task: string) => {
-  if (consts.GEN_STEP_LOG) {
+  if (env.LOG_STEP) {
     info(`${message}:
 =================================================================
 Task: "${task}"
@@ -25,7 +25,7 @@ Task: "${task}"
 };
 
 const logEnd = (message: string, expr: string) => {
-  if (consts.GEN_STEP_LOG) {
+  if (env.LOG_STEP) {
     info(`${message}:
 =================================================================
 Expression: ${expr}
@@ -41,7 +41,7 @@ export const gen: GenType = async (
     //       instances, automations of some kind and so on...)
     store?: StaticStore;
   },
-  options?: StepOptions,
+  options?: ModelOptions,
   evalCode: (x: string, p: Page) => Function = (code: string, page: Page) =>
     new Function("page", "return " + code)(page)
 ): Promise<any> => {
@@ -51,7 +51,7 @@ export const gen: GenType = async (
     );
   }
   const page = config.page;
-  const debug = options?.debug ?? consts.DEBUG_MODE;
+  const debug = options?.debug ?? env.DEFAULT_DEBUG_MODE;
   const store = config.store;
 
   let expression = "";
@@ -70,13 +70,12 @@ export const gen: GenType = async (
   logStart("generating playwright expression with task", task);
   {
     const result = await generatePlaywrightExpr(
-      page,
       {
         task,
         snapshot: await getSnapshot(page),
         options: options
           ? {
-              model: options.model ?? consts.DEFAULT_MODEL,
+              model: options.model ?? env.DEFAULT_OPENAI_MODEL,
               debug,
               openaiApiKey: options.openaiApiKey,
             }
@@ -115,7 +114,7 @@ gen.test = (
         page: Page;
         test: Test;
       },
-      options?: StepOptions,
+      options?: ModelOptions,
       evalCode: (x: string, p: Page) => Function = (code: string, page: Page) =>
         new Function("page", "return " + code)(page)
     ): Promise<any> => {
@@ -125,7 +124,7 @@ gen.test = (
         );
       }
       const { test, page } = config;
-      const debug = options?.debug ?? consts.DEBUG_MODE;
+      const debug = options?.debug ?? env.DEFAULT_DEBUG_MODE;
 
       const testIdent = store.makeIdent(title, task);
       if (store) {
@@ -151,13 +150,12 @@ gen.test = (
         logStart("generating playwright expression with task", task);
         {
           const result = await generatePlaywrightExpr(
-            page,
             {
               task,
               snapshot: await getSnapshot(page),
               options: options
                 ? {
-                    model: options.model ?? consts.DEFAULT_MODEL,
+                    model: options.model ?? env.DEFAULT_OPENAI_MODEL,
                     debug,
                     openaiApiKey: options.openaiApiKey,
                   }

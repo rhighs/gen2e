@@ -7,10 +7,9 @@ import {
 export { type Page };
 import { type Page } from "@playwright/test";
 import { StaticStore } from "./static/store/store";
+import OpenAI from "openai";
 
-export type Test = TestType<any, any>;
-
-export type StepOptions = {
+export type ModelOptions = {
   debug?: boolean;
   model?: string;
   openaiApiKey?: string;
@@ -18,10 +17,7 @@ export type StepOptions = {
 
 export type TaskMessage = {
   task: string;
-  snapshot: {
-    dom: string;
-  };
-  options?: StepOptions;
+  options?: ModelOptions;
 };
 
 export type TaskResult<T> =
@@ -34,6 +30,15 @@ export type TaskResult<T> =
       result: T;
     };
 
+export type Gen2ELLMCall<T extends TaskMessage, R> = (
+  task: T,
+  onMessage?: (
+    message: OpenAI.Chat.Completions.ChatCompletionMessageParam
+  ) => Promise<void> | void,
+  openai?: OpenAI
+) => Promise<TaskResult<R>>;
+
+export type Test = TestType<any, any>;
 export type TestArgs = PlaywrightTestArgs & { gen: GenStepFunction };
 export type TestInfo = PlayrightTestInfo;
 
@@ -51,7 +56,7 @@ export interface GenFunction {
   (
     task: string,
     config: { page: Page; test?: Test },
-    options?: StepOptions,
+    options?: ModelOptions,
     evalCode?: (code: string, p: Page) => Function
   ): Promise<any>;
 }
@@ -65,7 +70,7 @@ export interface GenStepFunction {
   (
     task: string,
     config: { page: Page; test: Test },
-    options?: StepOptions,
+    options?: ModelOptions,
     evalCode?: (code: string, p: Page) => Function
   ): Promise<any>;
 }
@@ -76,5 +81,10 @@ export interface GenType extends GenFunction {
 
 export type StaticGenStep = {
   ident: string;
+  expression: string;
+};
+
+export type Gen2EExpression = {
+  task: string;
   expression: string;
 };

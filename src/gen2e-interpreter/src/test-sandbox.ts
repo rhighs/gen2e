@@ -5,9 +5,9 @@ import gen, {
   PlaywrightTestFunction,
   TestFunction,
   TestInfo,
-} from "@righs/gen2e";
-import { compile as sanitizeGen2e } from "@righs/gen2e/src/ast-utils/gen2e-sanitize";
-import { StaticStore } from "@righs/gen2e/src/static/store/store";
+} from "@rhighs/gen2e";
+import { compile as sanitizeGen2e } from "./ast/gen2e-sanitize";
+import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
 import { debug } from "./log";
 
 const SANDBOX_DEBUG = !!process.env.GEN2E_SANDBOX_DEBUG;
@@ -89,22 +89,19 @@ export const sandboxEval = async (
     step: (...args: any[]) => Promise<any> | any
   ) => {
     if (SANDBOX_DEBUG) {
-      debug('calling test step with for task: "', stepTitle, '"');
+      debug('calling test step for task: "', stepTitle, '"');
     }
     await step();
   };
 
   if (SANDBOX_DEBUG) {
-    debug("gen2e source code before sanitize step:\n", gen2eTestSource)
+    debug("gen2e source code before sanitize step:\n", gen2eTestSource);
   }
   // rob: since we're sandboxing gen execution to capture generated static code;
   //      all calls that are not calls to the gen function can be stripped away.
   const s = sanitizeGen2e(gen2eTestSource);
   if (SANDBOX_DEBUG) {
-    debug("gen2e source code after sanitize step:\n", s)
+    debug("gen2e source code after sanitize step:\n", s);
   }
-  await new Function("gen", "test", `return ${s};`)(
-    { test: _gen_test },
-    _test
-  );
+  await new Function("gen", "test", `return ${s};`)({ test: _gen_test }, _test);
 };

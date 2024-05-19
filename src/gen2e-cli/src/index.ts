@@ -1,10 +1,13 @@
-import { program } from "commander";
-import { tasksInterpreter } from "./interpreter";
-import * as pjson from "../package.json";
 import { readFileSync } from "fs";
-import { Gen2EExpression } from "@righs/gen2e";
-import { info, err } from "./log";
+
+import { program } from "commander";
+
+import { type Gen2EExpression } from "@rhighs/gen2e";
+import { tasksInterpreter } from "@rhighs/gen2e-intepreter";
+
+import { info, err, debug } from "./log";
 import { makeREPL } from "./repl";
+import * as pjson from "../package.json";
 
 program
   .name(pjson["name"])
@@ -20,15 +23,15 @@ program
     /^(gen2e|playwright)$/,
     "gen2e"
   )
-  .option("--openai-api-key", "api key for openai services")
-  .option("--model", "openai model to use for each task")
+  .option("--openai-api-key <openaiApiKey>", "api key for openai services")
+  .option("--model <model>", "openai model to use for each task")
   .option(
     "-v, --verbose",
     "show the generated expression at each step in stderr (has no effect with debug mode enabled)"
   )
   .action(async (file, options) => {
     const verbose = options.verbose ? true : false;
-    const debug = options.debug ? true : undefined;
+    const isDebug = options.debug ? true : undefined;
     const model = options.model ? String(options.model).trim() : undefined;
     const imode = options.imode;
     const apiKey = options.openaiApiKey
@@ -43,26 +46,26 @@ program
 
     const result = await tasksInterpreter(
       {
-        mode: "playwright",
+        mode: imode,
       },
       {
         model,
-        debug,
+        debug: isDebug,
         openaiApiKey: apiKey,
       }
     )
       .on("start", () => {
-        if (!debug) {
-          info("Generating expressions...");
+        if (!isDebug) {
+          debug("Generating expressions...");
         }
       })
       .on("ai-message", (_, message) => {
-        if (debug) {
-          err(`DEBUG ai message`, message);
+        if (isDebug) {
+          debug(`ai message`, message);
         }
       })
       .on("task-success", (i, result: Gen2EExpression) => {
-        if (!debug) {
+        if (!isDebug) {
           if (verbose) {
             info(
               `task step "${result.task}" has generated code:\n${result.expression}`
@@ -70,7 +73,7 @@ program
           }
         }
       })
-      .on("task-error", (_, __, error: Error | string) => {
+      .on("task-error", (_, error: Error | string) => {
         err(`Failed generating expression due to error:`);
         err(error);
         err("Aborting...");
@@ -87,24 +90,29 @@ program
     "Start in REPL generating gen2e expresison with an interctive browser view"
   )
   .option("-d, --debug", "enabled debug mode, shows debug logs and more")
-  .option("--openai-api-key", "api key for openai services")
-  .option("--model", "openai model to use for each task")
+  .option("--openai-api-key <openaiApiKey>", "api key for openai services")
+  .option("--model <model>", "openai model to use for each task")
   .option(
     "--browser <browser>",
-    "playwright browser to use (chromium, firefox)"
+    "playwright browser to use (chromium, firefox)",
+    "chromium"
   )
   .option("--headless", "start browser in headless mode")
   .option("-v, --verbose", "show more REPL activity logging")
   .action(async (options) => {
     const verbose = options.verbose ? true : false;
-    const debug = options.debug ? true : undefined;
+    const isDebug = options.debug ? true : undefined;
     const model = options.model ? String(options.model).trim() : undefined;
     const apiKey = options.openaiApiKey
       ? String(options.openaiApiKey).trim()
       : undefined;
 
     const REPL = makeREPL({
-      debug,
+      browserOptions: {
+        browser: options.browser,
+        headless: options.headless,
+      },
+      debug: isDebug,
       model,
       openaiApiKey: apiKey,
       verbose,

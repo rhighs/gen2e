@@ -1,4 +1,4 @@
-import { GenFunction, Page } from "@righs/gen2e";
+import { GenFunction, Page } from "@rhighs/gen2e";
 import { err } from "./log";
 
 export const evalGen2EExpression = async (
@@ -8,14 +8,13 @@ export const evalGen2EExpression = async (
 ) => {
   try {
     if (page) {
-      // rob: weird trick, don't let the compiler strip this away
+      // rob: don't let the compiler strip this away
       let test = null;
       (() => {
         test = null;
         return test;
       })();
 
-      err(page);
       const expr = `(async () => {${genExpr}})()`;
       await eval(expr);
     }

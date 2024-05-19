@@ -4,12 +4,10 @@ import { info } from "../log";
 const DEBUG_AST_UTILS = !!process.env.GEN2E_DEBUG_AST;
 
 export type Gen2ECompileFunction = (source: string) => string;
-export type Gen2ECompilerTransformer = (fileInfo: FileInfo, api: API) => string
+export type Gen2ECompilerTransformer = (fileInfo: FileInfo, api: API) => string;
 
 export const makeCompiler =
-  (
-    transformer: Gen2ECompilerTransformer
-  ): Gen2ECompileFunction =>
+  (transformer: Gen2ECompilerTransformer): Gen2ECompileFunction =>
   (source: string): string => {
     if (DEBUG_AST_UTILS) {
       info("compiling source:\n", source);

@@ -41,6 +41,44 @@ test("gen Playwright example", async ({ page }) => {
 });
 ```
 
+## Environment variables
+
+### Example .env file
+
+```
+GEN2E_PRELOAD_ENABLED=true
+GEN2E_STATIC_PATH=<static-files-dir>
+GEN2E_DEBUG_AST=true
+GEN2E_SV_LOG_ERR=true
+GEN2E_DBG=true
+GEN2E_DEFAULT_MODEL=gpt-4o-2024-05-13
+GEN2E_STEP_LOG=true
+OPENAI_API_KEY=<your-api-key>
+```
+
+### Gen2E Library
+- **GEN2E_PRELOAD_ENABLED**
+  determines if preloading is enabled for the gen2e static fs file store.
+
+- **GEN2E_STATIC_PATH**
+  specifies the path to generated static files, defaults to a `.static` dir in the current working directory if not set.
+
+- **GEN2E_DEBUG_AST**
+  enables debug logging for AST utility operations within gen2e.
+
+- **GEN2E_SV_LOG_ERR**
+  enables logging of errors specifically for the script versioning in gen2e.
+
+- **GEN2E_DBG**
+  enables debug mode for the gen2e lib.
+
+- **GEN2E_DEFAULT_MODEL**
+  sets the default model used by gen2e, with a fallback to "gpt-4o-2024-05-13" if not specified.
+
+- **GEN2E_STEP_LOG**
+  enables step-by-step logging in the gen2e process, useful for detailed tracing.
+
+
 ## Usage
 
 ### Browser genmation

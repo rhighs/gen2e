@@ -2,16 +2,16 @@ import { Page } from "@playwright/test";
 import readline from "node:readline";
 import OpenAI from "openai";
 
-import gen, {
+import {
   generateGen2EExpr,
-  type GenFunction,
-  enableStepLogging,
-} from "@righs/gen2e";
+  Gen2EBrowser,
+  Gen2EBrowserOptions,
+  evalGen2EExpression,
+} from "@rhighs/gen2e-intepreter";
+import gen, { enableStepLogging } from "@rhighs/gen2e";
 enableStepLogging();
 
-import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
 import { err, info } from "./log";
-import { evalGen2EExpression } from "./eval";
 
 type InterpeterREPLOptions = {
   browserOptions?: Gen2EBrowserOptions;

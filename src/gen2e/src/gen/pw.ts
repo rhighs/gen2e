@@ -1,16 +1,20 @@
 import OpenAI from "openai";
-import { type Page, TaskMessage, TaskResult } from "../types";
-import { makeTool } from "./tools/js-validate";
-import consts from "../constants";
+import {
+  TaskResult,
+  Gen2ELLMCall,
+  TaskMessage,
+} from "../types";
+import env from "../env";
+import { makeTool } from "./tools/code-sanity";
 import { LLMCodeError } from "../errors";
 import { validateJSCode } from "./tools/js-parse";
 
-const prompt = (message: TaskMessage) => {
-  return `This is your task: ${message.task}
+const prompt = (task: string, domSnapshot: string) => {
+  return `This is your task: ${task}
 
 Webpage snapshot:
 \`\`\`
-${message.snapshot.dom}
+${domSnapshot}
 \`\`\`
 `;
 };
@@ -82,23 +86,31 @@ You always follow these rules in relation with the ones above and never violate 
 3. Your responses are code as plain text, not markdown
 `;
 
-export const generatePlaywrightExpr = async (
-  page: Page,
-  task: TaskMessage,
+export type PlayrwightGenTaskMessage = TaskMessage & {
+  snapshot: {
+    dom: string;
+  };
+};
+
+export const generatePlaywrightExpr: Gen2ELLMCall<
+  PlayrwightGenTaskMessage,
+  string
+> = async (
+  task: PlayrwightGenTaskMessage,
   onMessage?: (
     message: OpenAI.Chat.Completions.ChatCompletionMessageParam
   ) => Promise<void> | void
 ): Promise<TaskResult<string>> => {
   const openai = new OpenAI({ apiKey: task.options?.openaiApiKey });
-  const debug = task.options?.debug ?? consts.DEBUG_MODE;
+  const debug = task.options?.debug ?? env.DEFAULT_DEBUG_MODE;
 
   const runner = openai.beta.chat.completions
     .runTools({
-      model: task.options?.model ?? consts.DEFAULT_MODEL,
+      model: task.options?.model ?? env.DEFAULT_OPENAI_MODEL,
       temperature: 0,
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: prompt(task) },
+        { role: "user", content: prompt(task.task, task.snapshot.dom) },
       ],
       tools: [
         {

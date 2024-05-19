@@ -7,7 +7,7 @@ import {
   firefox,
 } from "@playwright/test";
 
-import { info } from "./log";
+import { info, err } from "./log";
 
 export type Gen2EBrowserOptions = {
   browser?: "chromium" | "firefox";
@@ -51,9 +51,9 @@ export class Gen2EBrowser {
       });
       this.context = await this.browser.newContext();
       this.page = await this.context.newPage();
-    } catch (err) {
-      err("Failed stating browser, got error", err);
-      throw err;
+    } catch (error) {
+      err("Failed stating browser, got error", error);
+      throw error;
     }
   }
 

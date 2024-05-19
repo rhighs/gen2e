@@ -4,6 +4,7 @@
   "description": "",
   "workspaces": ["src/*"],
   "scripts": {
+    "start": "tsx ./src/interpreter/src/index.ts",
     "test": "npm test --workspaces"
   },
   "keywords": [],

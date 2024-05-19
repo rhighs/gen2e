@@ -8,10 +8,11 @@
     "noEmit": true,
     "noImplicitReturns": true,
     "noUnusedParameters": false,
+    "resolveJsonModule": true,
     "noImplicitAny": false,
     "strict": true,
     "target": "ES2022",
     "useUnknownInCatchVariables": false
   },
-  "include": ["src", "tests", "../interpreter/src/gen/pw-naming.ts", "../interpreter/src/gen/gen2e.ts", "../gen2e-interpreter/src/gen/tools/ensure-format.ts"]
+  "include": ["src", "tests"]
 }

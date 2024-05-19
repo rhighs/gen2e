@@ -1,19 +1,16 @@
 {
-  "name": "@rhighs/gen2e-browser-interpreter",
+  "name": "@rhighs/gen2e-cli",
   "version": "1.0.0",
-  "description": "An AI based interpreter, provide it human browser instructions and get generated playwright tests back",
+  "description": "CLI implementation interfacing @rhighs/gen2e-interpreter",
   "main": "src/index.ts",
   "directories": {
     "test": "tests"
   },
   "dependencies": {
     "@playwright/test": "^1.44.0",
-    "@righs/gen2e": "file:../gen2e",
+    "@rhighs/gen2e-intepreter": "file:../gen2e-interpreter",
     "commander": "^12.0.0",
-    "hono": "^3.9.2",
-    "openai": "^4.17.3",
-    "sanitize-html": "^2.11.0",
-    "zod": "^3.22.4"
+    "jscodeshift": "^0.15.2"
   },
   "devDependencies": {
     "@types/node": "^20.2.5",
@@ -27,7 +24,6 @@
     "start": "tsx ./src/index.ts",
     "build": "tsc --project tsconfig.build.json",
     "ts-node": "ts-node",
-    "static:clear": "rm -rf .static/*",
     "format": "prettier --write ./src",
     "lint": "prettier --check ./src"
   },

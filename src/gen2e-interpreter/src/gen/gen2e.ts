@@ -1,9 +1,15 @@
-import { TaskResult } from "../types";
 import OpenAI from "openai";
 
-import { makeTool } from "./tools/js-validate";
-import { validateJSCode } from "./tools/js-parse";
-import { LLMCodeError } from "../errors";
+import { makeTool } from "@rhighs/gen2e/src/gen/tools/code-sanity";
+import { makeFormatTool } from "./tools/ensure-format";
+import { validateJSCode } from "@rhighs/gen2e/src/gen/tools/js-parse";
+import {
+  TaskMessage,
+  TaskResult,
+  LLMCodeError,
+  Gen2EExpression,
+} from "@rhighs/gen2e";
+import env from "../env";
 
 const ASSERTIONS_CHEATSHEET: string = `
 Description
@@ -186,23 +192,12 @@ d. Your responses are code as plain text, not markdown
 
 `;
 
-export type PlainTextTask = {
-  task: string;
+export type CodeGenTask = TaskMessage & {
   codeContext?: string;
-  options: {
-    debug?: boolean;
-    model?: string;
-    openaiApiKey?: string;
-  };
-};
-
-export type Gen2EExpression = {
-  task: string;
-  expression: string;
 };
 
 export const generateGen2EExpr = async (
-  task: PlainTextTask,
+  task: CodeGenTask,
   onMessage?: (
     message: OpenAI.Chat.Completions.ChatCompletionMessageParam
   ) => Promise<void> | void,
@@ -212,7 +207,7 @@ export const generateGen2EExpr = async (
   const debug = task.options?.debug ?? false;
   const runner = openai.beta.chat.completions
     .runTools({
-      model: task.options?.model ?? "gpt-4o-2024-05-13",
+      model: task.options?.model ?? env.DEFAULT_OPENAI_MODEL,
       temperature: 0,
       messages: [
         { role: "system", content: systemMessage },
@@ -221,7 +216,28 @@ export const generateGen2EExpr = async (
       tools: [
         {
           type: "function",
-          function: makeTool(({ code }) => validateJSCode(code)), // FIXME: code evaluation should be done here
+          function: makeTool(({ code }) => validateJSCode(code)),
+        },
+        {
+          type: "function",
+          function: makeFormatTool(({ code }) => {
+            if (
+              code.startsWith("```") ||
+              code.startsWith("\\`\\`\\`") ||
+              code.endsWith("```") ||
+              code.endsWith("\\`\\`\\`")
+            ) {
+              return {
+                success: false,
+                reason:
+                  "Invalid format, do not use markdown. Code should be formatted as plain string.",
+              };
+            }
+
+            return {
+              success: true,
+            };
+          }),
         },
       ],
     })

@@ -1,6 +1,6 @@
 import { API, FileInfo } from "jscodeshift";
-import { StaticStore } from "../static/store/store";
-import { FSStaticStore } from "../static/store/fs";
+import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
+import { FSStaticStore } from "@rhighs/gen2e/src/static/store/fs";
 import { Gen2ECompileFunction, makeCompiler } from "./compiler";
 
 const compiler = (store: StaticStore): Gen2ECompileFunction => {
