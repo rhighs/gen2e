@@ -189,7 +189,7 @@ b. Never respond with markdown style codeblocks like:
 
 c. When using gen() to get a number value as result, always check the return type. If it is a string you must convert it to number.
 d. Your responses are code as plain text, not markdown
-
+e. YOU OUTPUT MUST NEVER START WITH \`\`\`typescript
 `;
 
 export type CodeGenTask = TaskMessage & {
