@@ -1,12 +1,13 @@
-import gen, { Gen2EError, Gen2EExpression, Page } from "@rhighs/gen2e";
+import { Gen2EExpression, Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
 import OpenAI from "openai";
+import { Gen2EInterpreterError } from "./errors";
 import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
-import { info, warn } from "./log";
+import { debug } from "./log";
 import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
 import { generateGen2EExpr } from "./gen/gen2e";
 import { compile as pwCompile } from "./ast/pw-compile";
-import { evalGen2EExpression } from "./eval";
 import { sandboxEval } from "./test-sandbox";
+import exp from "constants";
 
 const generateFakeTestCode = (
   testTitle: string,
@@ -21,7 +22,6 @@ test(
     code += g + "\n";
   }
   code += "}))";
-  info(`fake test code:\n`, code);
   return code;
 };
 
@@ -37,6 +37,7 @@ type InterpreterOptions = {
   debug?: boolean;
   model?: string;
   openaiApiKey?: string;
+  recordUsage?: boolean;
 };
 
 type InterpreterMode = "gen2e" | "playwright";
@@ -46,23 +47,42 @@ type InterpreterConfig = {
   browserOptions?: Gen2EBrowserOptions;
 };
 
-export class Gen2EInterpreterError extends Gen2EError {
-  public constructor(message?: string) {
-    super(`Interpreter failed with error ${message}`);
-  }
-}
+type InterpreterUsageStats = {
+  totalCalls: number;
+  completionTokens: number;
+  totalTokens: number;
+  promptTokens: number;
+};
+
+type InterpreterResult = {
+  result: string;
+  usageStats?: InterpreterUsageStats;
+};
 
 class TasksInterpreter {
-  events: Record<InterpreterEvent, InterpreterEventCallback> | {} = {};
-  options: InterpreterOptions = {};
-  instance: OpenAI;
-  mode: InterpreterMode = "gen2e";
-  browser?: Gen2EBrowser;
+  private events: Record<InterpreterEvent, InterpreterEventCallback> | {} = {};
+  private options: InterpreterOptions = {};
+  private instance: OpenAI;
+  private mode: InterpreterMode = "gen2e";
+  private browser?: Gen2EBrowser;
 
-  startup?: Promise<any>;
+  private startup?: Promise<any>;
+
+  private recordModelsUsage: boolean;
+  private usageStats?: InterpreterUsageStats;
 
   constructor(config: InterpreterConfig, options: InterpreterOptions) {
     this.options = options;
+    this.recordModelsUsage = options.recordUsage ?? false;
+    if (this.recordModelsUsage) {
+      this.usageStats = {
+        totalCalls: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        promptTokens: 0,
+      };
+    }
+
     this.instance = new OpenAI({ apiKey: options?.openaiApiKey });
     if (config.mode) {
       this.mode = config.mode;
@@ -88,20 +108,33 @@ class TasksInterpreter {
     }
   }
 
-  async textTogen2e(
+  private async gen2e(
     task: string,
     codeContext?: string
   ): Promise<Gen2EExpression | undefined> {
     try {
+      const callHooks: Gen2ELLMCallHooks = {
+        onMessage: (message) => {
+          this._call_event("ai-message", this, message);
+        },
+      };
+
+      if (this.recordModelsUsage && this.usageStats) {
+        callHooks.onUsage = (usage) => {
+          this.usageStats!.completionTokens += usage.completionTokens;
+          this.usageStats!.totalTokens += usage.totalTokens;
+          this.usageStats!.promptTokens += usage.promptTokens;
+          this.usageStats!.totalCalls += 1;
+        };
+      }
+
       const result = await generateGen2EExpr(
         {
           task,
           codeContext: codeContext,
           options: this.options,
         },
-        (message) => {
-          this._call_event("ai-message", this, message);
-        },
+        callHooks,
         this.instance
       );
 
@@ -118,19 +151,58 @@ class TasksInterpreter {
     return undefined;
   }
 
-  async evalPwExpr(expression: string, page: Page): Promise<void> {
-    return eval(`${expression}()`);
+  private async contextWiseGen2eGen(
+    tasks: string[],
+    each?: (expr: Gen2EExpression) => Promise<void> | void
+  ): Promise<Gen2EExpression[]> {
+    const gens: Gen2EExpression[] = [];
+    const gen2eAcc: string[] = [];
+    for (let task of tasks) {
+      let genExpr = "";
+      while (genExpr === "") {
+        const expr = await this.gen2e(task, gen2eAcc.join("\n"));
+        debug(expr)
+        if (expr) {
+          if (expr.expression) {
+            genExpr = expr.expression;
+            gen2eAcc.push(genExpr);
+            gens.push(expr);
+            if (each) {
+              await each(expr);
+            }
+          }
+        } else {
+          if (this.options.debug) {
+            debug(`text to gen2e gave empty or null expression, got ${expr}`);
+          }
+        }
+      }
+    }
+    return gens;
   }
 
-  async run(tasks: string[]): Promise<string> {
-    if (this.startup) {
-      await this.startup;
+  private async runMode_gen2e(tasks: string[]): Promise<InterpreterResult> {
+    const genResult = await this.contextWiseGen2eGen(tasks);
+    const expressions = genResult.map((g) => g.expression);
+    if (this.options.debug) {
+      debug(
+        "intepreter received \n=============================\n",
+        expressions.map((g, i) => `(no. call ${i})\n${g}`).join("\n"),
+        "\n=============================\n"
+      );
     }
-    this._call_event("start", this);
 
-    const gen2eAcc: string[] = [];
+    const source = generateFakeTestCode("gen2e - interpreter gen", expressions);
+    return {
+      result: source,
+      usageStats: this.usageStats,
+    };
+  }
+
+  private async runMode_playwright(
+    tasks: string[]
+  ): Promise<InterpreterResult> {
     const inMemoryStatic: { [key: string]: string } = {};
-
     const staticStore: StaticStore = {
       makeIdent: (title, task) => `gen2.interpreter - [${title}](${task})`,
       fetchStatic: (ident: string) => ({
@@ -141,60 +213,76 @@ class TasksInterpreter {
         (inMemoryStatic[content.ident] = content.expression),
     };
 
-    let transforms: ((task: string) => Promise<string>)[] = [
-      (task) =>
-        this.textTogen2e(task, gen2eAcc.join("\n")).then(
-          (expr) => (gen2eAcc.push(expr!.expression), expr!.expression)
-        ),
-    ];
-
-    if (this.mode === "playwright" && this.browser) {
-      const page = this.browser.page!;
-      transforms.push(async (expr) => {
-        await evalGen2EExpression(expr, gen, page);
-        return expr;
-      });
-    }
-
-    const expressions: string[] = [];
-    for (let task of tasks) {
-      let T_result = task;
-      for (let T of transforms) {
-        T_result = await T(T_result);
-      }
-
-      expressions.push(T_result);
-    }
-    let code = "";
-
-    if (this.options.debug) {
-      for (let g of gen2eAcc) {
-        warn(g);
-      }
-    }
-
-    if (this.mode == "playwright") {
-      const fakeTestSource = generateFakeTestCode(
-        "gen2e - interpreter gen",
-        gen2eAcc
+    if (!this.browser) {
+      throw new Gen2EInterpreterError(
+        "a browser instance must be initialized to perform gen2e evaluations"
       );
-      await sandboxEval(fakeTestSource, this.browser!.page!, staticStore);
-      code = pwCompile(fakeTestSource, staticStore);
-      warn(JSON.stringify(inMemoryStatic, null, 4));
-    } else {
-      code = expressions.join("\n");
     }
 
+    if (!this.browser.page) {
+      throw new Gen2EInterpreterError(
+        "a browser page instance must be initialized to perform gen2e evaluations"
+      );
+    }
+
+    const page = this.browser.page;
+    const gen2eResult = await this.contextWiseGen2eGen(tasks, async (expr) => {
+      const fakeTestSource = generateFakeTestCode("gen2e - interpreter gen", [
+        expr.expression,
+      ]);
+
+      await sandboxEval(
+        fakeTestSource,
+        page,
+        staticStore,
+        (code: string, page: Page) => {
+          debug("AAAAAAAAAAA", code);
+          return new Function(
+            "page",
+            `return (async () => { const result = await (${code})(); return result; })()`
+          )(page);
+        }
+      );
+    });
+
+    debug(gen2eResult)
+
+    const fakeTestSource = generateFakeTestCode(
+      "gen2e - interpreter gen",
+      gen2eResult.map((g) => g.expression)
+    );
+
+    const code = pwCompile(fakeTestSource, staticStore);
+    await this.browser.close();
+
+    return {
+      result: code,
+      usageStats: this.usageStats,
+    };
+  }
+
+  async run(tasks: string[]): Promise<InterpreterResult> {
+    if (this.startup) {
+      await this.startup;
+    }
+
+    this._call_event("start", this);
+    let result: InterpreterResult;
+    switch (this.mode) {
+      case "playwright":
+        result = await this.runMode_playwright(tasks);
+        break;
+      case "gen2e":
+      default:
+        result = await this.runMode_gen2e(tasks);
+    }
     this._call_event("end", this);
-    return code;
+
+    return result;
   }
 }
 
 export const tasksInterpreter = (
   config: InterpreterConfig,
-  options: {
-    debug?: boolean | undefined;
-    model?: string | undefined;
-    openaiApiKey?: string | undefined;
-  }
+  options: InterpreterOptions
 ): TasksInterpreter => new TasksInterpreter(config, options);

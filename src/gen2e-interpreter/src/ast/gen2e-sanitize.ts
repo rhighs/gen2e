@@ -1,5 +1,6 @@
 import { API, FileInfo } from "jscodeshift";
 import { makeCompiler } from "./compiler";
+import { debug } from "../log";
 
 export const compile = (source: string) =>
   makeCompiler((fileInfo: FileInfo, api: API) => {
@@ -35,14 +36,16 @@ export const compile = (source: string) =>
                 const callNameMatches =
                   callee.type === "Identifier" && callee.name === "gen";
                 // rob: match args `gen("Literal", { <object> })`
-                const hasCorrectArgs = "";
-                node.expression.argument.arguments.length === 2 &&
+
+                const hasCorrectArgs =
+                  node.expression.argument.arguments.length === 2 &&
                   node.expression.argument.arguments[0].type === "Literal" &&
                   node.expression.argument.arguments[1].type ===
                     "ObjectExpression";
                 return callNameMatches && hasCorrectArgs;
               }
             }
+
             return false;
           });
         }

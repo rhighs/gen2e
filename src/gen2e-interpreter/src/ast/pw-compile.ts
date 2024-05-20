@@ -42,12 +42,21 @@ const compiler = (store: StaticStore): Gen2ECompileFunction => {
                   genFirstArg?.type === "Literal"
                     ? genFirstArg.value
                     : undefined;
+
                 if (genArg) {
-                  const code = store.fetchStatic(
-                    store.makeIdent(testTitle as string, genArg as string)
+                  const ident = store.makeIdent(
+                    testTitle as string,
+                    genArg as string
                   );
+                  const code = store.fetchStatic(ident);
 
                   if (code) {
+                    if (!code.expression) {
+                      throw new Error(
+                        "got undefined or empty expression for " + ident
+                      );
+                    }
+
                     if (
                       testPath.node.arguments[0].type === "Literal" &&
                       !titleWasSet
@@ -58,8 +67,24 @@ const compiler = (store: StaticStore): Gen2ECompileFunction => {
                       titleWasSet = true;
                     }
 
+                    const parsedInput = j(code.expression);
+                    const arrowFunction = parsedInput
+                      .find(j.ArrowFunctionExpression)
+                      .get().node;
+                    const body = arrowFunction.body;
+
+                    const internalArrowFunction = j.arrowFunctionExpression(
+                      [],
+                      body,
+                      true
+                    );
+                    internalArrowFunction.async = true;
+
                     return j.awaitExpression(
-                      j.callExpression(j.identifier(code.expression), [])
+                      j.callExpression(
+                        j.parenthesizedExpression(internalArrowFunction),
+                        []
+                      )
                     );
                   }
                 }

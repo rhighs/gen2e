@@ -8,9 +8,57 @@ import {
   TaskResult,
   LLMCodeError,
   Gen2EExpression,
+  Gen2ELLMCallHooks,
+  Gen2ELLMUsageStats,
+  Gen2ELLMCall,
 } from "@rhighs/gen2e";
 import env from "../env";
+import { debug } from "../log";
 
+const MARKDOWN_BLOCK_TOKEN = "```";
+const MARKDOWN_TS_BLOCK_TOKEN = "```ts";
+const MARKDOWN_JS_BLOCK_TOKEN = "```js";
+const MARKDOWN_TYPESCRIPT_BLOCK_TOKEN = "```typescript";
+const MARKDOWN_JAVASCRIPT_BLOCK_TOKEN = "```javascript";
+
+const sanitizeCodeOutput = (llmOutput: string): string => {
+  // rob: sometimes the model won't really get it to remove ``` and not style the code as markdown.
+  //      In that case we perform a check here and strip away the markdown annotations.
+
+  for (let startToken of [
+    MARKDOWN_TYPESCRIPT_BLOCK_TOKEN,
+    MARKDOWN_JAVASCRIPT_BLOCK_TOKEN,
+    MARKDOWN_TS_BLOCK_TOKEN,
+    MARKDOWN_JS_BLOCK_TOKEN,
+    MARKDOWN_BLOCK_TOKEN,
+  ]) {
+    if (llmOutput.startsWith(startToken)) {
+      llmOutput = llmOutput.slice(startToken.length, llmOutput.length);
+      break;
+    }
+  }
+
+  if (
+    llmOutput.endsWith(MARKDOWN_BLOCK_TOKEN) ||
+    llmOutput.endsWith(MARKDOWN_BLOCK_TOKEN + "\n")
+  ) {
+    llmOutput = llmOutput.slice(
+      0,
+      llmOutput.length -
+        (MARKDOWN_BLOCK_TOKEN.length + (llmOutput.endsWith("\n") ? 1 : 0))
+    );
+    llmOutput = llmOutput
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .join("\n");
+  }
+
+  return llmOutput;
+};
+
+// rob: here is a lame copy paste for playwright's expect documentation. This should be enough to not
+//      let the llm come up with garbage or wrong expect calls.
 const ASSERTIONS_CHEATSHEET: string = `
 Description
 await expect(locator).toBeAttached()	Element is attached
@@ -170,6 +218,97 @@ await gen("click the button with text 'Click Me' 10 times", { page, test });
 For a single task you must perform actions only from cases 1. 2. 3. shown above, you are allowed to combine them if considered to be useful
 in order to react the task goal.
 
+Here are further examples of how to the gen function is used:
+
+test(
+  "executes query",
+  gen.test(async ({ page, gen }) => {
+    const headerText = await gen("get the header text", { page, test });
+    expect(headerText).toBe("Hello, Gen2E!");
+  })
+);
+
+test(
+  "executes query, but adding a simple operation on the target data",
+  gen.test(async ({ page, gen }) => {
+    const headerText = await gen("get the first letter of the header text", {
+      page,
+      test,
+    });
+    expect(headerText).toBe("H");
+  })
+);
+
+test(
+  "executes a simple action, filling a search box",
+  gen.test(async ({ page, gen }) => {
+    await gen(\`Type "foo" in the search box\`, { page, test });
+    await page.pause();
+    await expect(page.getByTestId("search-input")).toHaveValue("foo");
+  })
+);
+
+test(
+  "executes click, incrementing a counter",
+  gen.test(async ({ page, gen }) => {
+    await gen("Click the button until the counter value is equal to 2", {
+      page,
+      test,
+    });
+    const count = await gen("Get the count number in click count:", {
+      page,
+      test,
+    });
+    await expect(parseInt(count)).toBe(2);
+  })
+);
+
+test(
+  "asserts (toBe), query by question and get a boolean result",
+  gen.test(async ({ page, gen }) => {
+    const searchInputHasHeaderText = await gen(
+      \`Is the contents of the header equal to "Hello, Gen2E!"?\`,
+      { page, test }
+    );
+    expect(searchInputHasHeaderText).toBe(true);
+  })
+);
+
+test(
+  "asserts (not.toBe), asserting a wrong header value",
+  gen.test(async ({ page, gen }) => {
+    const searchInputHasHeaderText = await gen(
+      \`Is the contents of the header equal to "Flying Donkeys"?\`,
+      { page, test }
+    );
+    expect(searchInputHasHeaderText).toBe(false);
+  })
+);
+
+test(
+  "executes query, action and assertion",
+  gen.test(async ({ page, gen }) => {
+    const headerText = await gen("get the header text", { page, test });
+    await gen(\`type "\${headerText}" in the search box\`, { page, test });
+
+    const searchInputHasHeaderText = await gen(
+      \`is the contents of the search box equal to "\${headerText}"?\`,
+      { page, test }
+    );
+
+    expect(searchInputHasHeaderText).toBe(true);
+  })
+);
+
+test(
+  "runs without test parameter",
+  gen.test(async ({ page, gen }) => {
+    const headerText = await gen("get the header text", { page, test });
+    expect(headerText).toBe("Hello, Gen2E!");
+  })
+);
+
+
 *** IMPORTANT ***
 Here is documentation and cheatsheets you can refer to accomplish your task:
 ${ASSERTIONS_CHEATSHEET}
@@ -196,15 +335,16 @@ export type CodeGenTask = TaskMessage & {
   codeContext?: string;
 };
 
-export const generateGen2EExpr = async (
+export const generateGen2EExpr: Gen2ELLMCall<
+  CodeGenTask,
+  Gen2EExpression
+> = async (
   task: CodeGenTask,
-  onMessage?: (
-    message: OpenAI.Chat.Completions.ChatCompletionMessageParam
-  ) => Promise<void> | void,
+  hooks?: Gen2ELLMCallHooks,
   openai?: OpenAI
 ): Promise<TaskResult<Gen2EExpression>> => {
   openai = openai ?? new OpenAI({ apiKey: task.options?.openaiApiKey });
-  const debug = task.options?.debug ?? false;
+  const isDebug = task.options?.debug ?? env.DEFAULT_MODEL_DEBUG;
   const runner = openai.beta.chat.completions
     .runTools({
       model: task.options?.model ?? env.DEFAULT_OPENAI_MODEL,
@@ -242,17 +382,16 @@ export const generateGen2EExpr = async (
       ],
     })
     .on("message", (message) => {
-      if (onMessage) {
-        onMessage(message);
+      if (hooks?.onMessage) {
+        hooks.onMessage(message);
       }
 
       if (message.role === "tool" && message.content) {
-        if (debug) {
-          console.debug(
-            `|> code validation step result =", ${message.content}`,
-            new LLMCodeError(
-              `failed generating a valid, parsable js expression`
-            )
+        if (isDebug) {
+          debug(
+            "|> code validation step result =",
+            message.content,
+            new LLMCodeError(`failed generating a valid js expression`)
           );
         }
       }
@@ -262,11 +401,22 @@ export const generateGen2EExpr = async (
   try {
     expression = await runner.finalContent();
 
+    const usage = await runner.totalUsage();
+    const usageStats: Gen2ELLMUsageStats = {
+      completionTokens: usage.completion_tokens,
+      promptTokens: usage.prompt_tokens,
+      totalTokens: usage.total_tokens,
+    };
+
     if (!expression) {
       return {
         type: "error",
         errorMessage: `LLM did not generate valid content as final content, got null or empty response = ${expression}`,
       };
+    }
+
+    if (hooks?.onUsage) {
+      await hooks.onUsage(usageStats);
     }
   } catch (err) {
     return {
@@ -275,11 +425,16 @@ export const generateGen2EExpr = async (
     };
   }
 
+  const sanitizedExpr = sanitizeCodeOutput(expression);
+  if (isDebug) {
+    debug("non-sanitized expression = ", expression);
+    debug("sanitized expression result = ", sanitizedExpr);
+  }
   return {
     type: "success",
     result: {
       task: task.task,
-      expression,
+      expression: sanitizedExpr,
     },
   };
 };

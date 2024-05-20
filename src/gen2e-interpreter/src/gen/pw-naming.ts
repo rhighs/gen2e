@@ -1,7 +1,14 @@
 import OpenAI from "openai";
 import { debug } from "../log";
 import env from "../env";
-import { TaskMessage, TaskResult, LLMGenericError } from "@rhighs/gen2e";
+import {
+  TaskMessage,
+  TaskResult,
+  LLMGenericError,
+  Gen2ELLMCall,
+  Gen2ELLMCallHooks,
+  Gen2ELLMUsageStats,
+} from "@rhighs/gen2e";
 
 const prompt = (message: TaskMessage) => {
   return `This is your list tasks you'll give me a title for:\n ${message.task}
@@ -22,10 +29,12 @@ Rules:
 - You must not use markdown or any type of text styling format.
 `;
 
-export const generateTestName = async (
-  task: TaskMessage
+export const generateTestName: Gen2ELLMCall<TaskMessage, string> = async (
+  task: TaskMessage,
+  hooks?: Gen2ELLMCallHooks,
+  openai?: OpenAI
 ): Promise<TaskResult<string>> => {
-  const openai = new OpenAI({ apiKey: task.options?.openaiApiKey });
+  openai = openai ?? new OpenAI({ apiKey: task.options?.openaiApiKey });
   const isDebug = task.options?.debug ?? env.DEFAULT_MODEL_DEBUG;
 
   if (isDebug) {
@@ -42,7 +51,12 @@ export const generateTestName = async (
   });
 
   try {
+    response.usage;
     const message = response.choices[0].message;
+    if (hooks?.onMessage) {
+      hooks.onMessage(message);
+    }
+
     const title = message.content;
     if (!title) {
       throw new LLMGenericError("empty or null response " + title);
@@ -50,6 +64,21 @@ export const generateTestName = async (
 
     if (isDebug) {
       debug('title generated: "', task.task, '"');
+    }
+
+    const usage = response.usage;
+    const usageStats: Gen2ELLMUsageStats = {
+      completionTokens: usage?.completion_tokens ?? 0,
+      totalTokens: usage?.total_tokens ?? 0,
+      promptTokens: usage?.prompt_tokens ?? 0,
+    };
+
+    if (hooks?.onUsage) {
+      hooks.onUsage(usageStats);
+    }
+
+    if (isDebug) {
+      debug("task completed with usage stats", usageStats);
     }
 
     return {
