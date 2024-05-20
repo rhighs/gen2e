@@ -8,8 +8,8 @@ import {
   Gen2EBrowserOptions,
   evalGen2EExpression,
 } from "@rhighs/gen2e-intepreter";
-import gen, { enableStepLogging } from "@rhighs/gen2e";
-enableStepLogging();
+import { gen, stepLoggingEnabled } from "@rhighs/gen2e";
+stepLoggingEnabled(true);
 
 import { err, info } from "./log";
 
