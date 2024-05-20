@@ -34,19 +34,19 @@ export type Gen2ELLMUsageStats = {
   completionTokens: number;
   promptTokens: number;
   totalTokens: number;
-}
+};
 
 export type Gen2ELLMCallHooks = {
   onMessage?: (
     message: OpenAI.Chat.Completions.ChatCompletionMessageParam
-  ) => Promise<void> | void,
-  onUsage?: (usage: Gen2ELLMUsageStats) => Promise<void> | void
-}
+  ) => Promise<void> | void;
+  onUsage?: (usage: Gen2ELLMUsageStats) => Promise<void> | void;
+};
 
 export type Gen2ELLMCall<T extends TaskMessage, R> = (
   task: T,
   hooks?: Gen2ELLMCallHooks,
-  openai?: OpenAI,
+  openai?: OpenAI
 ) => Promise<TaskResult<R>>;
 
 export type Test = TestType<any, any>;
@@ -63,7 +63,10 @@ export type TestFunction = (
   testInfo: TestInfo
 ) => Promise<void> | void;
 
-export type Gen2EPlaywriteCodeEvalFunc = (code: string, p: Page) => Promise<any> | any
+export type Gen2EPlaywriteCodeEvalFunc = (
+  code: string,
+  p: Page
+) => Promise<any> | any;
 
 export interface GenFunction {
   (
@@ -79,17 +82,16 @@ export type GenTestFunction = (
   store?: StaticStore
 ) => PlaywrightTestFunction;
 
-export type GenStepFunction = 
-  (
-    task: string,
-    config: { page: Page; test: Test },
-    options?: ModelOptions,
-    evalCode?: Gen2EPlaywriteCodeEvalFunc
-  ) => Promise<any>;
+export type GenStepFunction = (
+  task: string,
+  config: { page: Page; test: Test },
+  options?: ModelOptions,
+  evalCode?: Gen2EPlaywriteCodeEvalFunc
+) => Promise<any>;
 
 export interface GenType extends GenFunction {
   test: GenTestFunction;
-  useStatic: boolean
+  useStatic: boolean;
 }
 
 export type StaticGenStep = {

@@ -160,7 +160,7 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
       throw new LLMCodeError(`empty or null final content, got ${llmSource}`);
     }
 
-    const code = sanitizeCodeOutput(llmSource)
+    const code = sanitizeCodeOutput(llmSource);
     const usage = await runner.totalUsage();
     const usageStats: Gen2ELLMUsageStats = {
       completionTokens: usage.completion_tokens,

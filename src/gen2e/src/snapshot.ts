@@ -42,7 +42,7 @@ const sanitizeHtml = (subject: string) => {
 };
 
 export const getSnapshot = async (page: Page) => {
-  const content = sanitizeHtml(await page.content())
+  const content = sanitizeHtml(await page.content());
   return {
     dom: content,
   };

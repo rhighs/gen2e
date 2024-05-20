@@ -213,7 +213,7 @@ gen.test = function (
         logGen2EEnd("evaluating expression via eval(...)", expression);
 
         const evalResult = await evalCode(`${expression}`, page);
-        return evalResult
+        return evalResult;
       });
     };
 
