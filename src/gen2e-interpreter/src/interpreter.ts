@@ -7,7 +7,6 @@ import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
 import { generateGen2EExpr } from "./gen/gen2e";
 import { compile as pwCompile } from "./ast/pw-compile";
 import { sandboxEval } from "./test-sandbox";
-import exp from "constants";
 
 const generateFakeTestCode = (
   testTitle: string,
@@ -17,6 +16,8 @@ const generateFakeTestCode = (
 test(
   "${testTitle}",
   gen.test(async ({ page, gen }) => {
+    const GEN2E_CALLS_TIMEOUT = 300000;
+    test.setTimeout(GEN2E_CALLS_TIMEOUT);
 `;
   for (let g of gen2eExpressions) {
     code += g + "\n";
@@ -161,7 +162,7 @@ class TasksInterpreter {
       let genExpr = "";
       while (genExpr === "") {
         const expr = await this.gen2e(task, gen2eAcc.join("\n"));
-        debug(expr)
+        debug(expr);
         if (expr) {
           if (expr.expression) {
             genExpr = expr.expression;
@@ -236,16 +237,14 @@ class TasksInterpreter {
         page,
         staticStore,
         (code: string, page: Page) => {
-          debug("AAAAAAAAAAA", code);
-          return new Function(
+          const evalFunc = new Function(
             "page",
-            `return (async () => { const result = await (${code})(); return result; })()`
-          )(page);
+            `return (async () => { const result = await ${code}(); return result })()`
+          );
+          return evalFunc(page);
         }
       );
     });
-
-    debug(gen2eResult)
 
     const fakeTestSource = generateFakeTestCode(
       "gen2e - interpreter gen",
@@ -254,6 +253,8 @@ class TasksInterpreter {
 
     const code = pwCompile(fakeTestSource, staticStore);
     await this.browser.close();
+
+    debug(inMemoryStatic);
 
     return {
       result: code,
@@ -268,6 +269,7 @@ class TasksInterpreter {
 
     this._call_event("start", this);
     let result: InterpreterResult;
+    debug("run called with tasks", tasks);
     switch (this.mode) {
       case "playwright":
         result = await this.runMode_playwright(tasks);

@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { TestStepGenResultError, gen, stepLoggingEnabled } from "../src";
+import { gen, stepLoggingEnabled } from "../src";
 stepLoggingEnabled(true);
 
 test.beforeEach(async ({ page }) => {
-  //await page.goto("http://127.0.0.1:9999/");
+  await page.goto("http://127.0.0.1:9999/");
 });
 
 test(
@@ -89,25 +89,17 @@ test(
 test(
   "runs without test parameter",
   gen.test(async ({ page, gen }) => {
+    test.slow();
     const headerText = await gen("get the header text", { page, test });
     expect(headerText).toBe("Hello, Gen2E!");
   })
 );
 
-gen.useStatic = false;
 test(
-  "gen2e:compiled-output - gen2e - interpreter gen",
-  async (
-    {
-      page
-    }
-  ) => {
-await (async () => {
-  await page.goto('https://prolocal.mywellness.com:12443/auth/login');
-})();
-await (async () => { await page.fill('#username', 'runner@e2e.it') })();
-await (async () => { await page.fill('#password', 'tgsTGS123') })();
-await expect(page.locator('.email-error')).toBeEmpty();
-await expect(page.locator('.password-error')).toBeEmpty();
-await (async () => { await page.locator('form[name="loginForm"] button[name="loginButton"]').click() })();
-})
+  "sample",
+  gen.test(async ({ page, gen }) => {
+    await page.goto("https://google.com");
+    const pageTitle = await gen("Get the page title", { page, test });
+    expect(pageTitle).toBe("Google");
+  })
+);

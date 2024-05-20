@@ -1,6 +1,7 @@
 import { APIRequestContext, BrowserContext } from "@playwright/test";
 import {
   Gen2EPlaywriteCodeEvalFunc,
+  GenFunction,
   gen as genObject,
   GenStepFunction,
   Page,
@@ -9,10 +10,10 @@ import {
   TestInfo,
 } from "@rhighs/gen2e";
 import { Gen2ESandboxError } from "./errors";
-import { compile as sanitizeGen2e } from "./ast/gen2e-sanitize";
 import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
 import { debug, err } from "./log";
-import { expect } from "@playwright/test";
+import { expect as nativeExpect } from "@playwright/test";
+import { compile as sanitizeGen2e } from "./ast/gen2e-sanitize";
 
 const SANDBOX_DEBUG = !!process.env.GEN2E_SANDBOX_DEBUG;
 
@@ -41,9 +42,9 @@ export const sandboxEval = async (
   page: Page,
   store: StaticStore,
   evalPwCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
-    new Function("return Promise.resolve()")
+    new Function("code", "page", "return Promise.resolve()")(code, page)
 ) => {
-  const _gen_noop =
+  const _gen_custom_eval =
     (__gen: GenStepFunction) =>
     async (
       ...args: Parameters<GenStepFunction>
@@ -53,7 +54,7 @@ export const sandboxEval = async (
         debug("calling __gen() with args", args);
       }
 
-      return await __gen(task, config, options, evalPwCode);
+      return __gen(task, config, options, evalPwCode);
     };
 
   const _gen_test = (testFunction: TestFunction) =>
@@ -65,7 +66,7 @@ export const sandboxEval = async (
       return await testFunction(
         {
           page,
-          gen: _gen_noop(gen),
+          gen: _gen_custom_eval(gen),
           context: rest.context,
           request: rest.request,
         },
@@ -99,6 +100,11 @@ export const sandboxEval = async (
     await step();
   };
 
+  function _expect_custom_call(...args: any[]) {
+    const [head, ...tail] = args;
+    return nativeExpect(head, ...tail);
+  }
+
   _test.fail = (...args: any[]) => {
     const message = "test.fail has been called...";
     err(message, ...args);
@@ -108,12 +114,20 @@ export const sandboxEval = async (
   if (SANDBOX_DEBUG) {
     debug("gen2e source code before sanitize step:\n", gen2eTestSource);
   }
+
   // rob: since we're sandboxing gen execution to capture generated static code;
   //      all calls that are not calls to the gen function can be stripped away.
+  //      This is primarily done to eliminate calls to expect(...) as it is not
+  //      supported outside of a test environment, and mocking it would be too
+  //      much of a burden to carry on, I just assume they're correct. I do not expect
+  //      the LLM to be so dumb to mess the signature up after I've fed it an entire
+  //      cheatsheet on how that is used.
   const s = sanitizeGen2e(gen2eTestSource);
   if (SANDBOX_DEBUG) {
-    debug("gen2e source code after sanitize step:\n");
+    debug("gen2e source code after sanitize step:\n", s);
   }
-  const exeMe = new Function("gen", "test", "expect", `return ${s}`);
-  await exeMe({ test: _gen_test }, _test, expect);
+
+  const functionSource = (body: string) => `return ${body}`;
+  const exeMe = new Function("gen", "test", "expect", functionSource(s));
+  return await exeMe({ test: _gen_test }, _test, _expect_custom_call);
 };

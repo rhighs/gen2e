@@ -63,7 +63,7 @@ export type TestFunction = (
   testInfo: TestInfo
 ) => Promise<void> | void;
 
-export type Gen2EPlaywriteCodeEvalFunc = (code: string, p: Page) => Function
+export type Gen2EPlaywriteCodeEvalFunc = (code: string, p: Page) => Promise<any> | any
 
 export interface GenFunction {
   (
@@ -79,14 +79,13 @@ export type GenTestFunction = (
   store?: StaticStore
 ) => PlaywrightTestFunction;
 
-export interface GenStepFunction {
+export type GenStepFunction = 
   (
     task: string,
     config: { page: Page; test: Test },
     options?: ModelOptions,
     evalCode?: Gen2EPlaywriteCodeEvalFunc
-  ): Promise<any>;
-}
+  ) => Promise<any>;
 
 export interface GenType extends GenFunction {
   test: GenTestFunction;

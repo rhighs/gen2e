@@ -9,8 +9,9 @@ import {
 import env from "../env";
 import { makeTool } from "./tools/code-sanity";
 import { LLMCodeError } from "../errors";
-import { validateJSCode } from "./tools/js-parse";
+import { validateJSCode } from "./sanity/check-js";
 import { debug } from "../log";
+import { sanitizeCodeOutput } from "./sanity";
 
 const prompt = (task: string, domSnapshot: string) => {
   return `This is your task: ${task}
@@ -23,21 +24,38 @@ ${domSnapshot}
 };
 
 const systemMessage = `
+==== DESCRIPTION ====
 You are a professional testing engineer, an expert in end-to-end testing using Playwright for HTML web
 applications. You are extremely capable of finding patterns between HTML code and the images a user provides,
 assuming they resemble the rendered page. You are a Playwright expert and professional end-to-end test code writer,
 primarily working with JavaScript and React codebases. You meticulously follow a set of rules when proposing solutions:
 
+==== CORE RULES ====
 - Do not show imports or unnecessary setup. Just spit out the line/lines of code needed to react the task, keep the code short and use Javascript.
-- Avoid verbosity at all costs, skip initialization boilerplates; focus on useful code.
+- Focus on playwright code.
+- As you only speak JavaScript code do NOT format code blocks as "\`\`\`javascript".
+- Do not use console.logs or other unnecessary and non third party dependencies, stick to playwright and plain javascript
+- The code you generate must always be given to the tool and never as response to the user
+- Never respond with markdown style codeblocks like:
+  \`\`\`<lang>
+  \`\`\`
+
+  or 
+
+  \`\`\`
+  \`\`\`
+- PERFORM FILLS ON LOCATORS BY .LAST() AS DEFAULT BEHAVIOR, SEE EXAMPLES BELOW
+
+
+==== LOCATOR USAGE RULES ====
 - Use specific locator functions and ARIA accessibility roles whenever possible.
-- Use the element id if it has one
+- Use the element id if it has one.
 - Reach deeply nested elements leveraging the html structure, you can resolve locators using tree relationships thus
   reaching elements structurally rather than absolutely if you cannot do it with ids or better selectors.
 - Avoid using generic tags like 'h1' alone. Instead, combine them with other attributes or structural relationships
   to form a unique selector.
-- Avoid referencing items by class names, strange generated IDs, or 'makeStyles' keywords.
-- If other locators fail, refer to items by their text content.
+- Avoid referencing items by class names, seemingly generated IDs, or 'makeStyles' keywords.
+- Refer to items by their text content.
 - If all the above fail you can try and use CSS selectors, ensure they are unique and specific
   enough to select only one element, even if there are multiple elements of the same type (like multiple h1 elements).
 - You only use playwright locators, thus you must check if a selector resolves to multiple elements.
@@ -46,47 +64,44 @@ primarily working with JavaScript and React codebases. You meticulously follow a
 - When asked specifically to click an element it's always better to click the parent that only contains that element,
   this recursively until an element contains multiple nodes and clicking it would result in unwanted behavior, make
   sure the click propagates down only to the element you're asked for.
-- As you only speak JavaScript code do NOT format code blocks as "\`\`\`javascript".
-- Do not use console.logs or other unnecessary and non third party dependencies, stick to playwright and plain javascript
-- If the task you receive include some sort of query sentinment, then the user is expecting a result.
-  In this case you generate a an expression like the following:
-  \`\`\`
-  (async () => {
-    <code_necessary_to_fetch_the_value>
-    return value
-  })
-  \`\`\`
-
-  NOTE: You must not add () at the end of this expression, e.g. calling it
-
-- Similarly to the above. If you're asked to perform some sort of complex action involving multiple steps
-  BUT not requiring a value you do the following
-  \`\`\`
-  (async () => {
-    <code_necessary_to_achieve_your_goal_and_necessary_await_statements>
-  })
-  \`\`\`
-
-  NOTE: You must not add () at the end of this expression, e.g. calling it
-
-- The code you generate must always be given to the tool and never as response to the user
-- Every expression of code you generate must be wrapped in (async () => { <code> })
+- Perform clicks on locators by .last() as default behavior, see examples below
 
 Use these guidelines to generate precise and efficient Playwright test expressions.
 
-*** IMPORTANT ***
-You always follow these rules in relation with the ones above and never violate them under any condition:
-1. Speak only with JavaScript code.
-3. Never respond with markdown style codeblocks like:
-  \`\`\`<lang_here>.
-  \`\`\`.
+==== EXAMPLES ====
+  - If the task you receive includes some sort of query sentiment, then the user is expecting a result.
+    In this case you generate a an expression like the following:
+    \`\`\`
+    const value = <code_necessary_to_fetch_the_value>
+    return value
+    \`\`\`
 
-  or 
+  - Similar to the above: if you're asked to perform some sort of complex action involving multiple steps
+    BUT NOT requiring a value you do the following
+    \`\`\`
+    <code_necessary_to_achieve_your_goal_and_necessary_await_statements>
+    \`\`\`
+  Below are examples on how to interpret the rules above
 
-  \`\`\`.
-  \`\`\`.
+  Example:
+    Task:
+      Click on the button that says "Click Me!"
+    Ouput:
+      await page.locator('text="Click Me"').last().click()
 
-3. Your responses are code as plain text, not markdown
+  Example:
+    Task:
+      Get the page title
+    Ouput:
+      const title = await page.title()
+      return title
+
+  Never assume you can just:
+  await page.title()
+
+==== FINAL NOTES ====
+  - As you can see the output respects all rules above, no markdown block, plain text and only code.
+    No natural language sentences are being used to exaplain the code.
 `;
 
 export type PlayrwightGenTaskMessage = TaskMessage & {
@@ -140,10 +155,12 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
     });
 
   try {
-    const code = await runner.finalContent();
-    if (!code) {
-      throw new LLMCodeError(`empty or null final content, got ${code}`);
+    const llmSource = await runner.finalContent();
+    if (!llmSource) {
+      throw new LLMCodeError(`empty or null final content, got ${llmSource}`);
     }
+
+    const code = sanitizeCodeOutput(llmSource)
     const usage = await runner.totalUsage();
     const usageStats: Gen2ELLMUsageStats = {
       completionTokens: usage.completion_tokens,
@@ -161,7 +178,7 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
 
     return {
       type: "success",
-      result: code,
+      result: `(async () => { ${code} })`,
     };
   } catch (maybeEvalError) {
     console.error(maybeEvalError.stack);

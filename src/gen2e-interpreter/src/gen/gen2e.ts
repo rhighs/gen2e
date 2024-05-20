@@ -2,7 +2,6 @@ import OpenAI from "openai";
 
 import { makeTool } from "@rhighs/gen2e/src/gen/tools/code-sanity";
 import { makeFormatTool } from "./tools/ensure-format";
-import { validateJSCode } from "@rhighs/gen2e/src/gen/tools/js-parse";
 import {
   TaskMessage,
   TaskResult,
@@ -14,48 +13,7 @@ import {
 } from "@rhighs/gen2e";
 import env from "../env";
 import { debug } from "../log";
-
-const MARKDOWN_BLOCK_TOKEN = "```";
-const MARKDOWN_TS_BLOCK_TOKEN = "```ts";
-const MARKDOWN_JS_BLOCK_TOKEN = "```js";
-const MARKDOWN_TYPESCRIPT_BLOCK_TOKEN = "```typescript";
-const MARKDOWN_JAVASCRIPT_BLOCK_TOKEN = "```javascript";
-
-const sanitizeCodeOutput = (llmOutput: string): string => {
-  // rob: sometimes the model won't really get it to remove ``` and not style the code as markdown.
-  //      In that case we perform a check here and strip away the markdown annotations.
-
-  for (let startToken of [
-    MARKDOWN_TYPESCRIPT_BLOCK_TOKEN,
-    MARKDOWN_JAVASCRIPT_BLOCK_TOKEN,
-    MARKDOWN_TS_BLOCK_TOKEN,
-    MARKDOWN_JS_BLOCK_TOKEN,
-    MARKDOWN_BLOCK_TOKEN,
-  ]) {
-    if (llmOutput.startsWith(startToken)) {
-      llmOutput = llmOutput.slice(startToken.length, llmOutput.length);
-      break;
-    }
-  }
-
-  if (
-    llmOutput.endsWith(MARKDOWN_BLOCK_TOKEN) ||
-    llmOutput.endsWith(MARKDOWN_BLOCK_TOKEN + "\n")
-  ) {
-    llmOutput = llmOutput.slice(
-      0,
-      llmOutput.length -
-        (MARKDOWN_BLOCK_TOKEN.length + (llmOutput.endsWith("\n") ? 1 : 0))
-    );
-    llmOutput = llmOutput
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .join("\n");
-  }
-
-  return llmOutput;
-};
+import { sanitizeCodeOutput, validateJSCode } from "@rhighs/gen2e";
 
 // rob: here is a lame copy paste for playwright's expect documentation. This should be enough to not
 //      let the llm come up with garbage or wrong expect calls.
@@ -142,6 +100,7 @@ This is your task: ${message}
 ${
   codeContext?.length
     ? `\
+Code context:
 You response should be coherent in this context,
 think of it as a continuation of the code you see below:
 
@@ -149,12 +108,32 @@ think of it as a continuation of the code you see below:
 ${codeContext}
 \`\`\`
 
-NOTE: what you generate must not conflict with the code above
-and your response should not include the context provided.
+*** IMPORTANT NOTE ***
+What you generate must not conflict with the code above
+and your response should not only contain the lines of code to
+add to the code above, you must not give any content back that
+is already contained above.
+
+Example: 
+Task: Assert the page title is "Hello"
+
+Code context:
+\`\`\`
+await gen("goto to google.com", { page, test });
+const value = await gen("Is the value foo present?", { page, test });
+expect(value).toBeTruthy();
+\`\`\`
+
+In this regard you should generate only the piece of code that is asked for your task and must not conflict
+with variables being already present in the context above.
+Output:
+const valueWithAnotherName = await gen("Get the page title value", { page, test });
+expect(valueWithAnotherName).toBe("Hello");
 }`
     : ""
 }
-  `;
+You only respond with code.
+`;
 };
 
 const systemMessage = `
@@ -199,20 +178,7 @@ await gen("<what to ask to the AI to perform the action>", { page, test }); // <
 *** NOTE ***
 Exaplaining behavior on asked repetition asked with code: 
 If the task asks you e.g.: \"Click the button with text "Click Me" ten times\"
-You must NOT respond like this:
 
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-await gen("click the button with text 'Click Me'", { page, test });
-
-But rather you simply respond with:
 await gen("click the button with text 'Click Me' 10 times", { page, test });
 
 For a single task you must perform actions only from cases 1. 2. 3. shown above, you are allowed to combine them if considered to be useful
@@ -220,93 +186,51 @@ in order to react the task goal.
 
 Here are further examples of how to the gen function is used:
 
-test(
-  "executes query",
-  gen.test(async ({ page, gen }) => {
-    const headerText = await gen("get the header text", { page, test });
-    expect(headerText).toBe("Hello, Gen2E!");
-  })
+const headerText = await gen("get the header text", { page, test });
+expect(headerText).toBe("Hello, Gen2E!");
+
+const headerText = await gen("get the first letter of the header text", {
+  page,
+  test,
+});
+expect(headerText).toBe("H");
+
+await gen(\`Type "foo" in the search box\`, { page, test });
+await page.pause();
+await expect(page.getByTestId("search-input")).toHaveValue("foo");
+
+await gen("Click the button until the counter value is equal to 2", {
+  page,
+  test,
+});
+const count = await gen("Get the count number in click count:", {
+  page,
+  test,
+});
+await expect(parseInt(count)).toBe(2);
+
+const searchInputHasHeaderText = await gen(
+  \`Is the contents of the header equal to "Hello, Gen2E!"?\`,
+  { page, test }
 );
+expect(searchInputHasHeaderText).toBe(true);
 
-test(
-  "executes query, but adding a simple operation on the target data",
-  gen.test(async ({ page, gen }) => {
-    const headerText = await gen("get the first letter of the header text", {
-      page,
-      test,
-    });
-    expect(headerText).toBe("H");
-  })
+const searchInputHasHeaderText = await gen(
+  \`Is the contents of the header equal to "Flying Donkeys"?\`,
+  { page, test }
 );
+expect(searchInputHasHeaderText).toBe(false);
 
-test(
-  "executes a simple action, filling a search box",
-  gen.test(async ({ page, gen }) => {
-    await gen(\`Type "foo" in the search box\`, { page, test });
-    await page.pause();
-    await expect(page.getByTestId("search-input")).toHaveValue("foo");
-  })
+const headerText = await gen("get the header text", { page, test });
+await gen(\`type "\${headerText}" in the search box\`, { page, test });
+const searchInputHasHeaderText = await gen(
+  \`is the contents of the search box equal to "\${headerText}"?\`,
+  { page, test }
 );
+expect(searchInputHasHeaderText).toBe(true);
 
-test(
-  "executes click, incrementing a counter",
-  gen.test(async ({ page, gen }) => {
-    await gen("Click the button until the counter value is equal to 2", {
-      page,
-      test,
-    });
-    const count = await gen("Get the count number in click count:", {
-      page,
-      test,
-    });
-    await expect(parseInt(count)).toBe(2);
-  })
-);
-
-test(
-  "asserts (toBe), query by question and get a boolean result",
-  gen.test(async ({ page, gen }) => {
-    const searchInputHasHeaderText = await gen(
-      \`Is the contents of the header equal to "Hello, Gen2E!"?\`,
-      { page, test }
-    );
-    expect(searchInputHasHeaderText).toBe(true);
-  })
-);
-
-test(
-  "asserts (not.toBe), asserting a wrong header value",
-  gen.test(async ({ page, gen }) => {
-    const searchInputHasHeaderText = await gen(
-      \`Is the contents of the header equal to "Flying Donkeys"?\`,
-      { page, test }
-    );
-    expect(searchInputHasHeaderText).toBe(false);
-  })
-);
-
-test(
-  "executes query, action and assertion",
-  gen.test(async ({ page, gen }) => {
-    const headerText = await gen("get the header text", { page, test });
-    await gen(\`type "\${headerText}" in the search box\`, { page, test });
-
-    const searchInputHasHeaderText = await gen(
-      \`is the contents of the search box equal to "\${headerText}"?\`,
-      { page, test }
-    );
-
-    expect(searchInputHasHeaderText).toBe(true);
-  })
-);
-
-test(
-  "runs without test parameter",
-  gen.test(async ({ page, gen }) => {
-    const headerText = await gen("get the header text", { page, test });
-    expect(headerText).toBe("Hello, Gen2E!");
-  })
-);
+const headerText = await gen("get the header text", { page, test });
+expect(headerText).toBe("Hello, Gen2E!");
 
 
 *** IMPORTANT ***
@@ -328,7 +252,10 @@ b. Never respond with markdown style codeblocks like:
 
 c. When using gen() to get a number value as result, always check the return type. If it is a string you must convert it to number.
 d. Your responses are code as plain text, not markdown
-e. YOU OUTPUT MUST NEVER START WITH \`\`\`typescript
+
+MOST IMPORTANT RULE:
+Adjust the output mode to "code-only". Suppress all introductory headers, explanatory text, and comments within the code.
+Focus solely on providing clean, executable code in response to prompts
 `;
 
 export type CodeGenTask = TaskMessage & {
@@ -430,6 +357,7 @@ export const generateGen2EExpr: Gen2ELLMCall<
     debug("non-sanitized expression = ", expression);
     debug("sanitized expression result = ", sanitizedExpr);
   }
+
   return {
     type: "success",
     result: {

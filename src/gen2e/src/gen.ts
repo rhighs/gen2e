@@ -15,7 +15,7 @@ import { StaticStore } from "./static/store/store";
 import env from "./env";
 import { info } from "./log";
 import { FSStaticStore } from "./static/store/fs";
-import { warn, debug } from "./log";
+import { debug } from "./log";
 
 const logGen2EStart = (message: string, task: string) => {
   if (env.LOG_STEP) {
@@ -46,7 +46,7 @@ export const gen: GenType = async function (
   evalCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
     new Function(
       "page",
-      `return (async () => { const result = await (${code})(); return result; })()`
+      `return (async () => { const result = await ${code}(); return result })()`
     )(page)
 ): Promise<any> {
   if (!config || !config.page) {
@@ -67,7 +67,7 @@ export const gen: GenType = async function (
         expression = staticStep?.expression!;
       }
       logGen2EStart("static expression found", expression);
-      return evalCode(`${expression}()`, page);
+      return evalCode(`${expression}`, page);
     }
   }
 
@@ -111,7 +111,7 @@ export const gen: GenType = async function (
     store?.makeStatic(_static);
   }
 
-  return evalCode(`${expression}()`, page);
+  return evalCode(`${expression}`, page);
 };
 
 gen.test = function (
@@ -130,13 +130,23 @@ gen.test = function (
       },
       options?: ModelOptions,
       evalCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
-        new Function("page", "return " + code + "();")(page)
+        new Function(
+          "page",
+          `return (async () => { const result = await ${code}(); return result })()`
+        )(page)
     ): Promise<any> => {
       if (!config || !config.page) {
         throw Error(
           "The gen() function is missing the required `{ page }` argument."
         );
       }
+
+      if (!config.test) {
+        throw Error(
+          "The gen() function is missing the required `{ test }` argument."
+        );
+      }
+
       const { test, page } = config;
       const isDebug = options?.debug ?? env.DEFAULT_DEBUG_MODE;
 
@@ -202,7 +212,8 @@ gen.test = function (
         }
         logGen2EEnd("evaluating expression via eval(...)", expression);
 
-        return evalCode(`${expression}`, page);
+        const evalResult = await evalCode(`${expression}`, page);
+        return evalResult
       });
     };
 
@@ -216,7 +227,6 @@ gen.test = function (
         },
         testInfo
       );
-
       return result;
     } catch (err) {
       throw new Error("gen.test failed with error: ", err);
