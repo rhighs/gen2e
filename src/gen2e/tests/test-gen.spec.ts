@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import gen, { enableStepLogging } from "../src";
-enableStepLogging();
+import { TestStepGenResultError, gen, stepLoggingEnabled } from "../src";
+stepLoggingEnabled(true);
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('http://127.0.0.1:9999/')
-})
+  //await page.goto("http://127.0.0.1:9999/");
+});
 
 test(
   "executes query",
@@ -93,3 +93,21 @@ test(
     expect(headerText).toBe("Hello, Gen2E!");
   })
 );
+
+gen.useStatic = false;
+test(
+  "gen2e:compiled-output - gen2e - interpreter gen",
+  async (
+    {
+      page
+    }
+  ) => {
+await (async () => {
+  await page.goto('https://prolocal.mywellness.com:12443/auth/login');
+})();
+await (async () => { await page.fill('#username', 'runner@e2e.it') })();
+await (async () => { await page.fill('#password', 'tgsTGS123') })();
+await expect(page.locator('.email-error')).toBeEmpty();
+await expect(page.locator('.password-error')).toBeEmpty();
+await (async () => { await page.locator('form[name="loginForm"] button[name="loginButton"]').click() })();
+})

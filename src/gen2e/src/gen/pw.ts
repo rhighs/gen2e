@@ -3,11 +3,14 @@ import {
   TaskResult,
   Gen2ELLMCall,
   TaskMessage,
+  Gen2ELLMCallHooks,
+  Gen2ELLMUsageStats,
 } from "../types";
 import env from "../env";
 import { makeTool } from "./tools/code-sanity";
 import { LLMCodeError } from "../errors";
 import { validateJSCode } from "./tools/js-parse";
+import { debug } from "../log";
 
 const prompt = (task: string, domSnapshot: string) => {
   return `This is your task: ${task}
@@ -97,12 +100,11 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
   string
 > = async (
   task: PlayrwightGenTaskMessage,
-  onMessage?: (
-    message: OpenAI.Chat.Completions.ChatCompletionMessageParam
-  ) => Promise<void> | void
+  hooks?: Gen2ELLMCallHooks,
+  openai?: OpenAI
 ): Promise<TaskResult<string>> => {
-  const openai = new OpenAI({ apiKey: task.options?.openaiApiKey });
-  const debug = task.options?.debug ?? env.DEFAULT_DEBUG_MODE;
+  openai = openai ?? new OpenAI({ apiKey: task.options?.openaiApiKey });
+  const isDebug = task.options?.debug ?? env.DEFAULT_DEBUG_MODE;
 
   const runner = openai.beta.chat.completions
     .runTools({
@@ -120,14 +122,15 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
       ],
     })
     .on("message", (message) => {
-      if (onMessage) {
-        onMessage(message);
+      if (hooks?.onMessage) {
+        hooks.onMessage(message);
       }
 
       if (message.role === "tool" && message.content) {
-        if (debug) {
-          console.debug(
-            `|> code validation step result =", ${message.content}`,
+        if (isDebug) {
+          debug(
+            "|> code validation step result =",
+            message.content,
             new LLMCodeError(
               `failed generating a valid, parsable js expression`
             )
@@ -139,7 +142,21 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
   try {
     const code = await runner.finalContent();
     if (!code) {
-      throw new LLMCodeError("empty or null final content, got =" + code);
+      throw new LLMCodeError(`empty or null final content, got ${code}`);
+    }
+    const usage = await runner.totalUsage();
+    const usageStats: Gen2ELLMUsageStats = {
+      completionTokens: usage.completion_tokens,
+      promptTokens: usage.prompt_tokens,
+      totalTokens: usage.total_tokens,
+    };
+
+    if (hooks?.onUsage) {
+      await hooks.onUsage(usageStats);
+    }
+
+    if (isDebug) {
+      debug("task completed with usage stats", usageStats);
     }
 
     return {

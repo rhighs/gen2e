@@ -25,3 +25,10 @@ export const warn = (...args: any[]): unknown => (
   ),
   0
 );
+
+export const debug = (...args: any): unknown => (
+  process.stdout.write(
+    `\x1b[94m[GEN2E.LIB-DEBUG]\x1b[0m: ${makeMessage(...args)}\n`
+  ),
+  0
+);

@@ -1,9 +1,9 @@
-import { gen } from "./gen";
+export { gen } from "./gen";
 export * from "./gen/pw";
 export * from "./errors";
 export type * from "./types";
-export default gen;
 
 import * as consts from "./env";
 
-export const enableStepLogging = () => (consts.default.LOG_STEP = true);
+export const stepLoggingEnabled = (f: boolean) => (consts.default.LOG_STEP = f);
+export const staticStoreEnabled = (f: boolean) => (consts.default.USE_STATIC_STORE = f);
