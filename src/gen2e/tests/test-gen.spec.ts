@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { gen, stepLoggingEnabled } from "../src";
+import exp from "constants";
 stepLoggingEnabled(true);
 
 test.beforeEach(async ({ page }) => {
@@ -92,14 +93,5 @@ test(
     test.slow();
     const headerText = await gen("get the header text", { page, test });
     expect(headerText).toBe("Hello, Gen2E!");
-  })
-);
-
-test(
-  "sample",
-  gen.test(async ({ page, gen }) => {
-    await page.goto("https://google.com");
-    const pageTitle = await gen("Get the page title", { page, test });
-    expect(pageTitle).toBe("Google");
   })
 );
