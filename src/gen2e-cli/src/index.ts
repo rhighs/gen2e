@@ -25,7 +25,11 @@ program
   )
   .option("--openai-api-key <openaiApiKey>", "api key for openai services")
   .option("--model <model>", "openai model to use for each task")
-  .option("-s, --stats", "show interpreter stats report, number of tokens being used and total llm calls", false)
+  .option(
+    "-s, --stats",
+    "show interpreter stats report, number of tokens being used and total llm calls",
+    false
+  )
   .option(
     "-v, --verbose",
     "show the generated expression at each step in stderr (has no effect with debug mode enabled)"
@@ -54,7 +58,7 @@ program
         model,
         debug: isDebug,
         openaiApiKey: apiKey,
-        recordUsage: showStats
+        recordUsage: showStats,
       }
     )
       .on("start", () => {
