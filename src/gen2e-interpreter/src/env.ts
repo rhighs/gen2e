@@ -27,5 +27,5 @@ const parseParam = (f: string | undefined, def: string = ""): string => {
 export default {
   MODEL_DEBUG: parseFlag(process.env.GEN2EI_MODEL_DBG),
   OPENAI_MODEL: parseParam(process.env.GEN2EI_MODEL, "gpt-3.5-turbo"),
-  SANDBOX_DEBUG: parseFlag(process.env.GEN2EI_MODEL_DBG)
+  SANDBOX_DEBUG: parseFlag(process.env.GEN2EI_MODEL_DBG),
 } as Gen2EInterpreterEnv;

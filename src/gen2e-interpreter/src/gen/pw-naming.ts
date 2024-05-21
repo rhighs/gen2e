@@ -73,7 +73,7 @@ export const generateTestName: Gen2ELLMCall<TaskMessage, string> = async (
       model: useModel,
       task: {
         prompt: taskPrompt,
-        output: title
+        output: title,
       },
       completionTokens: usage?.completion_tokens ?? 0,
       totalTokens: usage?.total_tokens ?? 0,
