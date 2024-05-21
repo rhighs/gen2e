@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 
-import { makeTool } from "@rhighs/gen2e/src/gen/tools/code-sanity";
+import { makeTool, makeTracedTool } from "@rhighs/gen2e/src/gen/tools";
 import { makeFormatTool } from "./tools/ensure-format";
 import {
   TaskMessage,
@@ -14,6 +14,7 @@ import {
 import env from "../env";
 import { debug } from "../log";
 import { sanitizeCodeOutput, validateJSCode } from "@rhighs/gen2e";
+import { ChatCompletionToolRunnerParams } from "openai/resources/beta/chat/completions";
 
 // rob: here is a lame copy paste for playwright's expect documentation. This should be enough to not
 //      let the llm come up with garbage or wrong expect calls.
@@ -271,42 +272,50 @@ export const generateGen2EExpr: Gen2ELLMCall<
   openai?: OpenAI
 ): Promise<TaskResult<Gen2EExpression>> => {
   openai = openai ?? new OpenAI({ apiKey: task.options?.openaiApiKey });
-  const isDebug = task.options?.debug ?? env.DEFAULT_MODEL_DEBUG;
+  const isDebug = task.options?.debug ?? env.MODEL_DEBUG;
+  const useModel = task.options?.model ?? env.OPENAI_MODEL;
+  const taskPrompt = prompt(task.task, task.codeContext);
+
+  const tools = [
+    makeTracedTool(
+      makeTool(({ code }) => {
+        return validateJSCode(code);
+      })
+    ),
+    makeTracedTool(
+      makeFormatTool(({ code }) => {
+        if (
+          code.startsWith("```") ||
+          code.startsWith("\\`\\`\\`") ||
+          code.endsWith("```") ||
+          code.endsWith("\\`\\`\\`")
+        ) {
+          return {
+            success: false,
+            reason:
+              "Invalid format, do not use markdown. Code should be formatted as plain string.",
+          };
+        }
+
+        return {
+          success: true,
+        };
+      })
+    ),
+  ];
+
   const runner = openai.beta.chat.completions
     .runTools({
-      model: task.options?.model ?? env.DEFAULT_OPENAI_MODEL,
+      model: useModel,
       temperature: 0,
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: prompt(task.task, task.codeContext) },
+        { role: "user", content: taskPrompt },
       ],
-      tools: [
-        {
-          type: "function",
-          function: makeTool(({ code }) => validateJSCode(code)),
-        },
-        {
-          type: "function",
-          function: makeFormatTool(({ code }) => {
-            if (
-              code.startsWith("```") ||
-              code.startsWith("\\`\\`\\`") ||
-              code.endsWith("```") ||
-              code.endsWith("\\`\\`\\`")
-            ) {
-              return {
-                success: false,
-                reason:
-                  "Invalid format, do not use markdown. Code should be formatted as plain string.",
-              };
-            }
-
-            return {
-              success: true,
-            };
-          }),
-        },
-      ],
+      tools: tools.map((tool) => ({
+        type: "function",
+        function: tool,
+      })),
     })
     .on("message", (message) => {
       if (hooks?.onMessage) {
@@ -330,6 +339,14 @@ export const generateGen2EExpr: Gen2ELLMCall<
 
     const usage = await runner.totalUsage();
     const usageStats: Gen2ELLMUsageStats = {
+      model: useModel,
+      task: {
+        prompt: taskPrompt,
+        output: expression ?? "",
+        noToolCalls: tools
+          .map((tool) => tool.callCount())
+          .reduce((acc, v) => acc + v, 0),
+      },
       completionTokens: usage.completion_tokens,
       promptTokens: usage.prompt_tokens,
       totalTokens: usage.total_tokens,

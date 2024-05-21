@@ -37,6 +37,8 @@ type InterpreterEventCallback = (...args: any[]) => void;
 type InterpreterOptions = {
   debug?: boolean;
   model?: string;
+  gen2eModel?: string;
+  playwrightModel?: string;
   openaiApiKey?: string;
   recordUsage?: boolean;
 };
@@ -48,7 +50,16 @@ type InterpreterConfig = {
   browserOptions?: Gen2EBrowserOptions;
 };
 
+type InpterpreterPerModelStats = {
+  model: string;
+  completionTokens: number;
+  totalTokens: number;
+  promptTokens: number;
+  toolCalls?: number;
+};
+
 type InterpreterUsageStats = {
+  perModel: InpterpreterPerModelStats[];
   totalCalls: number;
   completionTokens: number;
   totalTokens: number;
@@ -72,17 +83,66 @@ class TasksInterpreter {
   private recordModelsUsage: boolean;
   private usageStats?: InterpreterUsageStats;
 
+  private llmCallHooks: Gen2ELLMCallHooks;
+
   constructor(config: InterpreterConfig, options: InterpreterOptions) {
     this.options = options;
     this.recordModelsUsage = options.recordUsage ?? false;
     if (this.recordModelsUsage) {
       this.usageStats = {
+        perModel: [],
         totalCalls: 0,
         completionTokens: 0,
         totalTokens: 0,
         promptTokens: 0,
       };
     }
+
+    const callHooks: Gen2ELLMCallHooks = {
+      onMessage: (message) => {
+        this._call_event("ai-message", this, message);
+      },
+    };
+
+    if (this.recordModelsUsage && this.usageStats) {
+      callHooks.onUsage = (usage) => {
+        if (this.usageStats) {
+          const { completionTokens, totalTokens, promptTokens, model, task } =
+            usage;
+          const { usageStats } = this;
+
+          usageStats.completionTokens += completionTokens;
+          usageStats.totalTokens += totalTokens;
+          usageStats.promptTokens += promptTokens;
+          usageStats.totalCalls += 1;
+
+          const i = usageStats.perModel.findIndex(
+            ({ model: m }) => m === model
+          );
+          if (i !== -1) {
+            const modelStats = usageStats.perModel[i];
+            const updatedStats = {
+              ...modelStats,
+              completionTokens: modelStats.completionTokens + completionTokens,
+              promptTokens: modelStats.promptTokens + promptTokens,
+              totalTokens: modelStats.totalTokens + totalTokens,
+              toolCalls: (modelStats.toolCalls ?? 0) + (task?.noToolCalls ?? 0),
+            };
+            usageStats.perModel[i] = updatedStats;
+          } else {
+            usageStats.perModel.push({
+              model,
+              completionTokens,
+              totalTokens,
+              promptTokens,
+              toolCalls: task?.noToolCalls ?? 0,
+            });
+          }
+        }
+      };
+    }
+
+    this.llmCallHooks = callHooks;
 
     this.instance = new OpenAI({ apiKey: options?.openaiApiKey });
     if (config.mode) {
@@ -114,28 +174,17 @@ class TasksInterpreter {
     codeContext?: string
   ): Promise<Gen2EExpression | undefined> {
     try {
-      const callHooks: Gen2ELLMCallHooks = {
-        onMessage: (message) => {
-          this._call_event("ai-message", this, message);
-        },
-      };
-
-      if (this.recordModelsUsage && this.usageStats) {
-        callHooks.onUsage = (usage) => {
-          this.usageStats!.completionTokens += usage.completionTokens;
-          this.usageStats!.totalTokens += usage.totalTokens;
-          this.usageStats!.promptTokens += usage.promptTokens;
-          this.usageStats!.totalCalls += 1;
-        };
-      }
-
       const result = await generateGen2EExpr(
         {
           task,
           codeContext: codeContext,
-          options: this.options,
+          options: {
+            model: this.options.gen2eModel ?? this.options.model,
+            openaiApiKey: this.options.openaiApiKey,
+            debug: this.options.debug,
+          },
         },
-        callHooks,
+        this.llmCallHooks,
         this.instance
       );
 
@@ -236,6 +285,11 @@ class TasksInterpreter {
         fakeTestSource,
         page,
         staticStore,
+        this.llmCallHooks,
+        {
+          model: this.options.playwrightModel ?? this.options.model,
+          openaiApiKey: this.options.openaiApiKey,
+        },
         (code: string, page: Page) => {
           const evalFunc = new Function(
             "page",

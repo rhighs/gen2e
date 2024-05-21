@@ -1,9 +1,10 @@
 import { APIRequestContext, BrowserContext } from "@playwright/test";
 import {
+  Gen2ELLMCallHooks,
   Gen2EPlaywriteCodeEvalFunc,
-  GenFunction,
   gen as genObject,
   GenStepFunction,
+  ModelOptions,
   Page,
   PlaywrightTestFunction,
   TestFunction,
@@ -14,8 +15,7 @@ import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
 import { debug, err } from "./log";
 import { expect as nativeExpect } from "@playwright/test";
 import { compile as sanitizeGen2e } from "./ast/gen2e-sanitize";
-
-const SANDBOX_DEBUG = !!process.env.GEN2E_SANDBOX_DEBUG;
+import env from "./env";
 
 /**
  * rob:
@@ -41,6 +41,8 @@ export const sandboxEval = async (
   gen2eTestSource: string,
   page: Page,
   store: StaticStore,
+  llmCallHooks?: Gen2ELLMCallHooks,
+  modelOptions?: ModelOptions,
   evalPwCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
     new Function("code", "page", "return Promise.resolve()")(code, page)
 ) => {
@@ -50,29 +52,32 @@ export const sandboxEval = async (
       ...args: Parameters<GenStepFunction>
     ): ReturnType<GenStepFunction> => {
       const [task, config, options, _] = args;
-      if (SANDBOX_DEBUG) {
+      if (env.SANDBOX_DEBUG) {
         debug("calling __gen() with args", args);
       }
 
-      return __gen(task, config, options, evalPwCode);
+      return __gen(task, config, modelOptions, evalPwCode);
     };
 
   const _gen_test = (testFunction: TestFunction) =>
-    genObject.test(async ({ page, gen, ...rest }, testInfo) => {
-      if (SANDBOX_DEBUG) {
-        debug("using gen function source code:\n", gen.toString());
-      }
+    genObject.test(
+      async ({ page, gen, ...rest }, testInfo) => {
+        if (env.SANDBOX_DEBUG) {
+          debug("using gen function source code:\n", gen.toString());
+        }
 
-      return await testFunction(
-        {
-          page,
-          gen: _gen_custom_eval(gen),
-          context: rest.context,
-          request: rest.request,
-        },
-        testInfo
-      );
-    }, store);
+        return await testFunction(
+          {
+            page,
+            gen: _gen_custom_eval(gen),
+            context: rest.context,
+            request: rest.request,
+          },
+          testInfo
+        );
+      },
+      { store, hooks: llmCallHooks }
+    );
 
   const _test = async (
     testTitle: string,
@@ -94,7 +99,7 @@ export const sandboxEval = async (
     stepTitle,
     step: (...args: any[]) => Promise<any> | any
   ) => {
-    if (SANDBOX_DEBUG) {
+    if (env.SANDBOX_DEBUG) {
       debug('calling test step for task: "', stepTitle, '"');
     }
     await step();
@@ -111,7 +116,7 @@ export const sandboxEval = async (
     throw new Gen2ESandboxError(message);
   };
 
-  if (SANDBOX_DEBUG) {
+  if (env.SANDBOX_DEBUG) {
     debug("gen2e source code before sanitize step:\n", gen2eTestSource);
   }
 
@@ -123,7 +128,7 @@ export const sandboxEval = async (
   //      the LLM to be so dumb to mess the signature up after I've fed it an entire
   //      cheatsheet on how that is used.
   const s = sanitizeGen2e(gen2eTestSource);
-  if (SANDBOX_DEBUG) {
+  if (env.SANDBOX_DEBUG) {
     debug("gen2e source code after sanitize step:\n", s);
   }
 

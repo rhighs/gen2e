@@ -35,18 +35,20 @@ export const generateTestName: Gen2ELLMCall<TaskMessage, string> = async (
   openai?: OpenAI
 ): Promise<TaskResult<string>> => {
   openai = openai ?? new OpenAI({ apiKey: task.options?.openaiApiKey });
-  const isDebug = task.options?.debug ?? env.DEFAULT_MODEL_DEBUG;
+  const isDebug = task.options?.debug ?? env.MODEL_DEBUG;
+  const useModel = task.options?.model ?? env.OPENAI_MODEL;
+  const taskPrompt = prompt(task);
 
   if (isDebug) {
     debug("generating title for tasks:\n", task.task);
   }
 
   const response = await openai.chat.completions.create({
-    model: task.options?.model ?? env.DEFAULT_OPENAI_MODEL,
+    model: useModel,
     temperature: 0,
     messages: [
       { role: "system", content: systemMessage },
-      { role: "user", content: prompt(task) },
+      { role: "user", content: taskPrompt },
     ],
   });
 
@@ -68,6 +70,11 @@ export const generateTestName: Gen2ELLMCall<TaskMessage, string> = async (
 
     const usage = response.usage;
     const usageStats: Gen2ELLMUsageStats = {
+      model: useModel,
+      task: {
+        prompt: taskPrompt,
+        output: title
+      },
       completionTokens: usage?.completion_tokens ?? 0,
       totalTokens: usage?.total_tokens ?? 0,
       promptTokens: usage?.prompt_tokens ?? 0,

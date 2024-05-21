@@ -54,6 +54,7 @@ export const compile = (source: string) =>
             if (
               node.type === "ExpressionStatement" &&
               node.expression.type === "CallExpression" &&
+              node.expression.arguments?.length > 0 &&
               node.expression.arguments[0].type === "AwaitExpression" &&
               isGenCall(node.expression.arguments[0])
             ) {
