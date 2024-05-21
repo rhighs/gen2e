@@ -31,6 +31,12 @@ export type TaskResult<T> =
     };
 
 export type Gen2ELLMUsageStats = {
+  model: string;
+  task?: {
+    prompt: string,
+    output?: string
+    noToolCalls?: number
+  };
   completionTokens: number;
   promptTokens: number;
   totalTokens: number;
@@ -71,15 +77,22 @@ export type Gen2EPlaywriteCodeEvalFunc = (
 export interface GenFunction {
   (
     task: string,
-    config: { page: Page; test?: Test },
+    config: { page: Page; },
     options?: ModelOptions,
+    init?: {
+      store?: StaticStore;
+      hooks?: Gen2ELLMCallHooks;
+    },
     evalCode?: Gen2EPlaywriteCodeEvalFunc
   ): Promise<any>;
 }
 
 export type GenTestFunction = (
   testFunction: TestFunction,
-  store?: StaticStore
+  init?: {
+    store?: StaticStore;
+    hooks?: Gen2ELLMCallHooks;
+  }
 ) => PlaywrightTestFunction;
 
 export type GenStepFunction = (

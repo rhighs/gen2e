@@ -7,13 +7,14 @@ import {
   type PlaywrightTestFunction,
   ModelOptions,
   Gen2EPlaywriteCodeEvalFunc,
+  Gen2ELLMCallHooks,
 } from "./types";
 import { generatePlaywrightExpr } from "./gen/pw";
 import { PlainGenResultError, TestStepGenResultError } from "./errors";
 import { getSnapshot } from "./snapshot";
 import { StaticStore } from "./static/store/store";
 import env from "./env";
-import { info } from "./log";
+import { info, warn } from "./log";
 import { FSStaticStore } from "./static/store/fs";
 import { debug } from "./log";
 
@@ -40,9 +41,12 @@ export const gen: GenType = async function (
   task: string,
   config: {
     page: Page;
-    store?: StaticStore;
   },
   options?: ModelOptions,
+  init?: {
+    hooks?: Gen2ELLMCallHooks;
+    store?: StaticStore;
+  },
   evalCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
     new Function(
       "page",
@@ -55,8 +59,8 @@ export const gen: GenType = async function (
     );
   }
   const page = config.page;
-  const isDebug = options?.debug ?? env.DEFAULT_DEBUG_MODE;
-  const store = config.store;
+  const isDebug = options?.debug ?? env.DEBUG_MODE;
+  const store = init?.store;
 
   let expression = "";
   if (store && this.useStatic) {
@@ -79,16 +83,21 @@ export const gen: GenType = async function (
         snapshot: await getSnapshot(page),
         options: options
           ? {
-              model: options.model ?? env.DEFAULT_OPENAI_MODEL,
+              model: options.model ?? env.OPENAI_MODEL,
               debug: isDebug,
               openaiApiKey: options.openaiApiKey,
             }
           : undefined,
       },
       {
+        ...(init?.hooks ?? {}),
         onMessage: (message) => {
           if (isDebug) {
             debug(`[event] on message >>> ${JSON.stringify(message, null, 4)}`);
+          }
+
+          if (init?.hooks?.onMessage) {
+            init.hooks.onMessage(message);
           }
         },
       }
@@ -117,10 +126,21 @@ export const gen: GenType = async function (
 gen.test = function (
   this: GenType,
   testFunction: TestFunction,
-  store: StaticStore = FSStaticStore
+  init?: {
+    store?: StaticStore;
+    hooks?: Gen2ELLMCallHooks;
+  }
 ): PlaywrightTestFunction {
   return async ({ page, context, request }, testInfo): Promise<void> => {
     const { title } = testInfo;
+
+    const store = init?.store ?? FSStaticStore;
+    if (!store) {
+      warn(
+        "found explicitly null static store init config, disabling static store..."
+      );
+      this.useStatic = false;
+    }
 
     const gen: GenStepFunction = async (
       task: string,
@@ -148,7 +168,7 @@ gen.test = function (
       }
 
       const { test, page } = config;
-      const isDebug = options?.debug ?? env.DEFAULT_DEBUG_MODE;
+      const isDebug = options?.debug ?? env.DEBUG_MODE;
 
       const testIdent = store.makeIdent(title, task);
       if (store && this.useStatic) {
@@ -179,18 +199,23 @@ gen.test = function (
               snapshot: await getSnapshot(page),
               options: options
                 ? {
-                    model: options.model ?? env.DEFAULT_OPENAI_MODEL,
+                    model: options.model ?? env.OPENAI_MODEL,
                     debug: isDebug,
                     openaiApiKey: options.openaiApiKey,
                   }
                 : undefined,
             },
             {
+              ...(init?.hooks ?? {}),
               onMessage: (message) => {
                 if (isDebug) {
                   debug(
                     `[event] on message >>> ${JSON.stringify(message, null, 4)}`
                   );
+                }
+
+                if (init?.hooks?.onMessage) {
+                  init.hooks.onMessage(message);
                 }
               },
             }

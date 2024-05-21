@@ -12,6 +12,7 @@ import { LLMCodeError } from "../errors";
 import { validateJSCode } from "./sanity/check-js";
 import { debug } from "../log";
 import { sanitizeCodeOutput } from "./sanity";
+import { makeTracedTool } from "./tools";
 
 const prompt = (task: string, domSnapshot: string) => {
   return `This is your task: ${task}
@@ -119,22 +120,30 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
   openai?: OpenAI
 ): Promise<TaskResult<string>> => {
   openai = openai ?? new OpenAI({ apiKey: task.options?.openaiApiKey });
-  const isDebug = task.options?.debug ?? env.DEFAULT_DEBUG_MODE;
+  const isDebug = task.options?.debug ?? env.DEBUG_MODE;
+  const useModel = task.options?.model ?? env.OPENAI_MODEL;
+  const taskPrompt = prompt(task.task, task.snapshot.dom);
+
+  const tools = [
+    makeTracedTool(
+      makeTool(({ code }) => {
+        return validateJSCode(code);
+      }) // FIXME: code evaluation should be done here
+    ),
+  ];
 
   const runner = openai.beta.chat.completions
     .runTools({
-      model: task.options?.model ?? env.DEFAULT_OPENAI_MODEL,
+      model: useModel,
       temperature: 0,
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: prompt(task.task, task.snapshot.dom) },
+        { role: "user", content: taskPrompt },
       ],
-      tools: [
-        {
-          type: "function",
-          function: makeTool(({ code }) => validateJSCode(code)), // FIXME: code evaluation should be done here
-        },
-      ],
+      tools: tools.map((tool) => ({
+        type: "function",
+        function: tool,
+      })),
     })
     .on("message", (message) => {
       if (hooks?.onMessage) {
@@ -163,6 +172,14 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
     const code = sanitizeCodeOutput(llmSource);
     const usage = await runner.totalUsage();
     const usageStats: Gen2ELLMUsageStats = {
+      model: useModel,
+      task: {
+        prompt: taskPrompt,
+        output: llmSource,
+        noToolCalls: tools
+          .map((tool) => tool.callCount())
+          .reduce((acc, v) => acc + v, 0),
+      },
       completionTokens: usage.completion_tokens,
       promptTokens: usage.prompt_tokens,
       totalTokens: usage.total_tokens,
