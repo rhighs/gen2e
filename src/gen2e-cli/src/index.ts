@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 
 import { program } from "commander";
 
-import { type Gen2EExpression } from "@rhighs/gen2e";
+import { gen, type Gen2EExpression } from "@rhighs/gen2e";
 import { tasksInterpreter } from "@rhighs/gen2e-intepreter";
 
 import { info, err, debug } from "./log";
@@ -24,7 +24,18 @@ program
     "gen2e"
   )
   .option("--openai-api-key <openaiApiKey>", "api key for openai services")
-  .option("--model <model>", "openai model to use for each task")
+  .option(
+    "--model <model>",
+    "model to use for each task, set this to use this model for all tasks"
+  )
+  .option(
+    "--gen2e-model <gen2eModel>",
+    "model to use for gen2e source code generation"
+  )
+  .option(
+    "--pw-model <pwModel>",
+    "model to use for playwright source code generation"
+  )
   .option(
     "-s, --stats",
     "show interpreter stats report, number of tokens being used and total llm calls",
@@ -38,6 +49,8 @@ program
     const verbose = options.verbose ? true : false;
     const isDebug = options.debug ? true : undefined;
     const model = options.model ? String(options.model).trim() : undefined;
+    const gen2eModel = options.gen2eModel;
+    const pwModel = options.pwModel;
     const imode = options.imode;
     const showStats = options.stats ?? false;
     const apiKey = options.openaiApiKey
@@ -56,6 +69,8 @@ program
       },
       {
         model,
+        playwrightModel: pwModel,
+        gen2eModel: gen2eModel,
         debug: isDebug,
         openaiApiKey: apiKey,
         recordUsage: showStats,
