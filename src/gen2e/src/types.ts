@@ -33,9 +33,9 @@ export type TaskResult<T> =
 export type Gen2ELLMUsageStats = {
   model: string;
   task?: {
-    prompt: string,
-    output?: string
-    noToolCalls?: number
+    prompt: string;
+    output?: string;
+    noToolCalls?: number;
   };
   completionTokens: number;
   promptTokens: number;
@@ -77,7 +77,7 @@ export type Gen2EPlaywriteCodeEvalFunc = (
 export interface GenFunction {
   (
     task: string,
-    config: { page: Page; },
+    config: { page: Page },
     options?: ModelOptions,
     init?: {
       store?: StaticStore;

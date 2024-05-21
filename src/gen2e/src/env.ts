@@ -27,10 +27,7 @@ const parseParam = (f: string | undefined, def: string = ""): string => {
 
 export default {
   DEBUG_MODE: parseFlag(process.env.GEN2E_DBG),
-  OPENAI_MODEL: parseParam(
-    process.env.GEN2E_MODEL,
-    "gpt-4o-2024-05-13"
-  ),
+  OPENAI_MODEL: parseParam(process.env.GEN2E_MODEL, "gpt-4o-2024-05-13"),
   LOG_STEP: parseFlag(process.env.GEN2E_LOG_STEP),
   USE_STATIC_STORE: parseFlag(process.env.GEN2E_USE_STATIC_STORE, true),
 } as Gen2EEnv;
