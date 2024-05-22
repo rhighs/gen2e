@@ -1,10 +1,9 @@
 {
-  "name": "gen2e-desktop",
-  "version": "1.0.1",
-  "description": "An Electron application with React and TypeScript",
+  "name": "@rhighs/gen2e-desktop",
+  "version": "1.0.2",
+  "description": "Simple, electron based Gen2E interface",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "Roberto Montalti",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
