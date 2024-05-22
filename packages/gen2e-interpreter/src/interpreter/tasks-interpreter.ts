@@ -236,7 +236,7 @@ class TasksInterpreter {
     const expressions = genResult.map((g) => g.expression);
     if (this.options.debug) {
       debug(
-        "intepreter received \n=============================\n",
+        "interpreter received \n=============================\n",
         expressions.map((g, i) => `(no. call ${i})\n${g}`).join("\n"),
         "\n=============================\n"
       );

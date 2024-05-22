@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { program } from "commander";
 
 import { gen, type Gen2EExpression } from "@rhighs/gen2e";
-import { tasksInterpreter } from "@rhighs/gen2e-intepreter";
+import { tasksInterpreter } from "@rhighs/gen2e-interpreter";
 
 import { info, err, debug } from "./log";
 import { makeREPL } from "./repl";

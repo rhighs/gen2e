@@ -14,7 +14,7 @@ export const info = (...args: any[]): unknown => (
 
 export const err = (...args: any[]): unknown => (
   process.stderr.write(
-    `\x1b[31m[GEN2E.INTEPRETER-ERR]\x1b[0m: ${makeMessage(...args)}\n`
+    `\x1b[31m[GEN2E.interpreter-ERR]\x1b[0m: ${makeMessage(...args)}\n`
   ),
   0
 );

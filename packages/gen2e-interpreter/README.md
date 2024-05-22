@@ -178,7 +178,7 @@ The ending result will be a playwright test with no dependencies to the gen2e li
 # show debug logs for AST edits
 GEN2EI_DEBUG_AST=0
 
-# sets the default model used by the intepreter, with a fallback to "gpt-3.5-turbo" if not specified
+# sets the default model used by the interpreter, with a fallback to "gpt-3.5-turbo" if not specified
 GEN2EI_MODEL="gpt-4o"
 
 # show debug logs for the custom agents

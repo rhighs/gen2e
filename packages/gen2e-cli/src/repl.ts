@@ -7,7 +7,7 @@ import {
   Gen2EBrowser,
   Gen2EBrowserOptions,
   evalGen2EExpression,
-} from "@rhighs/gen2e-intepreter";
+} from "@rhighs/gen2e-interpreter";
 import { gen, stepLoggingEnabled } from "@rhighs/gen2e";
 stepLoggingEnabled(true);
 
