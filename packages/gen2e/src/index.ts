@@ -2,8 +2,8 @@ export { gen } from "./gen";
 export * from "./gen/sanity";
 export * from "./gen/pw";
 export * from "./errors";
-export * from "./static/store/store"
-export * from "./static/store/fs"
+export * from "./static/store/store";
+export * from "./static/store/fs";
 export type * from "./types";
 
 import * as consts from "./env";

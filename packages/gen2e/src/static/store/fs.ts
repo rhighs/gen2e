@@ -16,10 +16,20 @@ const BASE_STATIC_PATH =
   process.env.GEN2E_STATIC_PATH ?? path.join(process.cwd(), ".static");
 const stepsDirPath = `${BASE_STATIC_PATH}/steps`;
 
-const stepFilePath = (ident: string) =>
+/**
+ * Constructs the file path for a given identifier.
+ * @param {string} ident - The identifier.
+ * @returns {string} The constructed file path.
+ */
+const stepFilePath = (ident: string): string =>
   `${BASE_STATIC_PATH}/steps/${wrapIdent(ident)}`;
 
 type PreloadedStaticSteps = Map<string, string>;
+
+/**
+ * Preloads the static steps from the steps directory.
+ * @returns {PreloadedStaticSteps} A map of preloaded static steps.
+ */
 const preload = (): PreloadedStaticSteps =>
   readdirSync(stepsDirPath).reduce((acc, file): PreloadedStaticSteps => {
     acc.set(file, readFileSync(path.join(stepsDirPath, file)).toString());
@@ -31,10 +41,24 @@ if (shouldPreload) {
   preloadedSteps = preload();
 }
 
-const wrapIdent = (ident: string) => `${hash("md5", ident)}.gen.step`;
+/**
+ * Wraps an identifier with an MD5 hash.
+ * @param {string} ident - The identifier.
+ * @returns {string} The wrapped identifier.
+ */
+const wrapIdent = (ident: string): string => `${hash("md5", ident)}.gen.step`;
 
+/**
+ * File system-based implementation of the StaticStore interface.
+ */
 export const FSStaticStore: StaticStore = {
   makeIdent: defaultMakeIdent,
+
+  /**
+   * Fetches a static generation step by its identifier.
+   * @param {string} ident - The identifier.
+   * @returns {StaticGenStep | undefined} The fetched static generation step, or undefined if not found.
+   */
   fetchStatic: (ident): StaticGenStep | undefined => {
     if (!existsSync(stepsDirPath)) {
       mkdirSync(stepsDirPath, { recursive: true });
@@ -59,6 +83,11 @@ export const FSStaticStore: StaticStore = {
       return undefined;
     }
   },
+
+  /**
+   * Writes a static generation step to the file system.
+   * @param {StaticGenStep} staticInfo - The static generation step information.
+   */
   makeStatic: (staticInfo: StaticGenStep) => {
     return writeFileSync(
       stepFilePath(staticInfo.ident),
