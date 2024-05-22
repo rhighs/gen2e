@@ -318,7 +318,7 @@ class TasksInterpreter {
 
   async teardown(): Promise<void> {
     if (this.browser) {
-      await this.browser.close()
+      await this.browser.close();
     }
   }
 

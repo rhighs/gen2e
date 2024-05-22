@@ -1,7 +1,7 @@
 import jscodeshift, { API, FileInfo } from "jscodeshift";
 import { info } from "../log";
 
-const DEBUG_AST_UTILS = !!process.env.GEN2E_DEBUG_AST;
+const DEBUG_AST_UTILS = !!process.env.GEN2EI_DEBUG_AST;
 
 export type Gen2ECompileFunction = (source: string) => string;
 export type Gen2ECompilerTransformer = (fileInfo: FileInfo, api: API) => string;
