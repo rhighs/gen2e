@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@playwright/test": "^1.44.0",
-    "@rhighs/gen2e-interpreter": "file:../gen2e-interpreter",
+    "@rhighs/gen2e-interpreter": "^1.0.0",
     "commander": "^12.0.0",
     "jscodeshift": "^0.15.2"
   },
