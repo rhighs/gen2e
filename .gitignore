@@ -133,5 +133,4 @@ dist
 .static
 *.html
 test.*
-*.gen2e
 .DS_Store
