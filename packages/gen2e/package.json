@@ -2,7 +2,7 @@
   "name": "@rhighs/gen2e",
   "version": "1.0.1",
   "description": "A playwright assistant library, write e2e tests as plain english instructions",
-  "main": "dist/src/index.js",
+  "main": "dist/index.js",
   "directories": {
     "test": "tests"
   },
