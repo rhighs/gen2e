@@ -2,7 +2,7 @@
   "name": "@rhighs/gen2e-cli",
   "version": "1.0.18",
   "description": "CLI implementation interfacing @rhighs/gen2e-interpreter",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "bin": {
     "gen2e-cli": "bin/gen2e-cli.js"
   },

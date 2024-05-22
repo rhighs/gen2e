@@ -2,7 +2,7 @@
   "name": "@rhighs/gen2e-interpreter",
   "version": "1.0.4",
   "description": "A library exposing an LLM based interpreter, provide it human browser instructions and get generated playwright tests back",
-  "main": "src/index.ts",
+  "main": "dist/src/index.js",
   "directories": {
     "test": "tests"
   },
