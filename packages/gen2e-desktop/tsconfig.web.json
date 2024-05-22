@@ -7,7 +7,9 @@
     "src/preload/*.d.ts"
   ],
   "compilerOptions": {
+    "target": "ES6",
     "composite": true,
+    "noUnusedLocals": false,
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {

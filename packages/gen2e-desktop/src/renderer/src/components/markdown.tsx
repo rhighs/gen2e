@@ -1,26 +1,27 @@
-import { Button } from "antd";
+import { Button } from 'antd'
 
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
-import { Light as SyntaxHighlighter } from "react-syntax-highlighter";
-import { atomOneDark as highlighterStyle } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { Light as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { atomOneDark as highlighterStyle } from 'react-syntax-highlighter/dist/esm/styles/hljs'
 
-import { copyToClipboard } from "../lib/util";
+import { copyToClipboard } from '../lib/util'
 
 type StyledMarkdownProps = {
-  text?: string;
-};
+  text?: string
+}
 
 export const StyledMarkdown = ({ text }: StyledMarkdownProps) => (
   <Markdown
     remarkPlugins={[remarkGfm]}
     children={text}
-    className={"w-auto"}
+    className={'w-auto'}
     components={{
       code(props) {
-        const { children, className, ...rest } = props;
-        const match = /language-(\w+)/.exec(className || "");
+        const { children, className, ...rest } = props
+        const { ref, ...restNoRef } = rest
+        const match = /language-(\w+)/.exec(className || '')
         return match ? (
           <div className="my-2">
             <div className="flex flex-col space-y-1">
@@ -29,19 +30,15 @@ export const StyledMarkdown = ({ text }: StyledMarkdownProps) => (
                   {match[1].charAt(0).toUpperCase() + match[1].slice(1)}
                 </span>
                 <div>
-                  <Button
-                    onClick={async () =>
-                      await copyToClipboard(String(children))
-                    }
-                  >
+                  <Button onClick={async () => await copyToClipboard(String(children))}>
                     Copy
                   </Button>
                 </div>
               </div>
               <SyntaxHighlighter
-                {...rest}
+                {...restNoRef}
                 PreTag="div"
-                children={String(children).replace(/\n$/, "") ?? ""}
+                children={String(children).replace(/\n$/, '') ?? ''}
                 language={match[1]}
                 style={highlighterStyle}
                 className="rounded-md"
@@ -50,10 +47,10 @@ export const StyledMarkdown = ({ text }: StyledMarkdownProps) => (
           </div>
         ) : (
           <code {...rest} className={className}>
-            {children ?? ""}
+            {children ?? ''}
           </code>
-        );
-      },
+        )
+      }
     }}
   />
-);
+)
