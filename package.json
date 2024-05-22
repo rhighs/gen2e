@@ -9,7 +9,7 @@
     "start": "tsx ./packages/gen2e-cli/src/index.ts",
     "test": "npm test --workspaces",
     "build": "lerna run build",
-    "publish": "lerna publish"
+    "publish": "lerna run build && lerna publish"
   },
   "keywords": [],
   "author": "",

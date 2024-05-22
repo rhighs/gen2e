@@ -1,7 +1,7 @@
 {
   "name": "@rhighs/gen2e-desktop",
   "version": "1.0.3",
-  "description": "Simple, electron based Gen2E interface",
+  "description": "Simple, electron based Gen2E Interpreter interface",
   "main": "./out/main/index.js",
   "author": "Roberto Montalti",
   "scripts": {

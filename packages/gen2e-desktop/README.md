@@ -1,6 +1,6 @@
 # gen2e-desktop
 
-An Electron application with React and TypeScript
+Simple, electron based Gen2E Interpreter interface
 
 ## Recommended IDE Setup
 
