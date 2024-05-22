@@ -7,12 +7,15 @@
   ],
   "scripts": {
     "start": "tsx ./packages/gen2e-cli/src/index.ts",
-    "test": "npm test --workspaces"
+    "test": "npm test --workspaces",
+    "build": "lerna run build",
+    "publish": "lerna publish"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "electron": "^30.0.6"
+    "electron": "^30.0.6",
+    "lerna": "^8.1.3"
   }
 }
