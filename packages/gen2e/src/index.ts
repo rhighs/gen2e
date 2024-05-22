@@ -5,6 +5,7 @@ export * from "./errors";
 export * from "./static/store/store";
 export * from "./static/store/fs";
 export type * from "./types";
+export * from "./gen/tools"
 
 import * as consts from "./env";
 

@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { Gen2EInterpreterError } from "../errors";
 import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
 import { debug } from "../log";
-import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
+import { StaticStore } from "@rhighs/gen2e";
 import { generateGen2EExpr } from "../gen/gen2e";
 import { compile as pwCompile } from "../ast/pw-compile";
 import { sandboxEval } from "./test-sandbox";

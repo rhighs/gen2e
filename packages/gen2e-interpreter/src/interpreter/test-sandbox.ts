@@ -11,7 +11,7 @@ import {
   TestInfo,
 } from "@rhighs/gen2e";
 import { Gen2ESandboxError } from "../errors";
-import { StaticStore } from "@rhighs/gen2e/src/static/store/store";
+import { StaticStore } from "@rhighs/gen2e";
 import { debug, err } from "../log";
 import { expect as nativeExpect } from "@playwright/test";
 import { compile as sanitizeGen2e } from "../ast/gen2e-sanitize";
