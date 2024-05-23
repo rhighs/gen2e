@@ -40,4 +40,10 @@ This is still WIP and won't likely work in the short term.
 
 ## Demos
 
-WIP: Need some demo gifs/videos here. Add links to these.
+**REPL**
+
+![gen2e-repl-demo](assets/repl-example.mp4)
+
+**Task file**
+
+![gen2e-tasks-demo](assets/task-gen-example.mp4)
