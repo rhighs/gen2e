@@ -10,14 +10,21 @@ import { sandboxEval } from "./test-sandbox";
 
 const generateFakeTestCode = (
   testTitle: string,
-  gen2eExpressions: string[]
+  gen2eExpressions: string[],
+  includeTimeout: boolean = true
 ) => {
   let code = `\
 test(
   "${testTitle}",
   gen.test(async ({ page, gen }) => {
+    ${
+      includeTimeout
+        ? `
     const GEN2E_CALLS_TIMEOUT = 300000;
     test.setTimeout(GEN2E_CALLS_TIMEOUT);
+    `
+        : ""
+    }
 `;
   for (let g of gen2eExpressions) {
     code += g + "\n";
@@ -302,7 +309,8 @@ class TasksInterpreter {
 
     const fakeTestSource = generateFakeTestCode(
       "gen2e - interpreter gen",
-      gen2eResult.map((g) => g.expression)
+      gen2eResult.map((g) => g.expression),
+      false
     );
 
     const code = pwCompile(fakeTestSource, staticStore);
