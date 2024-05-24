@@ -13,6 +13,8 @@ import { validateJSCode } from "./sanity/check-js";
 import { debug } from "../log";
 import { sanitizeCodeOutput } from "./sanity";
 import { makeTracedTool } from "./tools";
+import { fitsContext, maxCharactersApprox } from "./token-count";
+import { TiktokenModel } from "tiktoken";
 
 const prompt = (task: string, domSnapshot: string) => {
   return `This is your task: ${task}
@@ -122,15 +124,31 @@ export const generatePlaywrightExpr: Gen2ELLMCall<
   openai = openai ?? new OpenAI({ apiKey: task.options?.openaiApiKey });
   const isDebug = task.options?.debug ?? env.DEBUG_MODE;
   const useModel = task.options?.model ?? env.OPENAI_MODEL;
-  const taskPrompt = prompt(task.task, task.snapshot.dom);
+
+  let taskSystemMessage = systemMessage;
+  let taskPrompt = prompt(task.task, task.snapshot.dom);
 
   const tools = [
     makeTracedTool(
       makeTool(({ code }) => {
         return validateJSCode(code);
-      }) // FIXME: code evaluation should be done here
+      })
     ),
   ];
+
+  // FIXME: temporary cutoff, avoid exceptions and wasted api calls
+  //        due to context window smashing.
+  {
+    let context = taskSystemMessage + taskPrompt;
+    if (!fitsContext(useModel as TiktokenModel, context)) {
+      const cutAt = maxCharactersApprox(useModel as TiktokenModel);
+      context = context.slice(0, cutAt);
+      taskPrompt = context.slice(taskSystemMessage.length);
+      if (isDebug) {
+        debug(`context for task ${taskPrompt.slice(0, 32)}... got cut`)
+      }
+    }
+  }
 
   const runner = openai.beta.chat.completions
     .runTools({

@@ -94,3 +94,35 @@ test(
     expect(headerText).toBe("Hello, Gen2E!");
   })
 );
+
+
+test(
+  "gen2e:compiled-output - gen2e - interpreter gen",
+  async (
+    {
+      page
+    }
+  ) => {
+    const GEN2E_CALLS_TIMEOUT = 300000;
+    test.setTimeout(GEN2E_CALLS_TIMEOUT);
+await (async () => { await page.goto('https://prolocal.mywellness.com:12443/auth/login') })();
+await (async () => { await page.waitForLoadState('networkidle') })();
+await (async () => { await page.locator('input[type="email"]').last().fill('runner@e2e.it') })();
+await (async () => { await page.locator('#password').last().fill('tgsTGS123') })();
+const usernameHelperText = await (async () => { const value = await page.locator('#username-helper-text').last().innerText(); return value })();
+expect(usernameHelperText).not.toMatch(/[a-zA-Z]/);
+const passwordHelperText = await (async () => { const value = await page.locator('#password-helper-text').last().textContent()
+return value })();
+expect(passwordHelperText).not.toMatch(/[a-zA-Z]/);
+await (async () => { await page.locator('button[name="loginButton"]').last().click() })();
+await (async () => { await page.locator('text="Test Automation single club"').last().click() })();
+await (async () => { await page.locator('#automation').last().click() })();
+await (async () => { await page.locator('#automationCampaigns').last().click() })();
+await (async () => { await page.locator('[data-testid="create-campaign-action"]').last().click() })();
+await (async () => { await page.waitForTimeout(2000) })();
+await (async () => { await page.locator('div:has-text("Notifica push")').last().click() })();
+await (async () => { await page.locator('text="Crea"').last().click() })();
+await (async () => { await page.waitForTimeout(1000) })();
+await (async () => { await page.waitForLoadState('networkidle') })();
+await (async () => { await page.locator('text="Salva"').last().click() })();
+})
