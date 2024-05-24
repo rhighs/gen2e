@@ -1,8 +1,8 @@
-import { readFileSync } from "fs";
+import { appendFileSync, readFileSync, writeFileSync } from "fs";
 
 import { program } from "commander";
 
-import { gen, type Gen2EExpression } from "@rhighs/gen2e";
+import { type Gen2EExpression } from "@rhighs/gen2e";
 import { tasksInterpreter } from "@rhighs/gen2e-interpreter";
 
 import { info, err, debug } from "./log";
@@ -42,6 +42,14 @@ program
     false
   )
   .option(
+    "-o, --out <out>",
+    "optional output file for the generated code, overwrite any existsing file"
+  )
+  .option(
+    "-a, --append <append>",
+    "optionally append generated code to an existing file"
+  )
+  .option(
     "-v, --verbose",
     "show the generated expression at each step in stderr (has no effect with debug mode enabled)"
   )
@@ -53,6 +61,8 @@ program
     const pwModel = options.pwModel;
     const imode = options.imode;
     const showStats = options.stats ?? false;
+    const outFile = options.out;
+    const appendFile = options.append;
     const apiKey = options.openaiApiKey
       ? String(options.openaiApiKey).trim()
       : undefined;
@@ -103,10 +113,23 @@ program
       })
       .run(tasks);
 
-    process.stdout.write(`${result.result}\n`);
+    const code = result.result;
+    process.stdout.write(`${code}\n`);
 
     if (result.usageStats) {
       info("interpreter usage stats report", result.usageStats);
+    }
+
+    if (appendFile) {
+      info(`appending result to ${outFile}...`);
+      appendFileSync(appendFile, code);
+      info(`done appending result to ${outFile}`);
+    } else if (outFile) {
+      info(`writing result to ${outFile}...`);
+      writeFileSync(outFile, code, {
+        flag: "wx",
+      });
+      info(`done writing result to ${outFile}`);
     }
   });
 
