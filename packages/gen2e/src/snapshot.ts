@@ -4,8 +4,6 @@ import { Page } from "./types";
 
 const sanitizeHtml = (subject: string) => {
   return sanitize(subject, {
-    // The default allowedTags list already includes _a lot_ of commonly used tags.
-    // https://www.npmjs.com/package/sanitize-html#default-options
     allowedTags: sanitize.defaults.allowedTags.concat([
       "button",
       "form",
@@ -29,6 +27,7 @@ const sanitizeHtml = (subject: string) => {
         "title",
         "aria-label",
         "aria-labelledby",
+        "data-testid",
         "data-*",
         "for",
         "textContent",
@@ -37,11 +36,11 @@ const sanitizeHtml = (subject: string) => {
         "index",
       ],
     },
-    nonBooleanAttributes: ["*"],
   });
 };
 
 export const getSnapshot = async (page: Page) => {
+  await page.waitForTimeout(1000);
   const content = sanitizeHtml(await page.content());
   return {
     dom: content,
