@@ -1,6 +1,6 @@
 {
   "name": "@rhighs/gen2e-cli",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "CLI implementation interfacing @rhighs/gen2e-interpreter",
   "main": "dist/src/index.js",
   "bin": {
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@playwright/test": "^1.44.0",
-    "@rhighs/gen2e-interpreter": "^1.0.8",
+    "@rhighs/gen2e-interpreter": "^1.0.9",
     "commander": "^12.0.0",
     "jscodeshift": "^0.15.2"
   },
