@@ -9,3 +9,13 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+export interface Gen2eInterface {
+  interpret: (model: string, mode: string, tasks: string[]) => Promise<string>
+}
+
+declare global {
+  interface Window {
+    gen2e: Gen2eInterface
+  }
+}

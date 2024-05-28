@@ -55,7 +55,7 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
-  ipcMain.handle('interpret', async (event, ...args) => {
+  ipcMain.handle('interpret', async (_event, ...args) => {
     const [model, mode, tasks] = args
     const interpreter = tasksInterpreter(
       {

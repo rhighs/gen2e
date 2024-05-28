@@ -14,7 +14,7 @@ export function App() {
   const [mode, setMode] = useState('playwright')
 
   const interpret = async (model: string, mode: string, input: string[]) => {
-    const result = await window.api.interpret(model, mode, input)
+    const result = await window.gen2e.interpret(model, mode, input)
     return result
   }
 

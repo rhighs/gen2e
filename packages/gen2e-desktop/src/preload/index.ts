@@ -1,8 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Custom APIs for renderer
-const api = {
+const gen2e = {
   interpret: (...args: any[]) => ipcRenderer.invoke('interpret', ...args)
 }
 
@@ -12,7 +11,8 @@ const api = {
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
+    // expose gen2e interface
+    contextBridge.exposeInMainWorld('gen2e', gen2e)
   } catch (error) {
     console.error(error)
   }
@@ -20,5 +20,5 @@ if (process.contextIsolated) {
   // @ts-ignore (define in dts)
   window.electron = electronAPI
   // @ts-ignore (define in dts)
-  window.api = api
+  window.gen2e = gen2e
 }
