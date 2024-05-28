@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { tasksInterpreter } from '@rhighs/gen2e-interpreter'
 
 function createWindow(): void {
   // Create the browser window.
@@ -53,6 +54,22 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  ipcMain.handle('interpret', async (event, ...args) => {
+    const [model, mode, tasks] = args
+    const interpreter = tasksInterpreter(
+      {
+        mode: mode
+      },
+      {
+        model: model
+      }
+    )
+
+    console.log(model)
+    const result = await interpreter.run(tasks)
+    return result.result
+  })
 
   createWindow()
 

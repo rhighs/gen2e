@@ -1,14 +1,12 @@
 import React from 'react'
 import { RocketOutlined } from '@ant-design/icons'
-import { Button, Layout, Select, Space, Avatar, theme } from 'antd'
-
-import logo from '../assets/logo.png'
+import { Button, Layout, Select, Space, theme } from 'antd'
 
 const { Header, Content } = Layout
 
 type ShellProps = {
   children?: React.ReactNode
-  onRun?: () => void
+  onRun?: () => Promise<void>
   onModelChange?: (value: string) => void
   onInterpreterChange?: (value: string) => void
 }
@@ -22,10 +20,28 @@ function Shell({ children, onRun, onModelChange, onInterpreterChange }: ShellPro
     <Layout className="h-full">
       <Header className="flex items-center justify-between px-6 bg-technogym-darkgrey">
         <Space size={16} wrap>
-          <Avatar shape="square" src={<img src={logo} alt="logo" />} />
           <Select
             placeholder="Model"
-            options={[]}
+            options={[
+              { value: 'gpt-3.5-turbo', label: 'gpt-3.5-turbo' },
+              { value: 'gpt-3.5-turbo-0125', label: 'gpt-3.5-turbo-0125' },
+              { value: 'gpt-3.5-turbo-0301', label: 'gpt-3.5-turbo-0301' },
+              { value: 'gpt-3.5-turbo-0613', label: 'gpt-3.5-turbo-0613' },
+              { value: 'gpt-3.5-turbo-1106', label: 'gpt-3.5-turbo-1106' },
+              { value: 'gpt-3.5-turbo-16k', label: 'gpt-3.5-turbo-16k' },
+              { value: 'gpt-3.5-turbo-16k-0613', label: 'gpt-3.5-turbo-16k-0613' },
+              { value: 'gpt-4', label: 'gpt-4' },
+              { value: 'gpt-4-0125-preview', label: 'gpt-4-0125-preview' },
+              { value: 'gpt-4-0314', label: 'gpt-4-0314' },
+              { value: 'gpt-4-0613', label: 'gpt-4-0613' },
+              { value: 'gpt-4-1106-preview', label: 'gpt-4-1106-preview' },
+              { value: 'gpt-4-32k', label: 'gpt-4-32k' },
+              { value: 'gpt-4-32k-0314', label: 'gpt-4-32k-0314' },
+              { value: 'gpt-4-32k-0613', label: 'gpt-4-32k-0613' },
+              { value: 'gpt-4-turbo-preview', label: 'gpt-4-turbo-preview' },
+              { value: 'gpt-4o', label: 'gpt-4o' },
+              { value: 'gpt-4o-2024-05-13', label: 'gpt-4o-2024-05-13' }
+            ]}
             onChange={(value) => {
               if (onModelChange) onModelChange(value)
             }}
@@ -48,10 +64,12 @@ function Shell({ children, onRun, onModelChange, onInterpreterChange }: ShellPro
           type="primary"
           icon={<RocketOutlined />}
           size="middle"
-          onClick={() => {
-            if (onRun) onRun()
+          onClick={async () => {
+            if (onRun) await onRun()
           }}
-        />
+        >
+          Run
+        </Button>
       </Header>
       <Layout className="flex flex-col flex-1 p-6">
         <Content

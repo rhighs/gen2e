@@ -1,21 +1,21 @@
-import { useState } from "react";
-import { Input, Button } from "antd";
-import { SendOutlined } from "@ant-design/icons";
+import { useState } from 'react'
+import { Input, Button } from 'antd'
+import { SendOutlined } from '@ant-design/icons'
 
 type ChatInputFormProps = {
-  enabled: boolean;
-  onPromptSubmit: (prompt: string) => void;
-};
+  enabled: boolean
+  onPromptSubmit: (prompt: string) => void
+}
 
 export const ChatInputForm = (props: ChatInputFormProps) => {
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState('')
   const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
+    event.preventDefault()
     if (prompt.trim()) {
-      props.onPromptSubmit(prompt);
-      setPrompt("");
+      props.onPromptSubmit(prompt)
+      setPrompt('')
     }
-  };
+  }
 
   return (
     <form
@@ -34,5 +34,5 @@ export const ChatInputForm = (props: ChatInputFormProps) => {
         </Button>
       </div>
     </form>
-  );
-};
+  )
+}

@@ -1,27 +1,27 @@
-import { useEffect, useRef, useState } from "react";
-import { Conversation, ConversationMessage } from "./components/conversation";
-import { ChatInputForm } from "./components/input";
-import { invokeModel } from "./chat.api";
+import { useEffect, useRef, useState } from 'react'
+import { Conversation, ConversationMessage } from './components/conversation'
+import { ChatInputForm } from './components/input'
+import { invokeModel } from './chat.api'
 
 export const Chat = function () {
-  const chatTitle = import.meta.env.VITE_CHAT_TITLE;
-  const [assistantText, setAssistantText] = useState("");
-  const [assistantTyping, setAssistantTyping] = useState(false);
+  const chatTitle = import.meta.env.VITE_CHAT_TITLE
+  const [assistantText, setAssistantText] = useState('')
+  const [assistantTyping, setAssistantTyping] = useState(false)
 
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [messages, setMessages] = useState<ConversationMessage[]>([])
 
   useEffect(() => {
-    if (assistantText !== "" && assistantTyping === false) {
+    if (assistantText !== '' && assistantTyping === false) {
       setMessages((messages) => [
         ...messages,
         {
-          from: "assistant",
-          message: assistantText,
-        },
-      ]);
-      setAssistantText("");
+          from: 'assistant',
+          message: assistantText
+        }
+      ])
+      setAssistantText('')
     }
-  }, [assistantText, assistantTyping]);
+  }, [assistantText, assistantTyping])
 
   const newAssistantReply = async (prompt: string) => {
     console.log('prompt', prompt)
@@ -43,24 +43,21 @@ export const Chat = function () {
 
     //   read();
     // });
-  };
+  }
 
-  const hasFetched = useRef(false);
+  const hasFetched = useRef(false)
   useEffect(() => {
     if (!hasFetched.current) {
       newAssistantReply(
-        "Introduce yourself happily with a code comment and remember you are the testing e2e assistant for the MyWellness CRM web interface, make sure you mention this. Use a couple emojis :)"
-      );
-      hasFetched.current = true;
+        'Introduce yourself happily with a code comment and remember you are the testing e2e assistant for the MyWellness CRM web interface, make sure you mention this. Use a couple emojis :)'
+      )
+      hasFetched.current = true
     }
-  }, []);
+  }, [])
 
   return (
     <main className="relative h-full w-full flex-1 overflow-auto">
-      <div
-        className="flex h-full flex-col items-center text-center"
-        role="presentation"
-      >
+      <div className="flex h-full flex-col items-center text-center" role="presentation">
         <h1 className="text-3xl mx-auto my-4">{chatTitle}</h1>
         <div className="flex-1 h-full w-full overflow-hidden">
           <Conversation messages={messages} assistantText={assistantText} />
@@ -71,14 +68,14 @@ export const Chat = function () {
             onPromptSubmit={async (prompt) => {
               setMessages((messages) => [
                 ...messages,
-                { from: "user", username: "User", message: prompt },
-              ]);
+                { from: 'user', username: 'User', message: prompt }
+              ])
 
-              await newAssistantReply(prompt);
+              await newAssistantReply(prompt)
             }}
           />
         </div>
       </div>
     </main>
-  );
-};
+  )
+}

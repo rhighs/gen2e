@@ -1,20 +1,20 @@
-import { Row, Col, Avatar } from "antd";
-import { UserOutlined, CodeOutlined } from "@ant-design/icons";
-import { ReactNode } from "react";
-import { StyledMarkdown } from "../../../components/markdown";
+import { Row, Col, Avatar } from 'antd'
+import { UserOutlined, CodeOutlined } from '@ant-design/icons'
+import { ReactNode } from 'react'
+import { StyledMarkdown } from '../../../components/markdown'
 
 type BaseMessageProps = {
-  from?: string;
-  message?: string;
-  className?: string;
-  avatar?: ReactNode;
-};
+  from?: string
+  message?: string
+  className?: string
+  avatar?: ReactNode
+}
 
 type UserMessageProps = {
-  username: string;
-} & BaseMessageProps;
+  username: string
+} & BaseMessageProps
 
-type AssistantMessageProps = BaseMessageProps;
+type AssistantMessageProps = BaseMessageProps
 
 const Message = ({ from, message, className, avatar }: BaseMessageProps) => {
   return (
@@ -29,34 +29,23 @@ const Message = ({ from, message, className, avatar }: BaseMessageProps) => {
         </Col>
       </Row>
     </Row>
-  );
-};
+  )
+}
 
-export const UserMessage = ({
-  username,
-  message,
-  ...props
-}: UserMessageProps) => (
+export const UserMessage = ({ username, message, ...props }: UserMessageProps) => (
   <Message
     {...props}
-    avatar={
-      <Avatar icon={<UserOutlined />} style={{ backgroundColor: "#276fff" }} />
-    }
+    avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: '#276fff' }} />}
     from={username}
     message={message}
   />
-);
+)
 
-export const AssistantMessage = ({
-  message,
-  ...props
-}: AssistantMessageProps) => (
+export const AssistantMessage = ({ message, ...props }: AssistantMessageProps) => (
   <Message
     {...props}
-    avatar={
-      <Avatar icon={<CodeOutlined />} style={{ backgroundColor: "#00be23" }} />
-    }
-    from={"Assistant"}
+    avatar={<Avatar icon={<CodeOutlined />} style={{ backgroundColor: '#00be23' }} />}
+    from={'Assistant'}
     message={message}
   />
-);
+)
