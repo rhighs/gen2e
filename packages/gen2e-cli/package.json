@@ -6,6 +6,9 @@
   "bin": {
     "gen2e-cli": "bin/gen2e-cli.js"
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "directories": {
     "test": "tests"
   },

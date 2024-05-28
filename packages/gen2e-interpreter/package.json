@@ -3,6 +3,9 @@
   "version": "1.0.8",
   "description": "A library exposing an LLM based interpreter, provide it human browser instructions and get generated playwright tests back",
   "main": "dist/index.js",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "directories": {
     "test": "tests"
   },
