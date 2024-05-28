@@ -12,7 +12,12 @@ import {
 } from "@rhighs/gen2e";
 import env from "../env";
 import { debug } from "../log";
-import { sanitizeCodeOutput, validateJSCode, makeTool, makeTracedTool } from "@rhighs/gen2e";
+import {
+  sanitizeCodeOutput,
+  validateJSCode,
+  makeTool,
+  makeTracedTool,
+} from "@rhighs/gen2e";
 
 // rob: here is a lame copy paste for playwright's expect documentation. This should be enough to not
 //      let the llm come up with garbage or wrong expect calls.
