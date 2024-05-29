@@ -7,6 +7,7 @@ import { StaticStore } from "@rhighs/gen2e";
 import { generateGen2EExpr } from "../gen/gen2e";
 import { compile as pwCompile } from "../ast/pw-compile";
 import { sandboxEval } from "./test-sandbox";
+import { supportedModels } from "../gen/support";
 
 const generateFakeTestCode = (
   testTitle: string,
@@ -90,6 +91,7 @@ class TasksInterpreter {
   private recordModelsUsage: boolean;
   private usageStats?: InterpreterUsageStats;
 
+  private fallbackModel: string | undefined;
   private llmCallHooks: Gen2ELLMCallHooks;
 
   constructor(config: InterpreterConfig, options: InterpreterOptions) {
@@ -154,6 +156,9 @@ class TasksInterpreter {
     }
 
     this.llmCallHooks = callHooks;
+    if (options.model?.length && supportedModels.includes(options.model ?? "")) {
+      this.fallbackModel = options.model;
+    }
 
     this.instance = new OpenAI({ apiKey: options?.openaiApiKey });
     if (this.mode === "playwright") {
@@ -186,7 +191,7 @@ class TasksInterpreter {
           task,
           codeContext: codeContext,
           options: {
-            model: this.options.gen2eModel ?? this.options.model,
+            model: this.options.gen2eModel ?? this.fallbackModel,
             openaiApiKey: this.options.openaiApiKey,
             debug: this.options.debug,
           },
@@ -294,7 +299,7 @@ class TasksInterpreter {
         staticStore,
         this.llmCallHooks,
         {
-          model: this.options.playwrightModel ?? this.options.model,
+          model: this.options.playwrightModel ?? this.fallbackModel,
           openaiApiKey: this.options.openaiApiKey,
         },
         (code: string, page: Page) => {
