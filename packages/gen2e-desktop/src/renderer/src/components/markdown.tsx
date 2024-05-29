@@ -4,7 +4,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { atomOneDark as highlighterStyle } from 'react-syntax-highlighter/dist/esm/styles/hljs'
+import { nnfxDark as highlighterStyle } from 'react-syntax-highlighter/dist/esm/styles/hljs'
 
 import { copyToClipboard } from '../lib/util'
 

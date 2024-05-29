@@ -2,7 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 const gen2e = {
-  interpret: (...args: any[]) => ipcRenderer.invoke('interpret', ...args)
+  interpret: (...args: any[]) => ipcRenderer.invoke('interpret', ...args),
+  stopInterpreter: (...args: any[]) => ipcRenderer.invoke('stop-interpreter', ...args),
+  onLog: (cb: (...args: any[]) => void) =>
+    ipcRenderer.on('gen2e-log', (_event, ...args: any[]) => cb(...args))
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

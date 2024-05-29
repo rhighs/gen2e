@@ -12,6 +12,8 @@ interface ImportMeta {
 
 export interface Gen2eInterface {
   interpret: (model: string, mode: string, tasks: string[]) => Promise<string>
+  onLog: (cb: ({ file: string, message: string }) => void) => void
+  stopInterpreter: () => Promise<void>
 }
 
 declare global {
