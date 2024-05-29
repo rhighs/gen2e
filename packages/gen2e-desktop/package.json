@@ -1,6 +1,6 @@
 {
   "name": "@rhighs/gen2e-desktop",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Simple, electron based Gen2E Interpreter interface",
   "main": "./out/main/index.js",
   "author": "Roberto Montalti",
@@ -26,7 +26,7 @@
     "@ant-design/icons": "^5.3.6",
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",
-    "@rhighs/gen2e-interpreter": "^1.0.9",
+    "@rhighs/gen2e-interpreter": "^1.0.10",
     "antd": "^5.16.4",
     "react-markdown": "^9.0.1",
     "react-scroll-to-bottom": "^4.2.0",
