@@ -1,7 +1,7 @@
 {
-  "name": "gen2e-llm",
+  "name": "@rhighs/gen2e-llm",
   "version": "1.0.0",
-  "description": "module containing LLM call primitives for various sources and models",
+  "description": "module used across gen2e containing LLM call primitives for various sources and models",
   "main": "dist/index.js",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

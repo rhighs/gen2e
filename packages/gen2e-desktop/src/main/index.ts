@@ -56,7 +56,7 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
-  ipcMain.handle('stop-interpreter', async (_event, ...args) => {
+  ipcMain.handle('stop-interpreter', async (_event, ..._args) => {
     if (interpreter) {
       await interpreter.teardown()
     }
