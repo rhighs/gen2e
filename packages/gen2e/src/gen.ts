@@ -9,7 +9,10 @@ import {
   Gen2EPlaywriteCodeEvalFunc,
   Gen2ELLMCallHooks,
 } from "./types";
-import { generatePlaywrightExpr } from "./gen/pw";
+import {
+  createPlaywrightCodeGenAgent,
+  generatePlaywrightCode,
+} from "./playwright-gen";
 import { PlainGenResultError, TestStepGenResultError } from "./errors";
 import { getSnapshot } from "./snapshot";
 import { StaticStore } from "./static/store/store";
@@ -17,6 +20,7 @@ import env from "./env";
 import { info, warn } from "./log";
 import { FSStaticStore } from "./static/store/fs";
 import { debug } from "./log";
+import { Gen2ELLMAgentModel, Gen2ELLMCodeGenAgent } from "@rhighs/gen2e-llm";
 
 const logGen2EStart = (message: string, task: string) => {
   if (env.LOG_STEP) {
@@ -35,6 +39,10 @@ Expression: ${expr}
 =================================================================\n`);
   }
 };
+
+let agent: Gen2ELLMCodeGenAgent = createPlaywrightCodeGenAgent(
+  env.OPENAI_MODEL as Gen2ELLMAgentModel
+);
 
 export const gen: GenType = async function (
   this: GenType,
@@ -77,31 +85,25 @@ export const gen: GenType = async function (
 
   logGen2EStart("generating playwright expression with task", task);
   {
-    const result = await generatePlaywrightExpr(
-      {
-        task,
-        snapshot: await getSnapshot(page),
-        options: options
-          ? {
-              model: options.model ?? env.OPENAI_MODEL,
-              debug: isDebug,
-              openaiApiKey: options.openaiApiKey,
-            }
-          : undefined,
+    const result = await generatePlaywrightCode({
+      agent,
+      task,
+      domSnapshot: (await getSnapshot(page)).dom,
+      options: {
+        model: (options?.model as Gen2ELLMAgentModel) ?? undefined,
       },
-      {
+      hooks: {
         ...(init?.hooks ?? {}),
         onMessage: (message) => {
           if (isDebug) {
             debug(`[event] on message >>> ${JSON.stringify(message, null, 4)}`);
           }
-
           if (init?.hooks?.onMessage) {
             init.hooks.onMessage(message);
           }
         },
-      }
-    );
+      },
+    });
 
     if (result.type == "error") {
       throw new PlainGenResultError(result.errorMessage);
@@ -193,19 +195,14 @@ gen.test = function (
 
         logGen2EStart("generating playwright expression with task", task);
         {
-          const result = await generatePlaywrightExpr(
-            {
-              task,
-              snapshot: await getSnapshot(page),
-              options: options
-                ? {
-                    model: options.model ?? env.OPENAI_MODEL,
-                    debug: isDebug,
-                    openaiApiKey: options.openaiApiKey,
-                  }
-                : undefined,
+          const result = await generatePlaywrightCode({
+            agent,
+            task,
+            domSnapshot: (await getSnapshot(page)).dom,
+            options: {
+              model: (options?.model as Gen2ELLMAgentModel) ?? undefined,
             },
-            {
+            hooks: {
               ...(init?.hooks ?? {}),
               onMessage: (message) => {
                 if (isDebug) {
@@ -218,8 +215,8 @@ gen.test = function (
                   init.hooks.onMessage(message);
                 }
               },
-            }
-          );
+            },
+          });
 
           if (result.type === "error") {
             test.fail();
