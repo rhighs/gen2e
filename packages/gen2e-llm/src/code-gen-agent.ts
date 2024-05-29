@@ -11,6 +11,8 @@ import {
   Gen2ELLMAgentUsageStats,
   Gen2ELLMAgentRunner,
   Gen2ELLMAgentOpenAIModel,
+  Gen2ELLMCodeGenAgent,
+  Gen2ELLMAgentRunnerInit,
 } from "./types";
 import { debug } from "./log";
 import { Gen2ELLMGenericError } from "./errors";
@@ -51,27 +53,15 @@ This is your task: ${message}
 ${
   codeContext?.length
     ? `\
-Code context:
-You response should be coherent in this context,
-think of it as a continuation of the code you see below:
-
+This is the code context relevate to the code you'll generate:
 \`\`\`
 ${codeContext}
 \`\`\`
-
-*** IMPORTANT NOTE ***
-What you generate must not conflict with the code above
-and your response should not only contain the lines of code to
-add to the code above, you must not give any content back that
-is already contained above.
 `
     : ""
 }`;
 
-export const createCodeGenAgent: Gen2ELLMAgentBuilder<
-  Gen2ELLMCodeGenAgentTask,
-  string
-> = (
+export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
   options?: Gen2ELLMAgentBuilderOptions
@@ -100,7 +90,18 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<
 
     let expression = "";
     try {
-      const result = await runner.run({ taskPrompt, systemMessage, tools });
+      const runOpts: Gen2ELLMAgentRunnerInit = {
+        taskPrompt,
+        systemMessage,
+        tools,
+      };
+      if (task.options?.model) {
+        runOpts.options = {
+          model: task.options?.model,
+        };
+      }
+
+      const result = await runner.run(runOpts);
       if (result.type === "error") {
         return {
           type: "error",

@@ -1,8 +1,10 @@
 import OpenAI from "openai";
 
-// Existing types
 export type Gen2ELLMAgentTask = {
   task: string;
+  options?: {
+    model?: Gen2ELLMAgentModel;
+  };
 };
 
 export type Gen2ELLMAgentResult<T> =
@@ -48,16 +50,24 @@ export type Gen2ELLMAgentBuilderOptions = {
   openaiApiKey?: string;
 };
 
-export type Gen2ELLMAgentBuilder<T extends Gen2ELLMAgentTask, R> = (
+export type Gen2ELLMCodeGenAgent = Gen2ELLMAgent<
+  Gen2ELLMCodeGenAgentTask,
+  string
+>;
+
+export type Gen2ELLMAgentBuilder<Agent extends object> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
   options?: Gen2ELLMAgentBuilderOptions
-) => Gen2ELLMAgent<T, R>;
+) => Agent;
 
 export type Gen2ELLMAgentRunnerInit = {
   taskPrompt: string;
   systemMessage: string;
   tools?: any[];
+  options?: {
+    model?: Gen2ELLMAgentModel;
+  };
 };
 
 export type Gen2ELLMAgentRunnerResult =

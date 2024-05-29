@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import {
+  Gen2ELLMAgentModel,
   Gen2ELLMAgentOpenAIModel,
   Gen2ELLMAgentRunner,
   Gen2ELLMAgentRunnerInit,
@@ -92,6 +93,10 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
       promptTokens: usage["prompt_tokens"],
       totalTokens: usage["total_tokens"],
     };
+  }
+
+  async setModel(model: Gen2ELLMAgentOpenAIModel) {
+    this.model = model;
   }
 
   async getUsage() {
