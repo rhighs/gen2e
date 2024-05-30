@@ -40,7 +40,8 @@ const sanitizeHtml = (subject: string) => {
 };
 
 export const getSnapshot = async (page: Page) => {
-  await page.waitForTimeout(1000);
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForLoadState("networkidle");
   const content = sanitizeHtml(await page.content());
   return {
     dom: content,

@@ -132,9 +132,7 @@ const _gen: GenType = (
 
     return evalCode(`${expression}`, page);
   } as GenType
-).bind({
-  useStatic: env.USE_STATIC_STORE,
-});
+).bind({});
 
 _gen.test = function (
   this: GenType,
@@ -205,6 +203,7 @@ _gen.test = function (
         let expression = "";
 
         if (!this.agent) {
+          debug("creating agent...");
           this.agent = createPlaywrightCodeGenAgent(
             env.OPENAI_MODEL as Gen2ELLMAgentModel,
             {
@@ -275,6 +274,6 @@ _gen.test = function (
     }
   };
 };
-
 _gen.test = _gen.test.bind(_gen);
+_gen.useStatic = env.USE_STATIC_STORE;
 export const gen = _gen;
