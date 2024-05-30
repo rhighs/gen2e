@@ -14,7 +14,15 @@ type ShellProps = {
   onModeChange?: (value: string) => void
 }
 
-function Shell({ models, onStop, running, children, onRun, onModelChange, onModeChange }: ShellProps) {
+function Shell({
+  models,
+  onStop,
+  running,
+  children,
+  onRun,
+  onModelChange,
+  onModeChange
+}: ShellProps) {
   const {
     token: { colorBgContainer, borderRadiusLG }
   } = theme.useToken()
@@ -25,7 +33,7 @@ function Shell({ models, onStop, running, children, onRun, onModelChange, onMode
         <Space size={16} wrap>
           <Select
             placeholder="Model"
-            options={models.map(m => ({ value: m, label: m}))}
+            options={models.map((m) => ({ value: m, label: m }))}
             onChange={(value) => {
               if (onModelChange) onModelChange(value)
             }}
@@ -72,9 +80,7 @@ function Shell({ models, onStop, running, children, onRun, onModelChange, onMode
           </Button>
         </div>
       </Header>
-      <Layout className="flex flex-col flex-1 p-6">
-          {children}
-      </Layout>
+      <Layout className="flex flex-col flex-1 p-6">{children}</Layout>
     </Layout>
   )
 }
