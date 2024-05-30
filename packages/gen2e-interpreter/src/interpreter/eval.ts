@@ -19,6 +19,6 @@ export const evalGen2EExpression = async (
       await eval(expr);
     }
   } catch (error) {
-    err("eval() error", error.message);
+    err("eval() error", error.message, error.stack);
   }
 };

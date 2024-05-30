@@ -1,10 +1,10 @@
 import { APIRequestContext, BrowserContext } from "@playwright/test";
 import {
+  Gen2EGenOptions,
   Gen2ELLMCallHooks,
   Gen2EPlaywriteCodeEvalFunc,
   gen as genObject,
   GenStepFunction,
-  ModelOptions,
   Page,
   PlaywrightTestFunction,
   TestFunction,
@@ -14,7 +14,7 @@ import { Gen2ESandboxError } from "../errors";
 import { StaticStore } from "@rhighs/gen2e";
 import { debug, err } from "../log";
 import { expect as nativeExpect } from "@playwright/test";
-import { compile as sanitizeGen2e } from "../ast/gen2e-sanitize";
+import { gen2eSanitize } from "../ast/gen2e-sanitize";
 import env from "../env";
 
 /**
@@ -42,7 +42,7 @@ export const sandboxEval = async (
   page: Page,
   store: StaticStore,
   llmCallHooks?: Gen2ELLMCallHooks,
-  modelOptions?: ModelOptions,
+  modelOptions?: Gen2EGenOptions,
   evalPwCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
     new Function("code", "page", "return Promise.resolve()")(code, page)
 ) => {
@@ -127,7 +127,7 @@ export const sandboxEval = async (
   //      much of a burden to carry on, I just assume they're correct. I do not expect
   //      the LLM to be so dumb to mess the signature up after I've fed it an entire
   //      cheatsheet on how that is used.
-  const s = sanitizeGen2e(gen2eTestSource);
+  const s = gen2eSanitize(gen2eTestSource);
   if (env.SANDBOX_DEBUG) {
     debug("gen2e source code after sanitize step:\n", s);
   }

@@ -167,7 +167,7 @@ const compiler = (store: StaticStore): Gen2ECompileFunction => {
  * @param {StaticStore} store - The static code store used to fetch playwright expressions.
  * @returns {string} compile step output.
  */
-export const compile = (
+export const pwCompile = (
   source: string,
   store: StaticStore = FSStaticStore
 ): string => compiler(store)(source);

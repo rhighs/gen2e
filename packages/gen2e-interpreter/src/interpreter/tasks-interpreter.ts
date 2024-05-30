@@ -1,13 +1,17 @@
-import { Gen2EExpression, Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
-import OpenAI from "openai";
+import { Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
 import { Gen2EInterpreterError } from "../errors";
 import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
 import { debug } from "../log";
 import { StaticStore } from "@rhighs/gen2e";
-import { generateGen2EExpr } from "../gen/gen2e";
-import { compile as pwCompile } from "../ast/pw-compile";
+import env from "../env";
+import { pwCompile } from "../ast/pw-compile";
 import { sandboxEval } from "./test-sandbox";
-import { supportedModels } from "../gen/support";
+import { createGen2ECodeGenAgent, generateGen2ECode } from "./gen2e-gen";
+import {
+  Gen2ELLMAgentModel,
+  Gen2ELLMCodeGenAgent,
+  isModelSupported,
+} from "@rhighs/gen2e-llm";
 
 const generateFakeTestCode = (
   testTitle: string,
@@ -82,7 +86,7 @@ type InterpreterResult = {
 class TasksInterpreter {
   private events: Record<InterpreterEvent, InterpreterEventCallback> | {} = {};
   private options: InterpreterOptions = {};
-  private instance: OpenAI;
+  private agent: Gen2ELLMCodeGenAgent;
   private mode: InterpreterMode = "gen2e";
   private browser?: Gen2EBrowser;
 
@@ -91,7 +95,7 @@ class TasksInterpreter {
   private recordModelsUsage: boolean;
   private usageStats?: InterpreterUsageStats;
 
-  private fallbackModel: string | undefined;
+  private fallbackModel: string = env.OPENAI_MODEL;
   private llmCallHooks: Gen2ELLMCallHooks;
 
   constructor(config: InterpreterConfig, options: InterpreterOptions) {
@@ -156,11 +160,19 @@ class TasksInterpreter {
     }
 
     this.llmCallHooks = callHooks;
-    if (options.model?.length && supportedModels.includes(options.model ?? "")) {
+    if (options.model?.length && isModelSupported(options.model ?? "")) {
       this.fallbackModel = options.model;
     }
 
-    this.instance = new OpenAI({ apiKey: options?.openaiApiKey });
+    const gen2eModel = (this.options.gen2eModel ??
+      this.fallbackModel) as Gen2ELLMAgentModel;
+    if (!isModelSupported(gen2eModel)) {
+      throw new Gen2EInterpreterError(
+        `failed calling gen2e expr generation, model ${gen2eModel} not suppoerted`
+      );
+    }
+    this.agent = createGen2ECodeGenAgent(gen2eModel);
+
     if (this.mode === "playwright") {
       this.browser = new Gen2EBrowser(config.browserOptions);
       this.startup = this.browser.startup();
@@ -184,21 +196,14 @@ class TasksInterpreter {
   private async gen2e(
     task: string,
     codeContext?: string
-  ): Promise<Gen2EExpression | undefined> {
+  ): Promise<string | undefined> {
     try {
-      const result = await generateGen2EExpr(
-        {
-          task,
-          codeContext: codeContext,
-          options: {
-            model: this.options.gen2eModel ?? this.fallbackModel,
-            openaiApiKey: this.options.openaiApiKey,
-            debug: this.options.debug,
-          },
-        },
-        this.llmCallHooks,
-        this.instance
-      );
+      const result = await generateGen2ECode({
+        agent: this.agent,
+        task,
+        codeContext: codeContext,
+        hooks: this.llmCallHooks,
+      });
 
       if (result.type === "success") {
         this._call_event("task-success", this, result.result);
@@ -215,9 +220,9 @@ class TasksInterpreter {
 
   private async contextWiseGen2eGen(
     tasks: string[],
-    each?: (expr: Gen2EExpression) => Promise<void> | void
-  ): Promise<Gen2EExpression[]> {
-    const gens: Gen2EExpression[] = [];
+    each?: (expr: string) => Promise<void> | void
+  ): Promise<string[]> {
+    const gens: string[] = [];
     const gen2eAcc: string[] = [];
     for (let task of tasks) {
       let genExpr = "";
@@ -225,8 +230,8 @@ class TasksInterpreter {
         const expr = await this.gen2e(task, gen2eAcc.join("\n"));
         debug(expr);
         if (expr) {
-          if (expr.expression) {
-            genExpr = expr.expression;
+          if (expr) {
+            genExpr = expr;
             gen2eAcc.push(genExpr);
             gens.push(expr);
             if (each) {
@@ -245,16 +250,15 @@ class TasksInterpreter {
 
   private async runMode_gen2e(tasks: string[]): Promise<InterpreterResult> {
     const genResult = await this.contextWiseGen2eGen(tasks);
-    const expressions = genResult.map((g) => g.expression);
     if (this.options.debug) {
       debug(
         "interpreter received \n=============================\n",
-        expressions.map((g, i) => `(no. call ${i})\n${g}`).join("\n"),
+        genResult.map((g, i) => `(no. call ${i})\n${g}`).join("\n"),
         "\n=============================\n"
       );
     }
 
-    const source = generateFakeTestCode("gen2e - interpreter gen", expressions);
+    const source = generateFakeTestCode("gen2e - interpreter gen", genResult);
     return {
       result: source,
       usageStats: this.usageStats,
@@ -290,7 +294,7 @@ class TasksInterpreter {
     const page = this.browser.page;
     const gen2eResult = await this.contextWiseGen2eGen(tasks, async (expr) => {
       const fakeTestSource = generateFakeTestCode("gen2e - interpreter gen", [
-        expr.expression,
+        expr,
       ]);
 
       await sandboxEval(
@@ -314,7 +318,7 @@ class TasksInterpreter {
 
     const fakeTestSource = generateFakeTestCode(
       "gen2e - interpreter gen",
-      gen2eResult.map((g) => g.expression),
+      gen2eResult,
       false
     );
 

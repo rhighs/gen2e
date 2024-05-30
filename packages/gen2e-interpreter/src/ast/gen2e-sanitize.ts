@@ -1,7 +1,7 @@
 import { API, AwaitExpression, FileInfo } from "jscodeshift";
 import { makeCompiler } from "./compiler";
 
-export const compile = (source: string) =>
+export const gen2eSanitize = (source: string) =>
   makeCompiler((fileInfo: FileInfo, api: API) => {
     const { j } = api;
     const root = j(fileInfo.source);
