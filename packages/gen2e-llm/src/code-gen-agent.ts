@@ -57,6 +57,10 @@ This is the code context relevate to the code you'll generate:
 \`\`\`
 ${codeContext}
 \`\`\`
+
+==== NOTE ====
+Your response must never include the context, it only returns
+the generated expression that is related to it.
 `
     : ""
 }`;
