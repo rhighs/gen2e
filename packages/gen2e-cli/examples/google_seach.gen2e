@@ -1,5 +1,5 @@
 go to google.com
-click on accept all
+click the button to accept cookies
 assert the page title is "Google"
 type "funny cats" in the search bar
 press enter on the keyboard

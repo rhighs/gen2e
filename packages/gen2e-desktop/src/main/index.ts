@@ -73,7 +73,8 @@ app.whenReady().then(() => {
         mode: mode?.length ? mode : undefined
       },
       {
-        model: model?.length ? model : undefined
+        model: model?.length ? model : undefined,
+        debug: true
       }
     )
 

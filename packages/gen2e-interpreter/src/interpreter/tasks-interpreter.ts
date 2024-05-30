@@ -322,10 +322,12 @@ class TasksInterpreter {
       false
     );
 
+    if (this.options.debug) {
+      debug(inMemoryStatic);
+    }
+
     const code = pwCompile(fakeTestSource, staticStore);
     await this.browser.close();
-
-    debug(inMemoryStatic);
 
     return {
       result: code,
