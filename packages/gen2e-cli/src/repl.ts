@@ -3,15 +3,21 @@ import readline from "node:readline";
 import OpenAI from "openai";
 
 import {
-  generateGen2EExpr,
+  generateGen2ECode,
   Gen2EBrowser,
   Gen2EBrowserOptions,
   evalGen2EExpression,
+  createGen2ECodeGenAgent,
 } from "@rhighs/gen2e-interpreter";
 import { gen, stepLoggingEnabled } from "@rhighs/gen2e";
 stepLoggingEnabled(true);
 
 import { err, info } from "./log";
+import {
+  Gen2ELLMAgentModel,
+  Gen2ELLMCodeGenAgent,
+  isModelSupported,
+} from "@rhighs/gen2e-llm";
 
 type InterpeterREPLOptions = {
   browserOptions?: Gen2EBrowserOptions;
@@ -22,20 +28,33 @@ type InterpeterREPLOptions = {
 };
 
 class InterpreterREPL {
-  options: InterpeterREPLOptions = {};
-  instance: OpenAI | undefined;
+  private agent: Gen2ELLMCodeGenAgent;
 
-  verbose: boolean = false;
-  results: string[] = [];
-  rl: readline.Interface;
+  private verbose: boolean = false;
+  private results: string[] = [];
+  private rl: readline.Interface;
 
-  browser: Gen2EBrowser;
-  startup: Promise<any>;
-  page: Page | undefined;
+  private browser: Gen2EBrowser;
+  private startup: Promise<any>;
+  private page: Page | undefined;
 
   constructor(options: InterpeterREPLOptions) {
-    this.instance = new OpenAI({ apiKey: options?.openaiApiKey });
-    this.options = options;
+    const model = options.model as Gen2ELLMAgentModel;
+    const opts = {
+      debug: options.debug,
+      openaiApiKey: options.openaiApiKey,
+    };
+
+    if (isModelSupported(model)) {
+      this.agent = createGen2ECodeGenAgent(model, opts);
+    } else if (!model) {
+      this.agent = createGen2ECodeGenAgent(undefined, opts);
+    } else {
+      throw new Error(
+        `failed starting repl instance, model ${model} not supported`
+      );
+    }
+
     this.verbose = options.verbose ?? false;
     this.rl = readline.createInterface({
       input: process.stdin,
@@ -81,18 +100,16 @@ class InterpreterREPL {
 
   async evaluate(input: string): Promise<void> {
     try {
-      const result = await generateGen2EExpr({
+      const result = await generateGen2ECode({
+        agent: this.agent,
         task: `${input}
 NOTE: code that depends on anything besides \`page\` and '\test\' and \'gen\' should be commented out`,
-        options: {
-          debug: this.options.debug,
-        },
       });
 
       if (result.type === "success") {
-        this.results.push(result.result.expression);
-        info("evaluating expression: [", result.result.expression, "]");
-        await evalGen2EExpression(result.result.expression, gen, this.page!);
+        this.results.push(result.result);
+        info("evaluating expression: [", result.result, "]");
+        await evalGen2EExpression(result.result, gen, this.page!);
       }
     } catch (error) {
       err("calling generateGen2EExpr(...) gave", error.message);
