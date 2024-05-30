@@ -5,9 +5,9 @@ import {
   type GenType,
   type GenStepFunction,
   type PlaywrightTestFunction,
-  ModelOptions,
   Gen2EPlaywriteCodeEvalFunc,
   Gen2ELLMCallHooks,
+  Gen2EGenOptions,
 } from "./types";
 import {
   createPlaywrightCodeGenAgent,
@@ -20,7 +20,7 @@ import env from "./env";
 import { info, warn } from "./log";
 import { FSStaticStore } from "./static/store/fs";
 import { debug } from "./log";
-import { Gen2ELLMAgentModel, Gen2ELLMCodeGenAgent } from "@rhighs/gen2e-llm";
+import { Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 
 const logGen2EStart = (message: string, task: string) => {
   if (env.LOG_STEP) {
@@ -40,17 +40,13 @@ Expression: ${expr}
   }
 };
 
-let agent: Gen2ELLMCodeGenAgent = createPlaywrightCodeGenAgent(
-  env.OPENAI_MODEL as Gen2ELLMAgentModel
-);
-
-export const gen: GenType = async function (
+const _gen: GenType = async function (
   this: GenType,
   task: string,
   config: {
     page: Page;
   },
-  options?: ModelOptions,
+  options?: Gen2EGenOptions,
   init?: {
     hooks?: Gen2ELLMCallHooks;
     store?: StaticStore;
@@ -70,6 +66,15 @@ export const gen: GenType = async function (
   const isDebug = options?.debug ?? env.DEBUG_MODE;
   const store = init?.store;
 
+  if (!this.agent) {
+    this.agent = createPlaywrightCodeGenAgent(
+      env.OPENAI_MODEL as Gen2ELLMAgentModel,
+      {
+        openaiApiKey: options?.openaiApiKey,
+      }
+    );
+  }
+
   let expression = "";
   if (store && this.useStatic) {
     const staticStep = store?.fetchStatic(store.makeIdent("", task));
@@ -86,7 +91,7 @@ export const gen: GenType = async function (
   logGen2EStart("generating playwright expression with task", task);
   {
     const result = await generatePlaywrightCode({
-      agent,
+      agent: this.agent,
       task,
       domSnapshot: (await getSnapshot(page)).dom,
       options: {
@@ -125,7 +130,7 @@ export const gen: GenType = async function (
   return evalCode(`${expression}`, page);
 };
 
-gen.test = function (
+_gen.test = function (
   this: GenType,
   testFunction: TestFunction,
   init?: {
@@ -150,7 +155,7 @@ gen.test = function (
         page: Page;
         test: Test;
       },
-      options?: ModelOptions,
+      options?: Gen2EGenOptions,
       evalCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
         new Function(
           "page",
@@ -193,10 +198,19 @@ gen.test = function (
       return test.step(task, async () => {
         let expression = "";
 
+        if (!this.agent) {
+          this.agent = createPlaywrightCodeGenAgent(
+            env.OPENAI_MODEL as Gen2ELLMAgentModel,
+            {
+              openaiApiKey: options?.openaiApiKey,
+            }
+          );
+        }
+
         logGen2EStart("generating playwright expression with task", task);
         {
           const result = await generatePlaywrightCode({
-            agent,
+            agent: this.agent,
             task,
             domSnapshot: (await getSnapshot(page)).dom,
             options: {
@@ -256,4 +270,5 @@ gen.test = function (
   };
 };
 
-gen.useStatic = env.USE_STATIC_STORE;
+_gen.useStatic = env.USE_STATIC_STORE;
+export const gen = _gen.bind(_gen);

@@ -1,4 +1,5 @@
 import {
+  Gen2ELLMAgentBuilderOptions,
   Gen2ELLMAgentHooks,
   Gen2ELLMAgentModel,
   Gen2ELLMCodeGenAgent,
@@ -54,9 +55,16 @@ You follow this set of rules when proposing solutions:
       return title
 `;
 
+export type Gen2EPlaywrightCodeGenOptions = Gen2ELLMAgentBuilderOptions;
+
 export const createPlaywrightCodeGenAgent = (
-  defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel
-) => createCodeGenAgent(systemMessage, defaultModel);
+  defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
+  options?: Gen2EPlaywrightCodeGenOptions
+) =>
+  createCodeGenAgent(systemMessage, defaultModel, {
+    openaiApiKey: options?.openaiApiKey,
+    debug: options?.debug,
+  });
 
 export type Gen2EPlaywrightCodeGenInit = {
   agent: Gen2ELLMCodeGenAgent;

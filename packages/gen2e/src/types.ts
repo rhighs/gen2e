@@ -7,11 +7,17 @@ import {
 export { type Page };
 import { type Page } from "@playwright/test";
 import { StaticStore } from "./static/store/store";
-import { Gen2ELLMAgentHooks } from "@rhighs/gen2e-llm";
+import { Gen2ELLMAgentHooks, Gen2ELLMCodeGenAgent } from "@rhighs/gen2e-llm";
 
 export type ModelOptions = {
   debug?: boolean;
   model?: string;
+};
+
+export type Gen2EGenOptions = {
+  debug?: boolean;
+  model?: string;
+  openaiApiKey?: string;
 };
 
 export type Test = TestType<any, any>;
@@ -35,6 +41,7 @@ export type Gen2EPlaywriteCodeEvalFunc = (
 
 export interface GenType extends GenFunction {
   test: GenTestFunction;
+  agent?: Gen2ELLMCodeGenAgent;
   useStatic: boolean;
 }
 
