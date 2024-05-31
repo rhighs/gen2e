@@ -5,6 +5,7 @@ import {
   Gen2EPlaywriteCodeEvalFunc,
   gen as genObject,
   GenStepFunction,
+  GenType,
   Page,
   PlaywrightTestFunction,
   TestFunction,
@@ -34,8 +35,9 @@ import env from "../env";
  * @param {string} gen2eTestSource - The E2E test source code to execute.
  * @param {Page} page - The Playwright Page object used for browser interactions.
  * @param {StaticStore} store - The static store to record generated code.
- * @param {Gen2EPlaywriteCodeEvalFunc} evalPwCode - function that is going to be used to evaluate pw code
- * @returns {Promise<void>} - A promise that resolves when the test execution is complete.
+ * @param {Gen2EPlaywriteCodeEvalFunc} evalPwCode - function that is going to be used to evaluate pw code.
+ * @param {GenType} gen - gen implementation to use for playwright code generation.
+ * @returns {Promise<any>} - A promise that resolves when the test execution is complete.
  */
 export const sandboxEval = async (
   gen2eTestSource: string,
@@ -44,8 +46,9 @@ export const sandboxEval = async (
   llmCallHooks?: Gen2ELLMCallHooks,
   modelOptions?: Gen2EGenOptions,
   evalPwCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
-    new Function("code", "page", "return Promise.resolve()")(code, page)
-) => {
+    new Function("code", "page", "return Promise.resolve()")(code, page),
+  gen: GenType = genObject
+): Promise<any> => {
   const _gen_custom_eval =
     (__gen: GenStepFunction) =>
     async (
@@ -59,8 +62,8 @@ export const sandboxEval = async (
       return __gen(task, config, modelOptions, evalPwCode);
     };
 
-  const _gen_test = (testFunction: TestFunction) =>
-    genObject.test(
+  const _gen_test = (testFunction: TestFunction): PlaywrightTestFunction =>
+    gen.test(
       async ({ page, gen, ...rest }, testInfo) => {
         if (env.SANDBOX_DEBUG) {
           debug("using gen function source code:\n", gen.toString());
@@ -82,8 +85,8 @@ export const sandboxEval = async (
   const _test = async (
     testTitle: string,
     testFunction: PlaywrightTestFunction
-  ): Promise<void> => {
-    await testFunction(
+  ): Promise<any> => {
+    return testFunction(
       {
         page,
         context: {} as BrowserContext,
@@ -119,7 +122,6 @@ export const sandboxEval = async (
   if (env.SANDBOX_DEBUG) {
     debug("gen2e source code before sanitize step:\n", gen2eTestSource);
   }
-
   // rob: since we're sandboxing gen execution to capture generated static code;
   //      all calls that are not calls to the gen function can be stripped away.
   //      This is primarily done to eliminate calls to expect(...) as it is not

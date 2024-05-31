@@ -1,4 +1,11 @@
-import { API, AwaitExpression, FileInfo } from "jscodeshift";
+import {
+  API,
+  MemberExpression,
+  AwaitExpression,
+  FileInfo,
+  CallExpression,
+} from "jscodeshift";
+import { debug } from "../log";
 import { makeCompiler } from "./compiler";
 
 export const gen2eSanitize = (source: string) =>
@@ -6,15 +13,26 @@ export const gen2eSanitize = (source: string) =>
     const { j } = api;
     const root = j(fileInfo.source);
 
-    const isGenCall = (awaitExpression: AwaitExpression): boolean => {
-      if (awaitExpression.argument?.type === "CallExpression") {
-        const { callee } = awaitExpression.argument;
+    const isGenCall = (e: AwaitExpression | CallExpression): boolean => {
+      if (e.type === "AwaitExpression") {
+        if (e.argument?.type === "CallExpression") {
+          const { callee } = e.argument;
+          const callNameMatches =
+            callee.type === "Identifier" && callee.name === "gen";
+          const hasCorrectArgs =
+            e.argument.arguments.length === 2 &&
+            e.argument.arguments[0].type === "Literal" &&
+            e.argument.arguments[1].type === "ObjectExpression";
+          return callNameMatches && hasCorrectArgs;
+        }
+      } else if (e.type === "CallExpression") {
+        const { callee } = e;
         const callNameMatches =
           callee.type === "Identifier" && callee.name === "gen";
         const hasCorrectArgs =
-          awaitExpression.argument.arguments.length === 2 &&
-          awaitExpression.argument.arguments[0].type === "Literal" &&
-          awaitExpression.argument.arguments[1].type === "ObjectExpression";
+          e.arguments.length === 2 &&
+          e.arguments[0].type === "Literal" &&
+          e.arguments[1].type === "ObjectExpression";
         return callNameMatches && hasCorrectArgs;
       }
 
@@ -39,27 +57,62 @@ export const gen2eSanitize = (source: string) =>
           const body = arrowFunction.body.body;
           arrowFunction.body.body = body.filter((node) => {
             // rob:
-            // this matches straight await expression to gen('some task', { page, test })
-            if (
-              node.type === "ExpressionStatement" &&
-              node.expression.type === "AwaitExpression" &&
-              isGenCall(node.expression)
-            ) {
-              return true;
-            }
-
-            // rob:
             // this matches straight await expression to gen('some task', { page, test }) inside a call expression
-            // e.g. used with expect or other functions, if this matches throw an error
-            if (
+
+            const resolveChainedMemberCall = (
+              e: MemberExpression
+            ): CallExpression | undefined => {
+              if (
+                e.object.type === "CallExpression" &&
+                e.object.callee.type === "MemberExpression"
+              ) {
+                return resolveChainedMemberCall(e.object.callee);
+              }
+
+              if (e.object.type === "CallExpression") {
+                return e.object;
+              }
+
+              if (
+                e.object.type === "AwaitExpression" &&
+                e.object.argument?.type === "CallExpression"
+              ) {
+                return e.object.argument;
+              }
+
+              return undefined;
+            };
+
+            const maybeChainedV =
               node.type === "ExpressionStatement" &&
               node.expression.type === "CallExpression" &&
-              node.expression.arguments?.length > 0 &&
-              node.expression.arguments[0].type === "AwaitExpression" &&
-              isGenCall(node.expression.arguments[0])
+              node.expression.callee.type === "MemberExpression"
+                ? resolveChainedMemberCall(node.expression.callee)
+                : undefined;
+
+            // FIXME: this needs to be handled properly, maybe find a way to structurally reform this outside of this step.
+            //        e.g. extract the call to gen into a straight await expression and discard the call to the caller here.
+            //        atm. this is just a messy thing to cover expect(await gen(...)), expect(await gen(...))...toBe() or any other like
+            //        await someFunc(await gen(...))
+            if (
+              (node.type === "ExpressionStatement" &&
+                node.expression.type === "CallExpression" &&
+                node.expression.arguments?.length > 0 &&
+                node.expression.arguments[0].type === "AwaitExpression" &&
+                isGenCall(node.expression.arguments[0])) ||
+              (node.type === "ExpressionStatement" &&
+                node.expression.type === "AwaitExpression" &&
+                node.expression.argument?.type === "CallExpression" &&
+                node.expression.argument.arguments[0]?.type ===
+                  "AwaitExpression" &&
+                isGenCall(node.expression.argument.arguments[0])) ||
+              (maybeChainedV &&
+                maybeChainedV.arguments.length > 0 &&
+                maybeChainedV.arguments[0].type === "AwaitExpression" &&
+                maybeChainedV.arguments[0].argument?.type ===
+                  "CallExpression" &&
+                isGenCall(maybeChainedV.arguments[0]))
             ) {
-              // FIXME: this needs to be handled properly, maybe find a way to structurally reform this outside of this step.
-              //        e.g. extract the call to gen into a straight await expression and discard the call to the caller here.
               throw new Error(
                 "Gen2ESanitize gen2e code error, cannot sanitize gen2e calls as arguement to other call expressions"
               );
@@ -74,6 +127,16 @@ export const gen2eSanitize = (source: string) =>
               node.declarations[0].type === "VariableDeclarator" &&
               node.declarations[0].init?.type === "AwaitExpression" &&
               isGenCall(node.declarations[0].init)
+            ) {
+              return true;
+            }
+
+            // rob:
+            // this matches straight await expression to gen('some task', { page, test })
+            if (
+              node.type === "ExpressionStatement" &&
+              node.expression.type === "AwaitExpression" &&
+              isGenCall(node.expression)
             ) {
               return true;
             }

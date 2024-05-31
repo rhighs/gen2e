@@ -1,6 +1,8 @@
 import { GenFunction, Page } from "@rhighs/gen2e";
 import { err } from "../log";
 
+const EVALERR_DBG = !!process.env.GEN2EI_EVALERR_DBG;
+
 export const evalGen2EExpression = async (
   genExpr: string,
   gen: GenFunction,
@@ -19,6 +21,8 @@ export const evalGen2EExpression = async (
       await eval(expr);
     }
   } catch (error) {
-    err("eval() error", error.message, error.stack);
+    if (EVALERR_DBG) {
+      err("eval() error", error.message, error.stack);
+    }
   }
 };
