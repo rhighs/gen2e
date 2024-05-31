@@ -16,4 +16,5 @@ jobs:
 
       # include optional due to: npm ERR! Error: Cannot find module '@nx/nx-linux-x64-gnu' at CI installs
       - run: npm ci --include=optional
+      - run: npm run build
       - run: npm test
