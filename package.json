@@ -6,10 +6,10 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "tsx ./packages/gen2e-cli/src/index.ts",
-    "test": "npm test --workspaces",
     "build": "lerna run build",
     "publish": "lerna run build && lerna publish",
+    "start": "tsx ./packages/gen2e-cli/src/index.ts",
+    "test": "lerna run test",
     "format": "lerna run format"
   },
   "keywords": [],
