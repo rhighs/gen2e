@@ -30,7 +30,8 @@
     "ts-node": "ts-node",
     "format": "prettier --write ./src",
     "lint": "prettier --check ./src",
-    "test": "jest",
+    "test": "jest tests/unit/**.test.ts",
+    "test:integration": "jest tests/integration/**.test.ts",
     "test-watch": "jest --watch"
   },
   "author": "Roberto Montalti",
