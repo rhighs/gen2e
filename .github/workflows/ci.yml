@@ -1,4 +1,4 @@
-name: Node.js CI
+name: Gen2E CI
 
 on: [push]
 
@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js
+      - name: tests
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
