@@ -30,7 +30,7 @@ type PreloadedStaticSteps = Map<string, string>;
  * Preloads the static steps from the steps directory.
  * @returns {PreloadedStaticSteps} A map of preloaded static steps.
  */
-const preload = (): PreloadedStaticSteps =>
+export const preload = (): PreloadedStaticSteps =>
   readdirSync(stepsDirPath).reduce((acc, file): PreloadedStaticSteps => {
     acc.set(file, readFileSync(path.join(stepsDirPath, file)).toString());
     return acc;

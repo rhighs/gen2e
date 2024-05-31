@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
+  testDir: './tests/e2e',
   use: {
     baseURL: "https://prolocal.mywellness.com:12443",
     testIdAttribute: 'data-testid',

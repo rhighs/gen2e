@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { gen, stepLoggingEnabled } from "../src";
+import { gen, stepLoggingEnabled } from "../../src";
 stepLoggingEnabled(true);
 
 test.beforeEach(async ({ page }) => {
