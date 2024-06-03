@@ -1,6 +1,6 @@
 {
   "name": "@rhighs/gen2e-interpreter",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "A library exposing an LLM based interpreter, provide it human browser instructions and get generated playwright tests back",
   "main": "dist/index.js",
   "publishConfig": {
@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@playwright/test": "^1.44.0",
-    "@rhighs/gen2e": "^1.1.3",
-    "@rhighs/gen2e-llm": "^1.0.5",
+    "@rhighs/gen2e": "^1.1.4",
+    "@rhighs/gen2e-llm": "^1.0.6",
     "commander": "^12.0.0",
     "hono": "^3.9.2",
     "jscodeshift": "^0.15.2",

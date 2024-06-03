@@ -1,12 +1,11 @@
 {
   "name": "@rhighs/gen2e-logger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "simple, minimal and dependency-free logger supporting terminal colors",
   "main": "dist/index.js",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.2.5",
