@@ -116,6 +116,13 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
         };
       }
 
+      if (task.image) {
+        if (options?.debug) {
+          _logger.debug("using runner with image on model", model);
+        }
+        runOpts.image = task.image;
+      }
+
       const result = await runner.run(runOpts);
       if (result.type === "error") {
         return {

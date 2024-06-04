@@ -3,6 +3,7 @@ import OpenAI from "openai";
 
 export type Gen2ELLMAgentTask = {
   task: string;
+  image?: Buffer;
   options?: {
     model?: Gen2ELLMAgentModel;
   };
@@ -66,6 +67,7 @@ export type Gen2ELLMAgentBuilder<Agent extends object> = (
 export type Gen2ELLMAgentRunnerInit = {
   taskPrompt: string;
   systemMessage: string;
+  image?: Buffer;
   tools?: any[];
   options?: {
     model?: Gen2ELLMAgentModel;
@@ -100,6 +102,7 @@ export const Gen2ELLMAgentOpenAIModels = {
   "gpt-3.5-turbo-16k": true,
   "gpt-3.5-turbo-16k-0613": true,
   "gpt-4": true,
+  "gpt-4-vision-preview": true,
   "gpt-4-1106-preview": true,
   "gpt-4-turbo-preview": true,
   "gpt-4-turbo": true,

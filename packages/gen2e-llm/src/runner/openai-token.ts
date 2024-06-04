@@ -75,6 +75,22 @@ export const tokenLimits = (model: TiktokenModel): TokenLimitInfo => {
       context: 128000,
       maxOut: 4096,
     },
+    "gpt-4-turbo": {
+      context: 128000,
+      maxOut: 4096,
+    },
+    "gpt-4-turbo-2024-04-09": {
+      context: 128000,
+      maxOut: 4096,
+    },
+    "gpt-4o": {
+      context: 128000,
+      maxOut: 0,
+    },
+    "gpt-4o-2024-05-13": {
+      context: 128000,
+      maxOut: 0,
+    },
     "davinci-002": {
       context: 0,
       maxOut: 0,
@@ -212,22 +228,6 @@ export const tokenLimits = (model: TiktokenModel): TokenLimitInfo => {
       maxOut: 0,
     },
     "gpt-3.5-turbo-instruct-0914": {
-      context: 0,
-      maxOut: 0,
-    },
-    "gpt-4-turbo": {
-      context: 0,
-      maxOut: 0,
-    },
-    "gpt-4-turbo-2024-04-09": {
-      context: 0,
-      maxOut: 0,
-    },
-    "gpt-4o": {
-      context: 0,
-      maxOut: 0,
-    },
-    "gpt-4o-2024-05-13": {
       context: 0,
       maxOut: 0,
     },

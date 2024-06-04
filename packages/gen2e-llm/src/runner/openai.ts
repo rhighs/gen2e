@@ -17,6 +17,19 @@ export type Gen2EOpenAIRunnerOptions = {
   logger?: Gen2ELogger;
 };
 
+const modelSupportsImage = (model: Gen2ELLMAgentOpenAIModel): boolean => {
+  switch (model) {
+    case "gpt-4-turbo":
+    case "gpt-4-turbo-2024-04-09":
+    case "gpt-4-vision-preview":
+    case "gpt-4o":
+    case "gpt-4o-2024-05-13":
+      return true;
+    default:
+      return false;
+  }
+};
+
 export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
   private openai: OpenAI;
   private model: Gen2ELLMAgentOpenAIModel;
@@ -48,6 +61,7 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
   async run({
     taskPrompt,
     systemMessage,
+    image,
     tools = [],
   }: Gen2ELLMAgentRunnerInit): Promise<Gen2ELLMAgentRunnerResult> {
     taskPrompt = this.adjustContext(systemMessage + taskPrompt, systemMessage);
@@ -58,13 +72,40 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
         systemMessage,
       });
     }
+
+    if (image && !modelSupportsImage(this.model)) {
+      return {
+        type: "error",
+        reason: "model does not supporting feeding images",
+      };
+    }
+
+    const content: OpenAI.Chat.ChatCompletionContentPart[] = [
+      { type: "text", text: taskPrompt },
+    ];
+    if (image) {
+      const imageb64 = image.toString("base64");
+      if (this.debug) {
+        this.logger.debug(
+          `runner sending png image ${imageb64.substring(0, 32)}...`
+        );
+      }
+
+      content.push({
+        type: "image_url",
+        image_url: {
+          url: `data:image/png;base64,${imageb64}`,
+        },
+      });
+    }
+
     try {
       const runner = this.openai.beta.chat.completions.runTools({
         model: this.model,
         temperature: 0,
         messages: [
           { role: "system", content: systemMessage },
-          { role: "user", content: taskPrompt },
+          { role: "user", content },
         ],
         tools: tools.map((tool) => ({
           type: "function",
