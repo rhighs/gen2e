@@ -31,7 +31,8 @@ describe("Gen2E Code Generation", () => {
       {
         openaiApiKey: options.openaiApiKey,
         debug: options.debug,
-      }
+      },
+      undefined
     );
     expect(agent).toBe(mockAgent);
   });

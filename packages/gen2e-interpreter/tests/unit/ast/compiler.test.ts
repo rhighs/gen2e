@@ -33,7 +33,8 @@ describe("makeCompiler", () => {
         jscodeshift: expect.anything(),
         stats: expect.any(Function),
         report: expect.any(Function),
-      }
+      },
+      expect.any(Object)
     );
   });
 });

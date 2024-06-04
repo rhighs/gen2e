@@ -13,10 +13,10 @@ import {
 } from "@rhighs/gen2e";
 import { Gen2ESandboxError } from "../errors";
 import { StaticStore } from "@rhighs/gen2e";
-import { debug, err } from "../log";
 import { expect as nativeExpect } from "@playwright/test";
 import { gen2eSanitize } from "../ast/gen2e-sanitize";
 import env from "../env";
+import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 /**
  * rob:
@@ -47,8 +47,14 @@ export const sandboxEval = async (
   modelOptions?: Gen2EGenOptions,
   evalPwCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
     new Function("code", "page", "return Promise.resolve()")(code, page),
-  gen: GenType = genObject
+  gen: GenType = genObject,
+  _logger?: Gen2ELogger
 ): Promise<any> => {
+  const logger = makeLogger("GEN2E-INTEPRETER-SANDBOX");
+  if (_logger) {
+    logger.config(_logger);
+  }
+
   const _gen_custom_eval =
     (__gen: GenStepFunction) =>
     async (
@@ -56,7 +62,7 @@ export const sandboxEval = async (
     ): ReturnType<GenStepFunction> => {
       const [task, config, options, _] = args;
       if (env.SANDBOX_DEBUG) {
-        debug("calling __gen() with args", args);
+        logger.debug("calling __gen() with args", args);
       }
 
       return __gen(task, config, modelOptions, evalPwCode);
@@ -66,7 +72,7 @@ export const sandboxEval = async (
     gen.test(
       async ({ page, gen, ...rest }, testInfo) => {
         if (env.SANDBOX_DEBUG) {
-          debug("using gen function source code:\n", gen.toString());
+          logger.debug("using gen function source code:\n", gen.toString());
         }
 
         return await testFunction(
@@ -79,7 +85,7 @@ export const sandboxEval = async (
           testInfo
         );
       },
-      { store, hooks: llmCallHooks }
+      { store, hooks: llmCallHooks, logger }
     );
 
   const _test = async (
@@ -103,7 +109,7 @@ export const sandboxEval = async (
     step: (...args: any[]) => Promise<any> | any
   ) => {
     if (env.SANDBOX_DEBUG) {
-      debug('calling test step for task: "', stepTitle, '"');
+      logger.debug('calling test step for task: "', stepTitle, '"');
     }
     await step();
   };
@@ -115,12 +121,12 @@ export const sandboxEval = async (
 
   _test.fail = (...args: any[]) => {
     const message = "test.fail has been called...";
-    err(message, ...args);
+    logger.error(message, ...args);
     throw new Gen2ESandboxError(message);
   };
 
   if (env.SANDBOX_DEBUG) {
-    debug("gen2e source code before sanitize step:\n", gen2eTestSource);
+    logger.debug("gen2e source code before sanitize step:\n", gen2eTestSource);
   }
   // rob: since we're sandboxing gen execution to capture generated static code;
   //      all calls that are not calls to the gen function can be stripped away.
@@ -131,7 +137,7 @@ export const sandboxEval = async (
   //      cheatsheet on how that is used.
   const s = gen2eSanitize(gen2eTestSource);
   if (env.SANDBOX_DEBUG) {
-    debug("gen2e source code after sanitize step:\n", s);
+    logger.debug("gen2e source code after sanitize step:\n", s);
   }
 
   const functionSource = (body: string) => `return ${body}`;

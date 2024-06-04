@@ -5,11 +5,11 @@ import {
   FileInfo,
   CallExpression,
 } from "jscodeshift";
-import { debug } from "../log";
 import { makeCompiler } from "./compiler";
+import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
 export const gen2eSanitize = (source: string) =>
-  makeCompiler((fileInfo: FileInfo, api: API) => {
+  makeCompiler((fileInfo: FileInfo, api: API, logger?: Gen2ELogger) => {
     const { j } = api;
     const root = j(fileInfo.source);
 

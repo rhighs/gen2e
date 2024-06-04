@@ -1,16 +1,28 @@
+import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import jscodeshift, { API, FileInfo } from "jscodeshift";
-import { info } from "../log";
 
 const DEBUG_AST_UTILS = !!process.env.GEN2EI_DEBUG_AST;
 
 export type Gen2ECompileFunction = (source: string) => string;
-export type Gen2ECompilerTransformer = (fileInfo: FileInfo, api: API) => string;
+export type Gen2ECompilerTransformer = (
+  fileInfo: FileInfo,
+  api: API,
+  logger?: Gen2ELogger
+) => string;
 
 export const makeCompiler =
-  (transformer: Gen2ECompilerTransformer): Gen2ECompileFunction =>
+  (
+    transformer: Gen2ECompilerTransformer,
+    _logger?: Gen2ELogger
+  ): Gen2ECompileFunction =>
   (source: string): string => {
+    const logger = makeLogger("GEN2E-AST-COMPILER");
+    if (_logger) {
+      logger.config(_logger);
+    }
+
     if (DEBUG_AST_UTILS) {
-      info("compiling source:\n", source);
+      logger.info("compiling source:\n", source);
     }
     const out = transformer(
       {
@@ -22,10 +34,11 @@ export const makeCompiler =
         jscodeshift: jscodeshift,
         stats: () => {},
         report: () => {},
-      }
+      },
+      logger
     );
     if (DEBUG_AST_UTILS) {
-      info("compilation ended successfully, transformer result:\n", out);
+      logger.info("compilation ended successfully, transformer result:\n", out);
     }
     return out;
   };

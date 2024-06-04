@@ -7,12 +7,13 @@ import {
   firefox,
 } from "@playwright/test";
 
-import { info, err } from "../log";
+import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 export type Gen2EBrowserOptions = {
   browser?: "chromium" | "firefox";
   headless?: boolean;
   verbose?: boolean;
+  logger?: Gen2ELogger;
 };
 
 export class Gen2EBrowser {
@@ -21,10 +22,16 @@ export class Gen2EBrowser {
   browser: Browser | undefined;
   context: BrowserContext | undefined;
   page: Page | undefined;
+  logger: Gen2ELogger;
 
   constructor(options?: Gen2EBrowserOptions) {
     if (options) {
       this.options = options;
+    }
+
+    this.logger = makeLogger("GEN2E-INTEPRETER-BROWSER");
+    if (options?.logger) {
+      this.logger.config(options.logger);
     }
   }
 
@@ -32,7 +39,7 @@ export class Gen2EBrowser {
     let b: BrowserType | undefined = undefined;
     const browser = this.options.browser ?? "chromium";
     if (this.options.verbose) {
-      info(`Starting browser ${browser}...`);
+      this.logger.info(`Starting browser ${browser}...`);
     }
 
     try {
@@ -52,7 +59,7 @@ export class Gen2EBrowser {
       this.context = await this.browser.newContext();
       this.page = await this.context.newPage();
     } catch (error) {
-      err("Failed stating browser, got error", error);
+      this.logger.error("Failed stating browser, got error", error);
       throw error;
     }
   }

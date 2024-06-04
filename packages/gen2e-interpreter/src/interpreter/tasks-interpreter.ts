@@ -1,7 +1,6 @@
 import { Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
 import { Gen2EInterpreterError } from "../errors";
 import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
-import { debug } from "../log";
 import { StaticStore } from "@rhighs/gen2e";
 import env from "../env";
 import { pwCompile } from "../ast/pw-compile";
@@ -12,6 +11,7 @@ import {
   Gen2ELLMCodeGenAgent,
   isModelSupported,
 } from "@rhighs/gen2e-llm";
+import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 const generateFakeTestCode = (
   testTitle: string,
@@ -60,6 +60,7 @@ type InterpreterMode = "gen2e" | "playwright";
 type InterpreterConfig = {
   mode?: InterpreterMode;
   browserOptions?: Gen2EBrowserOptions;
+  logger?: Gen2ELogger;
 };
 
 type InpterpreterPerModelStats = {
@@ -89,6 +90,7 @@ class TasksInterpreter {
   private agent: Gen2ELLMCodeGenAgent;
   private mode: InterpreterMode = "gen2e";
   private browser?: Gen2EBrowser;
+  private logger: Gen2ELogger = makeLogger("GEN2E-INTEPRETER");
 
   private startup?: Promise<any>;
 
@@ -102,6 +104,9 @@ class TasksInterpreter {
     this.options = options;
     if (config.mode) {
       this.mode = config.mode;
+    }
+    if (config.logger) {
+      this.logger.config(config.logger);
     }
 
     this.recordModelsUsage = options.recordUsage ?? false;
@@ -171,7 +176,7 @@ class TasksInterpreter {
         `failed calling gen2e expr generation, model ${gen2eModel} not suppoerted`
       );
     }
-    this.agent = createGen2ECodeGenAgent(gen2eModel);
+    this.agent = createGen2ECodeGenAgent(gen2eModel, undefined, this.logger);
 
     if (this.mode === "playwright") {
       this.browser = new Gen2EBrowser(config.browserOptions);
@@ -228,7 +233,7 @@ class TasksInterpreter {
       let genExpr = "";
       while (genExpr === "") {
         const expr = await this.gen2e(task, gen2eAcc.join("\n"));
-        debug(expr);
+        this.logger.debug(expr);
         if (expr) {
           if (expr) {
             genExpr = expr;
@@ -240,7 +245,9 @@ class TasksInterpreter {
           }
         } else {
           if (this.options.debug) {
-            debug(`text to gen2e gave empty or null expression, got ${expr}`);
+            this.logger.debug(
+              `text to gen2e gave empty or null expression, got ${expr}`
+            );
           }
         }
       }
@@ -251,11 +258,9 @@ class TasksInterpreter {
   private async runMode_gen2e(tasks: string[]): Promise<InterpreterResult> {
     const genResult = await this.contextWiseGen2eGen(tasks);
     if (this.options.debug) {
-      debug(
-        "interpreter received \n=============================\n",
-        genResult.map((g, i) => `(no. call ${i})\n${g}`).join("\n"),
-        "\n=============================\n"
-      );
+      this.logger.debug("interpreter received generated code", {
+        code: genResult,
+      });
     }
 
     const source = generateFakeTestCode("gen2e - interpreter gen", genResult);
@@ -305,6 +310,7 @@ class TasksInterpreter {
         {
           model: this.options.playwrightModel ?? this.fallbackModel,
           openaiApiKey: this.options.openaiApiKey,
+          debug: this.options.debug,
         },
         (code: string, page: Page) => {
           const evalFunc = new Function(
@@ -312,7 +318,9 @@ class TasksInterpreter {
             `return (async () => { const result = await ${code}(); return result })()`
           );
           return evalFunc(page);
-        }
+        },
+        undefined,
+        this.logger
       );
     });
 
@@ -323,7 +331,7 @@ class TasksInterpreter {
     );
 
     if (this.options.debug) {
-      debug(inMemoryStatic);
+      this.logger.debug(inMemoryStatic);
     }
 
     const code = pwCompile(fakeTestSource, staticStore);

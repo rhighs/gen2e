@@ -1,9 +1,14 @@
 import { API, FileInfo } from "jscodeshift";
 import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
 import { Gen2ECompileFunction, makeCompiler } from "./compiler";
+import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
 const compiler = (store: StaticStore): Gen2ECompileFunction => {
-  const transform = (fileInfo: FileInfo, api: API): string => {
+  const transform = (
+    fileInfo: FileInfo,
+    api: API,
+    logger?: Gen2ELogger
+  ): string => {
     const j = api.jscodeshift;
     const root = j(fileInfo.source);
 

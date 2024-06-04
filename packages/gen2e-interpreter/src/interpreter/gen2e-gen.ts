@@ -6,6 +6,7 @@ import {
   createCodeGenAgent,
 } from "@rhighs/gen2e-llm";
 import env from "../env";
+import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
 const systemMessage = `
 ==== DESCRIPTION ====
@@ -99,12 +100,18 @@ export type Gen2EGen2ECodeGenOptions = Gen2ELLMAgentBuilderOptions;
 
 export const createGen2ECodeGenAgent = (
   defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
-  options?: Gen2EGen2ECodeGenOptions
+  options?: Gen2EGen2ECodeGenOptions,
+  logger?: Gen2ELogger
 ) =>
-  createCodeGenAgent(systemMessage, defaultModel, {
-    openaiApiKey: options?.openaiApiKey,
-    debug: options?.debug,
-  });
+  createCodeGenAgent(
+    systemMessage,
+    defaultModel,
+    {
+      openaiApiKey: options?.openaiApiKey,
+      debug: options?.debug,
+    },
+    logger
+  );
 
 export type Gen2EGen2ECodeGenInit = {
   agent: Gen2ELLMCodeGenAgent;
