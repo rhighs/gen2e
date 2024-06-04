@@ -1,6 +1,7 @@
 import { ConfigProvider, Flex, Input, Typography, theme } from 'antd'
 import { Shell } from './components/shell'
 import { useEffect, useRef, useState } from 'react'
+import { StyledMarkdown } from './components/markdown'
 const { TextArea } = Input
 const { Title } = Typography
 
@@ -144,6 +145,9 @@ export function App() {
               }}
             >
               <p>{stateMessage}</p>
+              {output?.length ? (
+                <StyledMarkdown text={`\`\`\`typescript\n${output}\n\`\`\``} />
+              ) : null}
             </div>
           </Flex>
         </Flex>
