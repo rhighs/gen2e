@@ -17,27 +17,13 @@ import { PlainGenResultError, TestStepGenResultError } from "./errors";
 import { getSnapshot } from "./snapshot";
 import { StaticStore } from "./static/store/store";
 import env from "./env";
-import { info, warn } from "./log";
 import { FSStaticStore } from "./static/store/fs";
-import { debug } from "./log";
 import { Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
+import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
-const logGen2EStart = (message: string, task: string) => {
-  if (env.LOG_STEP) {
-    info(`${message}:
-=================================================================
-Task: "${task}"
-=================================================================\n`);
-  }
-};
-
-const logGen2EEnd = (message: string, expr: string) => {
-  if (env.LOG_STEP) {
-    info(`${message}:
-=================================================================
-Expression: ${expr}
-=================================================================\n`);
-  }
+const genContext = {
+  useStatic: env.USE_STATIC_STORE,
+  logger: makeLogger("GEN2E-LIB"),
 };
 
 const _gen: GenType = (
@@ -51,6 +37,7 @@ const _gen: GenType = (
     init?: {
       hooks?: Gen2ELLMCallHooks;
       store?: StaticStore;
+      logger?: Gen2ELogger;
     },
     evalCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
       new Function(
@@ -66,35 +53,51 @@ const _gen: GenType = (
     const page = config.page;
     const isDebug = options?.debug ?? env.DEBUG_MODE;
     const store = init?.store;
+    if (init?.logger) {
+      this.logger.config(init.logger);
+    }
+    const logger = this.logger;
 
     if (!this.agent) {
       this.agent = createPlaywrightCodeGenAgent(
         env.OPENAI_MODEL as Gen2ELLMAgentModel,
         {
           openaiApiKey: options?.openaiApiKey,
-        }
+          debug: isDebug,
+        },
+        logger
       );
     }
 
     let expression = "";
     if (store && this.useStatic) {
       const staticStep = store?.fetchStatic(store.makeIdent("", task));
-      if (staticStep) {
-        logGen2EStart("found static expression for task", task);
-        {
-          expression = staticStep?.expression!;
+      if (
+        typeof staticStep?.expression === "string" &&
+        staticStep?.expression.length > 0 &&
+        staticStep.expression !== "undefined"
+      ) {
+        expression = staticStep?.expression;
+        if (env.LOG_STEP) {
+          logger.info("found static expression for task", {
+            task,
+            expression,
+          });
         }
-        logGen2EStart("static expression found", expression);
         return evalCode(`${expression}`, page);
       }
     }
 
-    logGen2EStart("generating playwright expression with task", task);
+    if (env.LOG_STEP) {
+      logger.info("generating playwright expression with task", { task });
+    }
     {
       const result = await generatePlaywrightCode({
         agent: this.agent,
         task,
-        domSnapshot: (await getSnapshot(page)).dom,
+        domSnapshot: (
+          await getSnapshot(page, isDebug ? logger : undefined)
+        ).dom,
         options: {
           model: (options?.model as Gen2ELLMAgentModel) ?? undefined,
         },
@@ -102,9 +105,7 @@ const _gen: GenType = (
           ...(init?.hooks ?? {}),
           onMessage: (message) => {
             if (isDebug) {
-              debug(
-                `[event] on message >>> ${JSON.stringify(message, null, 4)}`
-              );
+              logger.debug(`[agent-ai:event] on message >>>`, message);
             }
             if (init?.hooks?.onMessage) {
               init.hooks.onMessage(message);
@@ -119,20 +120,22 @@ const _gen: GenType = (
 
       expression = result.result;
     }
-    logGen2EEnd("evaluating expression via eval(...)", expression);
+    if (env.LOG_STEP) {
+      logger.info("evaluating", { task, expression });
+    }
 
     if (store && this.useStatic) {
       const _static = {
         ident: store.makeIdent("", task),
         expression: expression,
       };
-      debug("storing static", _static);
+      logger.debug("storing static", _static);
       store?.makeStatic(_static);
     }
 
     return evalCode(`${expression}`, page);
   } as GenType
-).bind({});
+).bind(genContext);
 
 _gen.test = function (
   this: GenType,
@@ -140,17 +143,24 @@ _gen.test = function (
   init?: {
     store?: StaticStore;
     hooks?: Gen2ELLMCallHooks;
+    logger?: Gen2ELogger;
   }
 ): PlaywrightTestFunction {
+  const self = this;
+  if (init?.logger) {
+    this.logger.config(init.logger);
+  }
+  const logger = self.logger;
+
   return async ({ page, context, request }, testInfo): Promise<void> => {
     const { title } = testInfo;
 
     const store = init?.store ?? FSStaticStore;
     if (!store) {
-      warn(
+      logger.warn(
         "found explicitly null static store init config, disabling static store..."
       );
-      this.useStatic = false;
+      self.useStatic = false;
     }
 
     const gen: GenStepFunction = async (
@@ -182,42 +192,49 @@ _gen.test = function (
       const isDebug = options?.debug ?? env.DEBUG_MODE;
 
       const testIdent = store.makeIdent(title, task);
-      if (store && this.useStatic) {
+      if (store && self.useStatic) {
         let expression = "";
         const staticStep = store?.fetchStatic(testIdent);
         if (
           staticStep &&
-          typeof staticStep.expression !== undefined &&
-          staticStep.expression
+          typeof staticStep?.expression !== undefined &&
+          staticStep?.expression !== "undefined"
         ) {
-          logGen2EStart("found static expression for task", task);
-          {
-            expression = staticStep?.expression!;
+          expression = staticStep?.expression!;
+          if (env.LOG_STEP) {
+            logger.info("found static expression for task", {
+              task,
+              expression,
+            });
           }
-          logGen2EStart("static expression found", expression);
           return evalCode(`${expression}`, page);
         }
       }
 
       return test.step(task, async () => {
         let expression = "";
-
-        if (!this.agent) {
-          debug("creating agent...");
-          this.agent = createPlaywrightCodeGenAgent(
+        if (!self.agent) {
+          logger.debug("creating agent...");
+          self.agent = createPlaywrightCodeGenAgent(
             env.OPENAI_MODEL as Gen2ELLMAgentModel,
             {
               openaiApiKey: options?.openaiApiKey,
-            }
+              debug: isDebug,
+            },
+            logger
           );
         }
 
-        logGen2EStart("generating playwright expression with task", task);
+        if (env.LOG_STEP) {
+          logger.info("generating playwright expression with task", { task });
+        }
         {
           const result = await generatePlaywrightCode({
-            agent: this.agent,
+            agent: self.agent,
             task,
-            domSnapshot: (await getSnapshot(page)).dom,
+            domSnapshot: (
+              await getSnapshot(page, isDebug ? logger : undefined)
+            ).dom,
             options: {
               model: (options?.model as Gen2ELLMAgentModel) ?? undefined,
             },
@@ -225,7 +242,7 @@ _gen.test = function (
               ...(init?.hooks ?? {}),
               onMessage: (message) => {
                 if (isDebug) {
-                  debug(
+                  logger.debug(
                     `[event] on message >>> ${JSON.stringify(message, null, 4)}`
                   );
                 }
@@ -243,7 +260,7 @@ _gen.test = function (
           }
 
           expression = result.result;
-          if (this.useStatic) {
+          if (self.useStatic) {
             const _static = {
               ident: testIdent,
               expression: expression,
@@ -251,7 +268,9 @@ _gen.test = function (
             store.makeStatic(_static);
           }
         }
-        logGen2EEnd("evaluating expression via eval(...)", expression);
+        if (env.LOG_STEP) {
+          logger.info("evaluating", { task, expression });
+        }
 
         const evalResult = await evalCode(`${expression}`, page);
         return evalResult;
@@ -274,6 +293,20 @@ _gen.test = function (
     }
   };
 };
-_gen.test = _gen.test.bind(_gen);
-_gen.useStatic = env.USE_STATIC_STORE;
+
+_gen.test = _gen.test.bind(genContext);
+
+export const configureLogger = (logger: Gen2ELogger) => {
+  genContext.logger = logger;
+};
+
+Object.defineProperty(_gen, "useStatic", {
+  get() {
+    return genContext.useStatic;
+  },
+  set(value) {
+    genContext.useStatic = value;
+  },
+});
+
 export const gen = _gen;

@@ -8,6 +8,7 @@ export { type Page };
 import { type Page } from "@playwright/test";
 import { StaticStore } from "./static/store/store";
 import { Gen2ELLMAgentHooks, Gen2ELLMCodeGenAgent } from "@rhighs/gen2e-llm";
+import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
 export type ModelOptions = {
   debug?: boolean;
@@ -42,6 +43,7 @@ export type Gen2EPlaywriteCodeEvalFunc = (
 export interface GenType extends GenFunction {
   test: GenTestFunction;
   agent?: Gen2ELLMCodeGenAgent;
+  logger: Gen2ELogger;
   useStatic: boolean;
 }
 
@@ -78,6 +80,7 @@ export interface GenFunction {
     init?: {
       store?: StaticStore;
       hooks?: Gen2ELLMCallHooks;
+      logger?: Gen2ELogger;
     },
     evalCode?: Gen2EPlaywriteCodeEvalFunc
   ): Promise<any>;
@@ -96,6 +99,7 @@ export type GenTestFunction = (
   init?: {
     store?: StaticStore;
     hooks?: Gen2ELLMCallHooks;
+    logger?: Gen2ELogger;
   }
 ) => PlaywrightTestFunction;
 

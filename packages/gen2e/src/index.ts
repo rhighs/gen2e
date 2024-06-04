@@ -1,4 +1,4 @@
-export { gen } from "./gen";
+export { gen, configureLogger } from "./gen";
 export * from "./playwright-gen";
 export * from "./errors";
 export * from "./static/store/store";

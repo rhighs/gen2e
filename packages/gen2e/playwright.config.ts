@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
+process.env.GEN2E_DBG = "1"
+
 export default defineConfig({
   testDir: './tests/e2e',
   use: {

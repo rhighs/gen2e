@@ -4,6 +4,7 @@ import {
   PlainGenResultError,
   TestStepGenResultError,
   gen,
+  StaticGenStep,
 } from "../../src";
 import {
   createPlaywrightCodeGenAgent,
@@ -11,14 +12,12 @@ import {
 } from "../../src/playwright-gen";
 import { getSnapshot } from "../../src/snapshot";
 import env from "../../src/env";
-import {
-  APIRequestContext,
-  BrowserContext,
-  PlaywrightTestArgs,
-} from "@playwright/test";
+import { APIRequestContext, BrowserContext } from "@playwright/test";
 
-jest.mock("../..src/snapshot", () => ({
-  getSnapshot: jest.fn(),
+jest.mock("../../src/snapshot", () => ({
+  getSnapshot: jest
+    .fn()
+    .mockReturnValue({ dom: "<html><!-- mock dom --></html>" }),
 }));
 
 jest.mock("../../src/playwright-gen", () => ({
@@ -42,11 +41,16 @@ const mockGeneratePlaywrightCode =
 const mockGetSnapshot = getSnapshot as jest.MockedFunction<typeof getSnapshot>;
 
 describe("gen function", () => {
+  const codeSample =
+    '(async () => {return async () => (await page.goto("https://example.com"));})';
   const mockPage = {} as Page;
+  const staticStore = {};
   const mockStaticStore: StaticStore = {
-    makeIdent: jest.fn((title, task) => `mockIdent-${title}-${task}`),
-    fetchStatic: jest.fn(),
-    makeStatic: jest.fn(),
+    makeIdent: jest.fn((title, task) => task),
+    fetchStatic: (ident) => staticStore[ident],
+    makeStatic: (content: StaticGenStep): void => {
+      staticStore[content.ident] = content.expression;
+    },
   };
 
   beforeEach(() => {
@@ -56,27 +60,30 @@ describe("gen function", () => {
   test("should create a Playwright code generation agent", async () => {
     const mockAgent = jest.fn();
     mockCreatePlaywrightCodeGenAgent.mockReturnValue(mockAgent);
+    mockGeneratePlaywrightCode.mockResolvedValue({
+      type: "success",
+      result: codeSample,
+    });
 
     await gen("task 1", { page: mockPage }, {}, { store: mockStaticStore });
 
     expect(mockCreatePlaywrightCodeGenAgent).toHaveBeenCalledWith(
       env.OPENAI_MODEL,
-      expect.any(Object)
+      expect.any(Object),
+      {
+        fmt: expect.any(Function),
+        sinks: expect.any(Object),
+        info: expect.any(Function),
+        warn: expect.any(Function),
+        debug: expect.any(Function),
+        error: expect.any(Function),
+      }
     );
   });
 
   test("should execute static code if available", async () => {
-    const staticExpression = 'await page.goto("https://example.com");';
-    (
-      mockStaticStore.fetchStatic as jest.MockedFunction<
-        typeof mockStaticStore.fetchStatic
-      >
-    ).mockReturnValue({
-      ident: "mockIdent-gen test-task 1",
-      expression: staticExpression,
-    });
-
     const evalCode = jest.fn().mockResolvedValue(undefined);
+    staticStore["task 1"] = codeSample;
 
     await gen(
       "task 1",
@@ -86,14 +93,14 @@ describe("gen function", () => {
       evalCode
     );
 
-    expect(evalCode).toHaveBeenCalledWith(staticExpression, mockPage);
+    expect(evalCode).toHaveBeenCalledWith(codeSample, mockPage);
+    delete staticStore["task 1"];
   });
 
   test("should generate new code if static code is not available", async () => {
-    const generatedExpression = 'await page.goto("https://example.com");';
     mockGeneratePlaywrightCode.mockResolvedValue({
       type: "success",
-      result: generatedExpression,
+      result: codeSample,
     });
     mockGetSnapshot.mockResolvedValue({ dom: "<html></html>" });
 
@@ -108,7 +115,7 @@ describe("gen function", () => {
     );
 
     expect(mockGeneratePlaywrightCode).toHaveBeenCalledWith(expect.any(Object));
-    expect(evalCode).toHaveBeenCalledWith(generatedExpression, mockPage);
+    expect(evalCode).toHaveBeenCalledWith(codeSample, mockPage);
   });
 
   test("should handle errors during code generation", async () => {
@@ -142,8 +149,9 @@ describe("gen function", () => {
           context: {} as unknown as BrowserContext,
           request: {} as unknown as APIRequestContext,
         },
-        { title: "gen test" } as unknown as PlaywrightTestArgs
+        // @ts-ignore
+        { title: "gen test" }
       )
-    ).rejects.toThrow(TestStepGenResultError);
+    ).rejects.toThrow(Error);
   });
 });

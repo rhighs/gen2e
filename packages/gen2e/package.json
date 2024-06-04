@@ -12,6 +12,7 @@
   "dependencies": {
     "@hono/node-server": "^1.2.0",
     "@rhighs/gen2e-llm": "^1.0.6",
+    "@rhighs/gen2e-logger": "^1.0.1",
     "@types/jscodeshift": "^0.11.11",
     "hono": "^3.9.2",
     "openai": "^4.17.3",
@@ -44,7 +45,7 @@
     "lint": "prettier --check ./src",
     "semantic-release": "semantic-release",
     "specs-count": "npx playwright test --list --reporter=json | node -e \"let c=s=>(s.specs?s.specs.length:0)+(s.suites?s.suites.reduce((a,n)=>a+c(n),0):0); console.log(JSON.parse(require('fs').readFileSync(0,'utf-8')).suites.reduce((a,s)=>a+c(s),0))\"",
-    "test": "jest tests/unit/**/*.test.ts",
+    "test": "jest tests/unit/**.test.ts",
     "test:e2e": "playwright test tests/e2e/**.spec.ts"
   },
   "keywords": [
