@@ -105,8 +105,8 @@ export function App() {
         onModelChange={handleChangeModel}
       >
         <Flex className="flex-1 overflow-hidden" gap="large">
-          <Flex className="flex-1 h-full gap-6" vertical>
-            <Flex className="flex-1" vertical>
+          <Flex className="flex-1 h-full gap-6 w-1/2" vertical>
+            <Flex className="flex-1 flex-col">
               <Title level={5}>Input tasks</Title>
               <TextArea
                 autoSize={false}
@@ -120,8 +120,10 @@ export function App() {
                 }}
               />
             </Flex>
-            <Flex className="flex-1 overflow-hidden" vertical>
-              <Title level={5}>Interpreter logs</Title>
+            <Flex className="flex-1 flex-col overflow-hidden">
+              <div>
+                <Title level={5}>Interpreter logs</Title>
+              </div>
               <div
                 className="space-y-2 rounded-md h-full flex-1 p-2 overflow-y-scroll"
                 style={{
@@ -131,22 +133,25 @@ export function App() {
                 }}
               >
                 {logs.map((text) => {
-                  return <div>{text}</div>
+                  return <div className="break-words w-full">{text}</div>
                 })}
               </div>
             </Flex>
           </Flex>
-          <Flex className="flex-1 overflow-hidden" vertical>
+          <Flex className="flex-1 overflow-hidden w-1/2" vertical>
             <Title level={5}>Output code</Title>
             <div
-              className="rounded-md flex-1 px-2 overflow-y-scroll"
+              className="rounded-md h-full"
               style={{
                 background: 'rgba(255, 255, 255, 0.08)'
               }}
             >
-              <p>{stateMessage}</p>
+              <h1>{stateMessage}</h1>
               {output?.length ? (
-                <StyledMarkdown text={`\`\`\`typescript\n${output}\n\`\`\``} />
+                <StyledMarkdown
+                  className="px-2 mx-auto w-full"
+                  text={`\`\`\`typescript\n${output}\n\`\`\``}
+                />
               ) : null}
             </div>
           </Flex>

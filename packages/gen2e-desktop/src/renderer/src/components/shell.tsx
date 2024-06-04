@@ -42,7 +42,7 @@ function Shell({
               if (onModelChange) onModelChange(value)
             }}
             className="w-52"
-            value={defaultModel}
+            defaultValue={defaultModel}
           />
           <Select
             placeholder="Interpreter mode"

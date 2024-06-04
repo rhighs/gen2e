@@ -10,14 +10,15 @@ import { copyToClipboard } from '../lib/util'
 
 type StyledMarkdownProps = {
   text?: string
+  className?: string
 }
 
-function StyledMarkdown({ text }: StyledMarkdownProps) {
+function StyledMarkdown({ text, className }: StyledMarkdownProps) {
   return (
     <Markdown
       remarkPlugins={[remarkGfm]}
       children={text}
-      className={'w-auto'}
+      className={`w-auto ${className ? className : ''}`}
       components={{
         code(props) {
           const { children, className, ...rest } = props
