@@ -58,9 +58,9 @@ This is the code context relevant for the code you'll generate:
 ${codeContext}
 \`\`\`
 
-==== NOTE ====
-Your response must never include the context provided, it only returns
-the generated expression that relates to it.`
+Make sure the expression you generate does no include variable names that clash with the code above.
+Make sure to only return the missing statement or exactly what asked by your task.
+Never give back the full context, only the new part.`
     : ""
 }`;
 
@@ -125,13 +125,6 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
       }
       expression = result.result;
 
-      if (!validateJSCode(expression)) {
-        return {
-          type: "error",
-          errorMessage: `llm runner failed generation a valid javascript expression, got ${expression}`,
-        };
-      }
-
       const usage = await runner.getUsage();
       const usageStats: Gen2ELLMAgentUsageStats = {
         model,
@@ -165,6 +158,13 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
     }
 
     const sanitizedExpr = sanitizeCodeOutput(expression);
+    if (!validateJSCode(sanitizedExpr)) {
+      return {
+        type: "error",
+        errorMessage: `llm runner failed generation a valid javascript expression, got ${sanitizedExpr}`,
+      };
+    }
+
     if (isDebug) {
       _logger.debug("non-sanitized expression ", { expression });
       _logger.debug("sanitized expression result ", {
