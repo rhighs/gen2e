@@ -1,6 +1,5 @@
 import { ConfigProvider, Flex, Input, Typography, theme } from 'antd'
 import { Shell } from './components/shell'
-import { StyledMarkdown } from './components/markdown'
 import { useEffect, useRef, useState } from 'react'
 const { TextArea } = Input
 const { Title } = Typography
@@ -83,6 +82,10 @@ export function App() {
 
   const handleChangeModel = (model: string) => setModel(model)
   const handleChangeMode = (mode: string) => setMode(mode)
+  const handleRestart = async () => {
+    await handleStop()
+    await handleRun()
+  }
 
   return (
     <ConfigProvider
@@ -93,12 +96,14 @@ export function App() {
       <Shell
         running={running}
         models={models}
+        defaultModel="gpt-4o"
         onStop={handleStop}
+        onRestart={handleRestart}
         onRun={handleRun}
         onModeChange={handleChangeMode}
         onModelChange={handleChangeModel}
       >
-        <Flex className="flex-1" gap="large">
+        <Flex className="flex-1 overflow-hidden" gap="large">
           <Flex className="flex-1 h-full gap-6" vertical>
             <Flex className="flex-1" vertical>
               <Title level={5}>Input tasks</Title>
@@ -117,7 +122,7 @@ export function App() {
             <Flex className="flex-1 overflow-hidden" vertical>
               <Title level={5}>Interpreter logs</Title>
               <div
-                className="flex-row space-y-2rounded-md h-full flex-1 p-2 overflow-y-scroll"
+                className="space-y-2 rounded-md h-full flex-1 p-2 overflow-y-scroll"
                 style={{
                   background: 'black',
                   color: 'green',
@@ -130,16 +135,15 @@ export function App() {
               </div>
             </Flex>
           </Flex>
-          <Flex className="flex-1 " vertical>
+          <Flex className="flex-1 overflow-hidden" vertical>
             <Title level={5}>Output code</Title>
             <div
-              className="rounded-md flex-1 px-2"
+              className="rounded-md flex-1 px-2 overflow-y-scroll"
               style={{
                 background: 'rgba(255, 255, 255, 0.08)'
               }}
             >
               <p>{stateMessage}</p>
-              <StyledMarkdown text={output?.length ? `\`\`\`typescript\n${output}\n\`\`\`` : ''} />
             </div>
           </Flex>
         </Flex>

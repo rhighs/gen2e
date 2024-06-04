@@ -3,7 +3,8 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { tasksInterpreter } from '@rhighs/gen2e-interpreter'
-import { Writable } from 'stream'
+import { makeLogger, Gen2ELoggerTagColor, Gen2ELoggerRuntimeCallInfo } from '@rhighs/gen2e-logger'
+import util from 'util'
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -44,8 +45,6 @@ function createWindow(): BrowserWindow {
 type TasksInterpreter = any
 let interpreter: TasksInterpreter | undefined
 
-type ProcessWriteType = typeof process.stdout.write & typeof process.stderr.write
-
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
 
@@ -62,6 +61,29 @@ app.whenReady().then(() => {
     }
   })
 
+  const customLogger = makeLogger(
+    'GEN2E-DESKTOP',
+    (
+      tag: string,
+      _tagColor: Gen2ELoggerTagColor,
+      rinfo: Gen2ELoggerRuntimeCallInfo,
+      ...args: any[]
+    ) => {
+      return `[${tag.toUpperCase()}]${
+        rinfo.file !== '' ? ` ${rinfo.file}:${rinfo.line}:${rinfo.col}` : ''
+      } ${args
+        .map((arg) =>
+          typeof arg === 'object' ? util.inspect(arg, { depth: Infinity, colors: false }) : arg
+        )
+        .join(' ')}`
+    },
+    (s) => {
+      win.webContents.send('gen2e-log', {
+        file: '',
+        message: s
+      })
+    }
+  )
   ipcMain.handle('interpret', async (_event, ...args) => {
     if (interpreter) {
       await interpreter.teardown()
@@ -70,7 +92,8 @@ app.whenReady().then(() => {
     const [model, mode, tasks] = args
     interpreter = tasksInterpreter(
       {
-        mode: mode?.length ? mode : undefined
+        mode: mode?.length ? mode : undefined,
+        logger: customLogger
       },
       {
         model: model?.length ? model : undefined,
@@ -83,39 +106,6 @@ app.whenReady().then(() => {
   })
 
   const win = createWindow()
-  const interceptBufferWrite = (file: 'stdout' | 'stderr') => (buffer: string | Uint8Array) => {
-    const message = buffer
-    win.webContents.send('gen2e-log', {
-      file,
-      message
-    })
-  }
-
-  const wrappedProcessWrite = (
-    originalCall: ProcessWriteType,
-    onWrite: (buffer: string | Uint8Array) => void
-  ): ProcessWriteType => {
-    return function (...args: any[]): ReturnType<InstanceType<typeof Writable>['write']> {
-      const [buffer, encoding_cb, cb] = args
-      onWrite(buffer)
-
-      // overloads dispatch
-      if (typeof encoding_cb === 'function') {
-        return originalCall(buffer, encoding_cb)
-      } else {
-        return originalCall(buffer, encoding_cb, cb)
-      }
-    }
-  }
-
-  process.stdout.write = wrappedProcessWrite(
-    process.stdout.write.bind(process.stdout),
-    interceptBufferWrite('stdout')
-  )
-  process.stderr.write = wrappedProcessWrite(
-    process.stderr.write.bind(process.stderr),
-    interceptBufferWrite('stderr')
-  )
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

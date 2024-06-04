@@ -1,25 +1,29 @@
 import React from 'react'
-import { RocketOutlined, StopFilled, StopOutlined } from '@ant-design/icons'
+import { RocketOutlined, SyncOutlined, StopFilled, StopOutlined } from '@ant-design/icons'
 import { Button, Layout, Select, Space, theme } from 'antd'
 
-const { Header, Content } = Layout
+const { Header } = Layout
 
 type ShellProps = {
   children?: React.ReactNode
   running: boolean
   models: string[]
+  defaultModel: string
   onStop: () => Promise<void>
   onRun?: () => Promise<void>
+  onRestart?: () => Promise<void>
   onModelChange?: (value: string) => void
   onModeChange?: (value: string) => void
 }
 
 function Shell({
   models,
-  onStop,
+  defaultModel,
   running,
   children,
   onRun,
+  onStop,
+  onRestart,
   onModelChange,
   onModeChange
 }: ShellProps) {
@@ -38,6 +42,7 @@ function Shell({
               if (onModelChange) onModelChange(value)
             }}
             className="w-52"
+            value={defaultModel}
           />
           <Select
             placeholder="Interpreter mode"
@@ -53,6 +58,18 @@ function Shell({
           />
         </Space>
         <div className="flex-col space-x-2">
+          <Button
+            type="primary"
+            ghost={!running}
+            disabled={!running}
+            icon={<SyncOutlined />}
+            size="middle"
+            onClick={async () => {
+              if (onRestart) await onRestart()
+            }}
+          >
+            Restart
+          </Button>
           <Button
             type="primary"
             ghost={!running}
