@@ -9,15 +9,9 @@ import { fitsContext, maxCharactersApprox } from "./openai-token";
 import { TiktokenModel } from "tiktoken";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
-export type Gen2EOpenAIRunnerOptions = {
-  apiKey: string;
-  model: Gen2ELLMAgentOpenAIModel;
-  debug?: boolean;
-  openai?: OpenAI;
-  logger?: Gen2ELogger;
-};
-
-const modelSupportsImage = (model: Gen2ELLMAgentOpenAIModel): boolean => {
+export const modelSupportsImage = (
+  model: Gen2ELLMAgentOpenAIModel
+): boolean => {
   switch (model) {
     case "gpt-4-turbo":
     case "gpt-4-turbo-2024-04-09":
@@ -28,6 +22,14 @@ const modelSupportsImage = (model: Gen2ELLMAgentOpenAIModel): boolean => {
     default:
       return false;
   }
+};
+
+export type Gen2EOpenAIRunnerOptions = {
+  apiKey: string;
+  model: Gen2ELLMAgentOpenAIModel;
+  debug?: boolean;
+  openai?: OpenAI;
+  logger?: Gen2ELogger;
 };
 
 export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
