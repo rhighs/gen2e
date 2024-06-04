@@ -40,14 +40,50 @@ const sanitizeHtml = (subject: string) => {
   });
 };
 
-export const getSnapshot = async (page: Page, logger?: Gen2ELogger) => {
-  await page.waitForLoadState("domcontentloaded");
-  await page.waitForLoadState("networkidle");
+export type WebSnapshotOptions = {
+  screenshot?: boolean;
+  debug?: boolean;
+};
+
+export type WebSnapshotResult = {
+  dom: string;
+  screenshot?: Buffer;
+};
+
+export const getSnapshot = async (
+  page: Page,
+  logger?: Gen2ELogger,
+  opts?: WebSnapshotOptions
+): Promise<WebSnapshotResult> => {
+  // rob: prevent snapshotting the wrong page
+  {
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForLoadState("networkidle");
+  }
+
   const content = sanitizeHtml(await page.content());
   if (logger) {
     logger.debug("captured snapshot", content);
   }
-  return {
+
+  const result: WebSnapshotResult = {
     dom: content,
   };
+
+  if (opts?.screenshot) {
+    const buffer = await page.screenshot({
+      type: "png",
+      fullPage: true,
+    });
+
+    if ((!buffer || buffer.length === 0) && opts.debug) {
+      logger?.debug(
+        "snapshot could not get any screenshot data, got empty or undefined buffer"
+      );
+    }
+
+    result.screenshot = buffer;
+  }
+
+  return result;
 };

@@ -116,12 +116,15 @@ const _gen: GenType = (
       logger.info("generating playwright expression with task", { task });
     }
     {
+      const domInfo = await getSnapshot(page, isDebug ? logger : undefined, {
+        debug: isDebug,
+        screenshot: true,
+      });
       const result = await generatePlaywrightCode({
         agent: this.agent,
         task,
-        domSnapshot: (
-          await getSnapshot(page, isDebug ? logger : undefined)
-        ).dom,
+        domSnapshot: domInfo.dom,
+        pageScreenshot: domInfo.screenshot,
         options: {
           model: (options?.model as Gen2ELLMAgentModel) ?? undefined,
         },
@@ -243,12 +246,20 @@ _gen.test = function (
           logger.info("generating playwright expression with task", { task });
         }
         {
+          const domInfo = await getSnapshot(
+            page,
+            isDebug ? logger : undefined,
+            {
+              debug: isDebug,
+              screenshot: true,
+            }
+          );
+
           const result = await generatePlaywrightCode({
             agent: self.agent,
             task,
-            domSnapshot: (
-              await getSnapshot(page, isDebug ? logger : undefined)
-            ).dom,
+            domSnapshot: domInfo.dom,
+            pageScreenshot: domInfo.screenshot,
             options: {
               model: (options?.model as Gen2ELLMAgentModel) ?? undefined,
             },

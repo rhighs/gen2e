@@ -76,6 +76,7 @@ export type Gen2EPlaywrightCodeGenInit = {
   agent: Gen2ELLMCodeGenAgent;
   task: string;
   domSnapshot: string;
+  pageScreenshot?: Buffer;
   options?: {
     model?: Gen2ELLMAgentModel;
   };
@@ -96,6 +97,7 @@ export const generatePlaywrightCode = async ({
   agent,
   task,
   domSnapshot,
+  pageScreenshot,
   options,
   hooks,
 }: Gen2EPlaywrightCodeGenInit): Promise<Gen2EPlaywrightCodeGenResult> => {
@@ -103,6 +105,7 @@ export const generatePlaywrightCode = async ({
     {
       task: task,
       codeContext: domSnapshot,
+      image: pageScreenshot,
       options: options ?? undefined,
     },
     hooks
