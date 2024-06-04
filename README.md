@@ -1,8 +1,6 @@
 # Gen2E
 
-A monorepo containing the gen2e library and utilities to operate with it
-
-## Contents
+A LLM based playwright code generator, provide natural language instructions and get compiled tests back.
 
 ## Contents
 
