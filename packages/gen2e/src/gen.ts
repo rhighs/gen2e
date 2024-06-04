@@ -225,7 +225,7 @@ _gen.test = function (
         }
       }
 
-      return test.step(task, async () => {
+      return await test.step(task, async () => {
         let expression = "";
         if (!self.agent) {
           logger.debug("creating agent...");
@@ -295,7 +295,7 @@ _gen.test = function (
     };
 
     try {
-      const result = testFunction(
+      const result = await testFunction(
         {
           page,
           gen,
