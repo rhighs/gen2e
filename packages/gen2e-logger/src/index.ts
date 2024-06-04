@@ -6,15 +6,17 @@ import {
   Gen2ELoggerRuntimeCallInfo,
   Gen2ELoggerTag,
   Gen2ELoggerTagColor,
-  Gen2eLogger,
-  Gen2eLoggerSinks,
+  Gen2ELogger,
+  Gen2ELoggerSinkTag,
+  Gen2ELoggerSinks,
+  Gen2ELoggerConfig,
 } from "./types";
 
 import util from "util";
 
 import { runtimeExecutionInfo } from "./callstack";
 
-const defaultArgsSerializer: Gen2ELoggerArgsFmt = (
+const defaultArgsFmt: Gen2ELoggerArgsFmt = (
   tag: Gen2ELoggerTag,
   tagColor: Gen2ELoggerTagColor,
   rinfo: Gen2ELoggerRuntimeCallInfo,
@@ -31,9 +33,9 @@ const defaultArgsSerializer: Gen2ELoggerArgsFmt = (
   const colorCode = colorMap[tagColor] || "\x1b[37m";
   const resetCode = "\x1b[0m";
 
-  return `${colorCode}[${tag.toUpperCase()}]${resetCode} ${rinfo.file}:${
-    rinfo.line
-  }:${rinfo.col} ${args
+  return `${colorCode}[${tag.toUpperCase()}]${resetCode}${
+    rinfo.file !== "" ? ` ${rinfo.file}:${rinfo.line}:${rinfo.col}` : ""
+  } ${args
     .map((arg) =>
       typeof arg === "object"
         ? util.inspect(arg, { depth: Infinity, colors: true })
@@ -44,46 +46,66 @@ const defaultArgsSerializer: Gen2ELoggerArgsFmt = (
 
 export const makeLogger = (
   tag: Gen2ELoggerTag = "GEN2E",
-  as: Gen2ELoggerArgsFmt = defaultArgsSerializer,
-  sinks: Gen2eLoggerSinks = {
+  _fmt: Gen2ELoggerArgsFmt = defaultArgsFmt,
+  _sinks: Gen2ELoggerSinks = {
     info: (s) => process.stdout.write(s + "\n"),
     debug: (s) => process.stdout.write(s + "\n"),
     warn: (s) => process.stdout.write(s + "\n"),
     error: (s) => process.stderr.write(s + "\n"),
   }
-): Gen2eLogger => {
-  return new (class _CustomLogger implements Gen2eLogger {
-    private sDepth: number = 4;
-    constructor() {}
-
-    debug(...args: any[]): unknown {
-      const rinfo = runtimeExecutionInfo(this.sDepth);
-      const s = as(`${tag}-DEBUG`, "blue", rinfo, ...args);
-      const sink = typeof sinks === "function" ? sinks : sinks.debug;
-      return sink(s);
+): Gen2ELogger => {
+  return new (class _Gen2ELogger implements Gen2ELogger {
+    private fmt: Gen2ELoggerArgsFmt;
+    private sinks: Gen2ELoggerSinks;
+    constructor(_as: Gen2ELoggerArgsFmt, _sinks: Gen2ELoggerSinks) {
+      this.fmt = _as;
+      this.sinks = _sinks;
     }
 
-    info(...args: any[]): unknown {
-      const rinfo = runtimeExecutionInfo(this.sDepth);
-      const s = as(`${tag}-INFO`, "green", rinfo, ...args);
-      const sink = typeof sinks === "function" ? sinks : sinks.info;
-      return sink(s);
+    dump(
+      metatag: Gen2ELoggerSinkTag,
+      color: Gen2ELoggerTagColor,
+      ...args: any[]
+    ): unknown {
+      const rinfo = runtimeExecutionInfo(5);
+      const sink =
+        typeof this.sinks === "function" ? this.sinks : this.sinks[metatag];
+      return sink(
+        this.fmt(
+          `${tag}-${(metatag as string).toUpperCase()}`,
+          color,
+          rinfo,
+          ...args
+        )
+      );
     }
 
-    warn(...args: any[]): unknown {
-      const rinfo = runtimeExecutionInfo(this.sDepth);
-      const s = as(`${tag}-WARN`, "yellow", rinfo, ...args);
-      const sink = typeof sinks === "function" ? sinks : sinks.warn;
-      return sink(s);
+    debug(this: _Gen2ELogger, ...args: any[]): unknown {
+      return this.dump("debug", "blue", ...args);
     }
 
-    error(...args: any[]): unknown {
-      const rinfo = runtimeExecutionInfo(this.sDepth);
-      const s = as(`${tag}-ERR`, "red", rinfo, ...args);
-      const sink = typeof sinks === "function" ? sinks : sinks.error;
-      return sink(s);
+    info(this: _Gen2ELogger, ...args: any[]): unknown {
+      return this.dump("info", "green", ...args);
     }
-  })();
+
+    warn(this: _Gen2ELogger, ...args: any[]): unknown {
+      return this.dump("warn", "yellow", ...args);
+    }
+
+    error(this: _Gen2ELogger, ...args: any[]): unknown {
+      return this.dump("error", "red", ...args);
+    }
+
+    config(from: Gen2ELoggerConfig | Gen2ELogger): void {
+      from = from as any;
+      if ("sinks" in from) {
+        this.sinks = (from as any).sinks;
+      }
+      if ("fmt" in from) {
+        this.fmt = (from as any).fmt;
+      }
+    }
+  })(_fmt, _sinks);
 };
 
 const stdLogger = makeLogger();

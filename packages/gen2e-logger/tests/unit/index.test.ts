@@ -1,4 +1,4 @@
-import { Gen2ELoggerArgsFmt, makeLogger, default as stdLogger } from "../../src";
+import { Gen2ELoggerArgsFmt, makeLogger } from "../../src";
 import { Gen2ELoggerRuntimeCallInfo } from "../../src";
 
 jest.mock("../../src/callstack", () => ({
@@ -57,7 +57,7 @@ describe("Gen2E std logger", () => {
     logger.error("Error message");
     expect(mockSink).toHaveBeenCalledWith(
       expect.stringContaining(
-        "\x1b[31m[GEN2E-ERR]\x1b[0m file.ts:10:15 Error message"
+        "\x1b[31m[GEN2E-ERROR]\x1b[0m file.ts:10:15 Error message"
       )
     );
   });
@@ -80,7 +80,7 @@ describe("Gen2E std logger", () => {
 
     logger.error("Error message");
     expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining("\x1b[31m[GEN2E-ERR]\x1b[0m")
+      expect.stringContaining("\x1b[31m[GEN2E-ERROR]\x1b[0m")
     );
   });
 });
@@ -156,7 +156,7 @@ describe("Gen2E std logger args fmt", () => {
   it("should call the serializer with the correct parameters for error messages", () => {
     logger.error("Error message");
     expect(mockSerializer).toHaveBeenCalledWith(
-      "GEN2E-ERR",
+      "GEN2E-ERROR",
       "red",
       {
         funcName: "testFunc",
@@ -168,5 +168,198 @@ describe("Gen2E std logger args fmt", () => {
       "Error message"
     );
     expect(mockSink).toHaveBeenCalledWith("");
+  });
+});
+
+describe("Gen2E logger config", () => {
+  const mockSink1 = jest.fn();
+  const mockSink2 = jest.fn();
+  const mockSerializer1: Gen2ELoggerArgsFmt = jest.fn(
+    () => "Serialized message 1"
+  );
+  const mockSerializer2: Gen2ELoggerArgsFmt = jest.fn(
+    () => "Serialized message 2"
+  );
+
+  const sinks1 = {
+    debug: mockSink1,
+    info: mockSink1,
+    warn: mockSink1,
+    error: mockSink1,
+  };
+
+  const sinks2 = {
+    debug: mockSink2,
+    info: mockSink2,
+    warn: mockSink2,
+    error: mockSink2,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should preserve the tag when another config is passed", () => {
+    const logger1 = makeLogger("GEN2E", mockSerializer1, sinks1);
+    const logger2 = makeLogger("GEN2E_ALT", mockSerializer2, sinks2);
+    logger1.config(logger2);
+
+    logger1.debug("Debug message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E-DEBUG",
+      "blue",
+      expect.any(Object),
+      "Debug message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger1.info("Info message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E-INFO",
+      "green",
+      expect.any(Object),
+      "Info message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger1.warn("Warn message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E-WARN",
+      "yellow",
+      expect.any(Object),
+      "Warn message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger1.error("Error message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E-ERROR",
+      "red",
+      expect.any(Object),
+      "Error message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+  });
+
+  it("should apply new sinks and format from config", () => {
+    const logger1 = makeLogger("GEN2E", mockSerializer1, sinks1);
+    const _logger2 = makeLogger("GEN2E_ALT", mockSerializer2, sinks2);
+    logger1.config({ fmt: mockSerializer2, sinks: sinks2 });
+
+    logger1.debug("Debug message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E-DEBUG",
+      "blue",
+      expect.any(Object),
+      "Debug message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger1.info("Info message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E-INFO",
+      "green",
+      expect.any(Object),
+      "Info message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger1.warn("Warn message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E-WARN",
+      "yellow",
+      expect.any(Object),
+      "Warn message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger1.error("Error message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E-ERROR",
+      "red",
+      expect.any(Object),
+      "Error message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+  });
+
+  it("should not affect the original logger configuration", () => {
+    const logger1 = makeLogger("GEN2E", mockSerializer1, sinks1);
+    const logger2 = makeLogger("GEN2E_ALT", mockSerializer2, sinks2);
+    logger1.config(logger2);
+
+    logger2.debug("Debug message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E_ALT-DEBUG",
+      "blue",
+      expect.any(Object),
+      "Debug message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger2.info("Info message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E_ALT-INFO",
+      "green",
+      expect.any(Object),
+      "Info message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger2.warn("Warn message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E_ALT-WARN",
+      "yellow",
+      expect.any(Object),
+      "Warn message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+
+    logger2.error("Error message");
+    expect(mockSerializer2).toHaveBeenCalledWith(
+      "GEN2E_ALT-ERROR",
+      "red",
+      expect.any(Object),
+      "Error message"
+    );
+    expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
+  });
+
+  it("should call logger1.fmt with the tags from logger2", () => {
+    const logger1 = makeLogger("GEN2E", mockSerializer1, sinks1);
+    const logger2 = makeLogger("GEN2E_ALT", mockSerializer2, sinks2);
+    logger2.config(logger1);
+
+    logger2.debug("Debug message");
+    expect(mockSerializer1).toHaveBeenCalledWith(
+      "GEN2E_ALT-DEBUG",
+      "blue",
+      expect.any(Object),
+      "Debug message"
+    );
+
+    logger2.info("Info message");
+    expect(mockSerializer1).toHaveBeenCalledWith(
+      "GEN2E_ALT-INFO",
+      "green",
+      expect.any(Object),
+      "Info message"
+    );
+
+    logger2.warn("Warn message");
+    expect(mockSerializer1).toHaveBeenCalledWith(
+      "GEN2E_ALT-WARN",
+      "yellow",
+      expect.any(Object),
+      "Warn message"
+    );
+
+    logger2.error("Error message");
+    expect(mockSerializer1).toHaveBeenCalledWith(
+      "GEN2E_ALT-ERROR",
+      "red",
+      expect.any(Object),
+      "Error message"
+    );
   });
 });

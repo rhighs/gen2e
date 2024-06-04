@@ -1,6 +1,6 @@
-import logger, { Gen2eLogger, makeLogger } from "../src";
+import logger, { Gen2ELogger, makeLogger } from "../src";
 
-const logStuff = (logger: Gen2eLogger) => {
+const logStuff = (logger: Gen2ELogger) => {
   const obj = {
     glossary: {
       title: "example glossary",
@@ -57,3 +57,33 @@ logStuff(customSink);
 
 process.stdout.write("logs[] = ");
 console.dir(logs);
+
+const newSinks = {
+  debug: (msg: string) => console.log("Debug:", msg),
+  info: (msg: string) => console.log("Info:", msg),
+  warn: (msg: string) => console.warn("Warn:", msg),
+  error: (msg: string) => console.error("Error:", msg),
+};
+
+const newSerializer = (tag, color, ...args) => {
+  const formattedArgs = args.map((arg) => JSON.stringify(arg)).join(" | ");
+  return `${tag} [${color}]: ${formattedArgs}`;
+};
+
+const loggerWithConfig = makeLogger("CONFIG_LOGGER");
+loggerWithConfig.config({ fmt: newSerializer, sinks: newSinks });
+
+loggerWithConfig.debug("This is a debug message");
+loggerWithConfig.info("This is an info message");
+loggerWithConfig.warn("This is a warning message");
+loggerWithConfig.error("This is an error message");
+
+const anotherLogger = makeLogger("ANOTHER_LOGGER", newSerializer, newSinks);
+
+const loggerToConfigure = makeLogger("LOGGER_TO_CONFIGURE");
+loggerToConfigure.config(anotherLogger);
+
+loggerToConfigure.debug("This is a debug message");
+loggerToConfigure.info("This is an info message");
+loggerToConfigure.warn("This is a warning message");
+loggerToConfigure.error("This is an error message");
