@@ -21,6 +21,35 @@ import { FSStaticStore } from "./static/store/fs";
 import { Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
+const tryFetch = (
+  store: StaticStore,
+  testTitle: string,
+  testTask: string,
+  {
+    logger,
+  }: {
+    logger: Gen2ELogger;
+  }
+): string | undefined => {
+  const staticStep = store.fetchStatic(store.makeIdent(testTitle, testTask));
+  if (
+    staticStep?.expression &&
+    typeof staticStep?.expression === "string" &&
+    staticStep?.expression.length > 0 &&
+    staticStep.expression !== "undefined"
+  ) {
+    const expression = staticStep?.expression;
+    if (env.LOG_STEP) {
+      logger.info("found static expression for task", {
+        testTask,
+        expression,
+      });
+    }
+    return expression;
+  }
+  return undefined;
+};
+
 const genContext = {
   useStatic: env.USE_STATIC_STORE,
   logger: makeLogger("GEN2E-LIB"),
@@ -52,11 +81,18 @@ const _gen: GenType = (
     }
     const page = config.page;
     const isDebug = options?.debug ?? env.DEBUG_MODE;
-    const store = init?.store;
     if (init?.logger) {
       this.logger.config(init.logger);
     }
     const logger = this.logger;
+
+    const store = init?.store ?? FSStaticStore;
+    if (!store) {
+      logger.warn(
+        "found explicitly null static store init config, disabling static store..."
+      );
+      this.useStatic = false;
+    }
 
     if (!this.agent) {
       this.agent = createPlaywrightCodeGenAgent(
@@ -69,21 +105,9 @@ const _gen: GenType = (
       );
     }
 
-    let expression = "";
+    let expression: string | undefined;
     if (store && this.useStatic) {
-      const staticStep = store?.fetchStatic(store.makeIdent("", task));
-      if (
-        typeof staticStep?.expression === "string" &&
-        staticStep?.expression.length > 0 &&
-        staticStep.expression !== "undefined"
-      ) {
-        expression = staticStep?.expression;
-        if (env.LOG_STEP) {
-          logger.info("found static expression for task", {
-            task,
-            expression,
-          });
-        }
+      if ((expression = tryFetch(store, "", task, { logger }))) {
         return evalCode(`${expression}`, page);
       }
     }
@@ -129,7 +153,9 @@ const _gen: GenType = (
         ident: store.makeIdent("", task),
         expression: expression,
       };
-      logger.debug("storing static", _static);
+      if (isDebug) {
+        logger.debug("storing static", _static);
+      }
       store?.makeStatic(_static);
     }
 
@@ -192,21 +218,9 @@ _gen.test = function (
       const isDebug = options?.debug ?? env.DEBUG_MODE;
 
       const testIdent = store.makeIdent(title, task);
-      if (store && self.useStatic) {
-        let expression = "";
-        const staticStep = store?.fetchStatic(testIdent);
-        if (
-          staticStep &&
-          typeof staticStep?.expression !== undefined &&
-          staticStep?.expression !== "undefined"
-        ) {
-          expression = staticStep?.expression!;
-          if (env.LOG_STEP) {
-            logger.info("found static expression for task", {
-              task,
-              expression,
-            });
-          }
+      let expression: string | undefined;
+      if (this.useStatic) {
+        if ((expression = tryFetch(store, title, task, { logger }))) {
           return evalCode(`${expression}`, page);
         }
       }
@@ -263,8 +277,11 @@ _gen.test = function (
           if (self.useStatic) {
             const _static = {
               ident: testIdent,
-              expression: expression,
+              expression,
             };
+            if (isDebug) {
+              logger.debug("storing static", _static);
+            }
             store.makeStatic(_static);
           }
         }
