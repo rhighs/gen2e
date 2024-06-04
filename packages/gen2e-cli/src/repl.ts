@@ -1,6 +1,5 @@
 import { Page } from "@playwright/test";
 import readline from "node:readline";
-import OpenAI from "openai";
 
 import {
   generateGen2ECode,
@@ -12,12 +11,12 @@ import {
 import { gen, stepLoggingEnabled } from "@rhighs/gen2e";
 stepLoggingEnabled(true);
 
-import { err, info } from "./log";
 import {
   Gen2ELLMAgentModel,
   Gen2ELLMCodeGenAgent,
   isModelSupported,
 } from "@rhighs/gen2e-llm";
+import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 type InterpeterREPLOptions = {
   browserOptions?: Gen2EBrowserOptions;
@@ -25,6 +24,7 @@ type InterpeterREPLOptions = {
   debug?: boolean;
   model?: string;
   openaiApiKey?: string;
+  logger?: Gen2ELogger;
 };
 
 class InterpreterREPL {
@@ -37,6 +37,7 @@ class InterpreterREPL {
   private browser: Gen2EBrowser;
   private startup: Promise<any>;
   private page: Page | undefined;
+  private logger: Gen2ELogger = makeLogger("GEN2E-REPL");
 
   constructor(options: InterpeterREPLOptions) {
     const model = options.model as Gen2ELLMAgentModel;
@@ -45,10 +46,14 @@ class InterpreterREPL {
       openaiApiKey: options.openaiApiKey,
     };
 
+    if (options.logger) {
+      this.logger.config(options.logger);
+    }
+
     if (isModelSupported(model)) {
-      this.agent = createGen2ECodeGenAgent(model, opts);
+      this.agent = createGen2ECodeGenAgent(model, opts, this.logger);
     } else if (!model) {
-      this.agent = createGen2ECodeGenAgent(undefined, opts);
+      this.agent = createGen2ECodeGenAgent(undefined, opts, this.logger);
     } else {
       throw new Error(
         `failed starting repl instance, model ${model} not supported`
@@ -83,7 +88,7 @@ class InterpreterREPL {
 
   async stop(): Promise<void> {
     if (this.verbose) {
-      info("Stopping REPL...");
+      this.logger.info("Stopping REPL...");
     }
     await this.teardown();
     this.rl.close();
@@ -91,7 +96,7 @@ class InterpreterREPL {
 
   async teardown(): Promise<void> {
     if (this.verbose) {
-      info("Closing browser...");
+      this.logger.info("Closing browser...");
     }
     if (this.browser) {
       await this.browser.close();
@@ -108,11 +113,11 @@ NOTE: code that depends on anything besides \`page\` and '\test\' and \'gen\' sh
 
       if (result.type === "success") {
         this.results.push(result.result);
-        info("evaluating expression: [", result.result, "]");
+        this.logger.info("evaluating expression: [", result.result, "]");
         await evalGen2EExpression(result.result, gen, this.page!);
       }
     } catch (error) {
-      err("calling generateGen2EExpr(...) gave", error.message);
+      this.logger.error("calling generateGen2EExpr(...) gave", error.message);
     }
   }
 }

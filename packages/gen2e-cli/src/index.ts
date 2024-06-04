@@ -5,9 +5,10 @@ import { program } from "commander";
 import { type Gen2EExpression } from "@rhighs/gen2e";
 import { tasksInterpreter } from "@rhighs/gen2e-interpreter";
 
-import { info, err, debug } from "./log";
 import { makeREPL } from "./repl";
 import * as pjson from "../package.json";
+import { makeLogger } from "@rhighs/gen2e-logger";
+const logger = makeLogger("GEN2E-CLI");
 
 program
   .name(pjson["name"])
@@ -76,6 +77,7 @@ program
     const result = await tasksInterpreter(
       {
         mode: imode,
+        logger,
       },
       {
         model,
@@ -88,27 +90,27 @@ program
     )
       .on("start", () => {
         if (!isDebug) {
-          debug("Generating expressions...");
+          logger.debug("Generating expressions...");
         }
       })
       .on("ai-message", (_, message) => {
         if (isDebug) {
-          debug(`ai message`, message);
+          logger.debug(`ai message`, message);
         }
       })
       .on("task-success", (i, result: Gen2EExpression) => {
         if (!isDebug) {
           if (verbose) {
-            info(
+            logger.info(
               `task step "${result.task}" has generated code:\n${result.expression}`
             );
           }
         }
       })
       .on("task-error", (_, error: Error | string) => {
-        err(`Failed generating expression due to error:`);
-        err(error);
-        err("Aborting...");
+        logger.error(`Failed generating expression due to error:`);
+        logger.error(error);
+        logger.error("Aborting...");
         process.exit(1);
       })
       .run(tasks);
@@ -117,19 +119,19 @@ program
     process.stdout.write(`${code}\n`);
 
     if (result.usageStats) {
-      info("interpreter usage stats report", result.usageStats);
+      logger.info("interpreter usage stats report", result.usageStats);
     }
 
     if (appendFile) {
-      info(`appending result to ${outFile}...`);
+      logger.info(`appending result to ${outFile}...`);
       appendFileSync(appendFile, code);
-      info(`done appending result to ${outFile}`);
+      logger.info(`done appending result to ${outFile}`);
     } else if (outFile) {
-      info(`writing result to ${outFile}...`);
+      logger.info(`writing result to ${outFile}...`);
       writeFileSync(outFile, code, {
         flag: "wx",
       });
-      info(`done writing result to ${outFile}`);
+      logger.info(`done writing result to ${outFile}`);
     }
   });
 
