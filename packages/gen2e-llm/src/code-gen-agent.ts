@@ -14,9 +14,9 @@ import {
   Gen2ELLMCodeGenAgent,
   Gen2ELLMAgentRunnerInit,
 } from "./types";
-import { debug } from "./log";
 import { Gen2ELLMGenericError } from "./errors";
 import { Gen2EOpenAIRunner } from "./runner/openai";
+import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 const tools = [
   makeTracedTool(
@@ -53,24 +53,30 @@ This is your task: ${message}
 ${
   codeContext?.length
     ? `\
-This is the code context relevate to the code you'll generate:
+This is the code context relevant for the code you'll generate:
 \`\`\`
 ${codeContext}
 \`\`\`
 
 ==== NOTE ====
-Your response must never include the context, it only returns
-the generated expression that is related to it.
-`
+Your response must never include the context provided, it only returns
+the generated expression that relates to it.`
     : ""
 }`;
+
+const defaultAgentLogger = makeLogger("GEN2E-LLM");
 
 export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
-  options?: Gen2ELLMAgentBuilderOptions
+  options?: Gen2ELLMAgentBuilderOptions,
+  logger?: Gen2ELogger
 ): Gen2ELLMAgent<Gen2ELLMCodeGenAgentTask, string> => {
   const isDebug = options?.debug ?? false;
+  const _logger = defaultAgentLogger;
+  if (logger) {
+    _logger.config(logger);
+  }
 
   let runner: Gen2ELLMAgentRunner;
   if (model.startsWith("gpt")) {
@@ -84,7 +90,12 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
         );
       }
     }
-    runner = new Gen2EOpenAIRunner({ apiKey, model, debug: isDebug });
+    runner = new Gen2EOpenAIRunner({
+      apiKey,
+      model,
+      debug: isDebug,
+      logger: _logger,
+    });
   } else {
     throw new Gen2ELLMGenericError(`unsupported model type ${model}`);
   }
@@ -155,8 +166,10 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
 
     const sanitizedExpr = sanitizeCodeOutput(expression);
     if (isDebug) {
-      debug("non-sanitized expression = ", expression);
-      debug("sanitized expression result = ", sanitizedExpr);
+      _logger.debug("non-sanitized expression ", { expression });
+      _logger.debug("sanitized expression result ", {
+        expression: sanitizedExpr,
+      });
     }
 
     return {

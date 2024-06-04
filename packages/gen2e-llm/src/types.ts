@@ -1,3 +1,4 @@
+import { Gen2ELogger } from "@rhighs/gen2e-logger";
 import OpenAI from "openai";
 
 export type Gen2ELLMAgentTask = {
@@ -58,7 +59,8 @@ export type Gen2ELLMCodeGenAgent = Gen2ELLMAgent<
 export type Gen2ELLMAgentBuilder<Agent extends object> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
-  options?: Gen2ELLMAgentBuilderOptions
+  options?: Gen2ELLMAgentBuilderOptions,
+  logger?: Gen2ELogger
 ) => Agent;
 
 export type Gen2ELLMAgentRunnerInit = {
