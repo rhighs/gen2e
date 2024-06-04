@@ -11,6 +11,7 @@ A monorepo containing the gen2e library and utilities to operate with it
 - [gen2e-desktop](./packages/gen2e-desktop/README.md)
 - [gen2e-interpreter](./packages/gen2e-interpreter/README.md)
 - [gen2e-llm](./packages/gen2e-llm/)
+- [gen2e-logger](./packages/gen2e-logger/)
 
 ## Quick installs
 
