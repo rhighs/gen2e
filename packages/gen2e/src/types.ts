@@ -19,6 +19,7 @@ export type Gen2EGenOptions = {
   debug?: boolean;
   model?: string;
   openaiApiKey?: string;
+  screenshot?: boolean;
 };
 
 export type Test = TestType<any, any>;
@@ -108,7 +109,7 @@ export type GenTestFunction = (
  * @param {string} task - The task description.
  * @param {Object} config - The configuration object.
  * @param {Page} config.page - The Playwright page object.
- * @param {ModelOptions} [options] - Optional model options.
+ * @param {Gen2EGenOptions} [options] - Optional model options.
  * @param {Object} [init] - Optional initialization object.
  * @param {Gen2ELLMCallHooks} [init.hooks] - Optional hooks for the generation process.
  * @param {StaticStore} [init.store] - Optional static store for caching expressions.
@@ -119,6 +120,6 @@ export type GenTestFunction = (
 export type GenStepFunction = (
   task: string,
   config: { page: Page; test: Test },
-  options?: ModelOptions,
+  options?: Gen2EGenOptions,
   evalCode?: Gen2EPlaywriteCodeEvalFunc
 ) => Promise<any>;

@@ -18,7 +18,7 @@ import { getSnapshot } from "./snapshot";
 import { StaticStore } from "./static/store/store";
 import env from "./env";
 import { FSStaticStore } from "./static/store/fs";
-import { Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
+import { Gen2ELLMAgentModel, modelSupportsImage } from "@rhighs/gen2e-llm";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 const tryFetch = (
@@ -116,17 +116,22 @@ const _gen: GenType = (
       logger.info("generating playwright expression with task", { task });
     }
     {
+      const model = (options?.model ?? env.OPENAI_MODEL) as Gen2ELLMAgentModel;
+      const screenshot =
+        modelSupportsImage(model as Gen2ELLMAgentModel) &&
+        options?.screenshot === undefined;
       const domInfo = await getSnapshot(page, isDebug ? logger : undefined, {
         debug: isDebug,
-        screenshot: true,
+        screenshot,
       });
+
       const result = await generatePlaywrightCode({
         agent: this.agent,
         task,
         domSnapshot: domInfo.dom,
         pageScreenshot: domInfo.screenshot,
         options: {
-          model: (options?.model as Gen2ELLMAgentModel) ?? undefined,
+          model,
         },
         hooks: {
           ...(init?.hooks ?? {}),
@@ -246,12 +251,17 @@ _gen.test = function (
           logger.info("generating playwright expression with task", { task });
         }
         {
+          const model = (options?.model ??
+            env.OPENAI_MODEL) as Gen2ELLMAgentModel;
+          const screenshot =
+            modelSupportsImage(model as Gen2ELLMAgentModel) &&
+            options?.screenshot === undefined;
           const domInfo = await getSnapshot(
             page,
             isDebug ? logger : undefined,
             {
               debug: isDebug,
-              screenshot: true,
+              screenshot,
             }
           );
 
@@ -261,7 +271,7 @@ _gen.test = function (
             domSnapshot: domInfo.dom,
             pageScreenshot: domInfo.screenshot,
             options: {
-              model: (options?.model as Gen2ELLMAgentModel) ?? undefined,
+              model,
             },
             hooks: {
               ...(init?.hooks ?? {}),
@@ -317,7 +327,7 @@ _gen.test = function (
       );
       return result;
     } catch (err) {
-      throw new Error("gen.test failed with error: ", err);
+      throw new Error(`gen.test failed with error: ${err}`);
     }
   };
 };
