@@ -1,13 +1,13 @@
 {
   "name": "@rhighs/gen2e-llm",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "module used across gen2e containing LLM call primitives for various sources and models",
   "main": "dist/index.js",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@rhighs/gen2e-logger": "^1.0.1",
+    "@rhighs/gen2e-logger": "^1.0.2",
     "esprima": "^4.0.1",
     "openai": "^4.17.3",
     "sanitize-html": "^2.11.0",
