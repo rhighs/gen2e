@@ -21,7 +21,9 @@ export const gen2eSanitize = (source: string) =>
             callee.type === "Identifier" && callee.name === "gen";
           const hasCorrectArgs =
             e.argument.arguments.length === 2 &&
-            e.argument.arguments[0].type === "Literal" &&
+            (e.argument.arguments[0].type === "Literal" ||
+              e.argument.arguments[0].type === "StringLiteral" ||
+              e.argument.arguments[0].type === "TemplateLiteral") &&
             e.argument.arguments[1].type === "ObjectExpression";
           return callNameMatches && hasCorrectArgs;
         }
@@ -31,7 +33,9 @@ export const gen2eSanitize = (source: string) =>
           callee.type === "Identifier" && callee.name === "gen";
         const hasCorrectArgs =
           e.arguments.length === 2 &&
-          e.arguments[0].type === "Literal" &&
+          (e.arguments[0].type === "Literal" ||
+            e.arguments[0].type === "StringLiteral" ||
+            e.arguments[0].type === "TemplateLiteral") &&
           e.arguments[1].type === "ObjectExpression";
         return callNameMatches && hasCorrectArgs;
       }

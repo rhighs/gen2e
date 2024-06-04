@@ -214,9 +214,15 @@ class TasksInterpreter {
         this._call_event("task-success", this, result.result);
         return result.result;
       } else {
+        if (this.options.debug) {
+          this.logger.error(result.errorMessage);
+        }
         this._call_event("task-error", this, result.errorMessage);
       }
     } catch (err) {
+      if (this.options.debug) {
+        this.logger.error(err);
+      }
       this._call_event("task-error", this, err);
     }
 
@@ -225,33 +231,30 @@ class TasksInterpreter {
 
   private async contextWiseGen2eGen(
     tasks: string[],
-    each?: (expr: string) => Promise<void> | void
+    each?: (expr: string) => Promise<any>
   ): Promise<string[]> {
     const gens: string[] = [];
-    const gen2eAcc: string[] = [];
-    for (let task of tasks) {
-      let genExpr = "";
-      while (genExpr === "") {
-        const expr = await this.gen2e(task, gen2eAcc.join("\n"));
-        this.logger.debug(expr);
-        if (expr) {
-          if (expr) {
-            genExpr = expr;
-            gen2eAcc.push(genExpr);
-            gens.push(expr);
-            if (each) {
-              await each(expr);
-            }
+    for (const task of tasks) {
+      const expr = await this.gen2e(task, gens.join("\n"));
+      this.logger.debug(expr);
+      if (expr) {
+        gens.push(expr);
+        if (each) {
+          try {
+            await each(expr);
+          } catch (err) {
+            this.logger.error(err);
           }
-        } else {
-          if (this.options.debug) {
-            this.logger.debug(
-              `text to gen2e gave empty or null expression, got ${expr}`
-            );
-          }
+        }
+      } else {
+        if (this.options.debug) {
+          this.logger.debug(
+            `text to gen2e gave empty or null expression with task "${task}"`
+          );
         }
       }
     }
+
     return gens;
   }
 
@@ -297,32 +300,38 @@ class TasksInterpreter {
     }
 
     const page = this.browser.page;
-    const gen2eResult = await this.contextWiseGen2eGen(tasks, async (expr) => {
-      const fakeTestSource = generateFakeTestCode("gen2e - interpreter gen", [
-        expr,
-      ]);
+    const gen2eResult = await this.contextWiseGen2eGen(
+      tasks,
+      async (expr: string): Promise<any> => {
+        const fakeTestSource = generateFakeTestCode("gen2e - interpreter gen", [
+          expr,
+        ]);
 
-      await sandboxEval(
-        fakeTestSource,
-        page,
-        staticStore,
-        this.llmCallHooks,
-        {
-          model: this.options.playwrightModel ?? this.fallbackModel,
-          openaiApiKey: this.options.openaiApiKey,
-          debug: this.options.debug,
-        },
-        (code: string, page: Page) => {
-          const evalFunc = new Function(
-            "page",
-            `return (async () => { const result = await ${code}(); return result })()`
-          );
-          return evalFunc(page);
-        },
-        undefined,
-        this.logger
-      );
-    });
+        if (this.options.debug) {
+          this.logger.debug("executing sanbox for expr", { expr });
+        }
+        return sandboxEval(
+          fakeTestSource,
+          page,
+          staticStore,
+          this.llmCallHooks,
+          {
+            model: this.options.playwrightModel ?? this.fallbackModel,
+            openaiApiKey: this.options.openaiApiKey,
+            debug: this.options.debug,
+          },
+          (code: string, page: Page) => {
+            const evalFunc = new Function(
+              "page",
+              `return (async () => { const result = await ${code}(); return result })()`
+            );
+            return evalFunc(page);
+          },
+          undefined,
+          this.logger
+        );
+      }
+    );
 
     const fakeTestSource = generateFakeTestCode(
       "gen2e - interpreter gen",
@@ -354,6 +363,9 @@ class TasksInterpreter {
       await this.startup;
     }
 
+    tasks = tasks
+      .map((t) => t.trim())
+      .filter((t) => typeof t === "string" && t.length > 0);
     this._call_event("start", this);
     let result: InterpreterResult;
     switch (this.mode) {

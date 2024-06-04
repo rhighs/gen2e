@@ -32,7 +32,9 @@ const compiler = (store: StaticStore): Gen2ECompileFunction => {
                 callee: { type: "Identifier", name: "gen" },
                 arguments: (args) =>
                   args.length === 2 &&
-                  args[0].type === "Literal" &&
+                  (args[0].type === "Literal" ||
+                    args[0].type === "StringLiteral" ||
+                    args[0].type === "TemplateLiteral") &&
                   args[1].type === "ObjectExpression",
               },
             })
@@ -43,7 +45,10 @@ const compiler = (store: StaticStore): Gen2ECompileFunction => {
                     ? path.node.argument.arguments[0]
                     : undefined;
                 const genArg =
-                  genFirstArg?.type === "Literal"
+                  genFirstArg?.type === "TemplateLiteral"
+                    ? genFirstArg.quasis[0].value.raw
+                    : genFirstArg?.type === "Literal" ||
+                      genFirstArg?.type === "StringLiteral"
                     ? genFirstArg.value
                     : undefined;
 
