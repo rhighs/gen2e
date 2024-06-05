@@ -1,4 +1,4 @@
-import { Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
+import { Gen2EGenPolicies, Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
 import { Gen2EInterpreterError } from "../errors";
 import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
 import { StaticStore } from "@rhighs/gen2e";
@@ -53,6 +53,7 @@ type InterpreterOptions = {
   playwrightModel?: string;
   openaiApiKey?: string;
   recordUsage?: boolean;
+  policies?: Gen2EGenPolicies;
 };
 
 type InterpreterMode = "gen2e" | "playwright";
@@ -319,6 +320,7 @@ class TasksInterpreter {
             model: this.options.playwrightModel ?? this.fallbackModel,
             openaiApiKey: this.options.openaiApiKey,
             debug: this.options.debug,
+            policies: this.options.policies,
           },
           (code: string, page: Page) => {
             const evalFunc = new Function(
