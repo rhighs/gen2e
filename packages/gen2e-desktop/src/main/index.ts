@@ -96,7 +96,7 @@ app.whenReady().then(() => {
         logger: customLogger
       },
       {
-        model: model?.length ? model : undefined,
+        model: model?.length ? model : 'gpt-4o',
         debug: true
       }
     )
