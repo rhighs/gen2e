@@ -5,7 +5,7 @@ export abstract class Gen2EError extends Error {
   }
 }
 
-export class PlainGenResultError extends Gen2EError {
+export class Gen2EGenError extends Gen2EError {
   public constructor(message?: string) {
     super(message);
   }

@@ -15,11 +15,13 @@ export type ModelOptions = {
   model?: string;
 };
 
+export type Gen2EScreenshotPolicy = "force" | "model" | "onfail" | "off";
+
 export type Gen2EGenOptions = {
   debug?: boolean;
   model?: string;
   openaiApiKey?: string;
-  screenshot?: boolean;
+  screenshot?: Gen2EScreenshotPolicy;
 };
 
 export type Test = TestType<any, any>;
@@ -41,11 +43,15 @@ export type Gen2EPlaywriteCodeEvalFunc = (
   p: Page
 ) => Promise<any> | any;
 
-export interface GenType extends GenFunction {
-  test: GenTestFunction;
+export interface Gen2EGenContext {
   agent?: Gen2ELLMCodeGenAgent;
   logger: Gen2ELogger;
   useStatic: boolean;
+  screenshot?: Gen2EScreenshotPolicy;
+}
+
+export interface GenType extends GenFunction, Gen2EGenContext {
+  test: GenTestFunction;
 }
 
 export type StaticGenStep = {

@@ -1,10 +1,9 @@
 import {
   StaticStore,
   Page,
-  PlainGenResultError,
-  TestStepGenResultError,
   gen,
   StaticGenStep,
+  Gen2EGenError,
 } from "../../src";
 import {
   createPlaywrightCodeGenAgent,
@@ -127,7 +126,7 @@ describe("gen function", () => {
 
     await expect(
       gen("task 1", { page: mockPage }, {}, { store: mockStaticStore })
-    ).rejects.toThrow(PlainGenResultError);
+    ).rejects.toThrow(Gen2EGenError);
   });
 
   test("should handle errors during test step execution", async () => {
