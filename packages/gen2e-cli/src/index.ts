@@ -54,6 +54,12 @@ program
     "-v, --verbose",
     "show the generated expression at each step in stderr (has no effect with debug mode enabled)"
   )
+  .option(
+    "-sp, --screenshot <screenshot>",
+    "screenshotting policy to use when inspecting web pages, only used for playwright mode",
+    /^(force|onfail|model|off)$/,
+    "onfail"
+  )
   .action(async (file, options) => {
     const verbose = options.verbose ? true : false;
     const isDebug = options.debug ? true : undefined;
@@ -68,6 +74,7 @@ program
       ? String(options.openaiApiKey).trim()
       : undefined;
     const tasksFile = readFileSync(file).toString();
+    const screenshot = options.screenshot;
 
     const tasks = tasksFile
       .split("\n")
@@ -86,6 +93,9 @@ program
         debug: isDebug,
         openaiApiKey: apiKey,
         recordUsage: showStats,
+        policies: {
+          screenshot: screenshot,
+        },
       }
     )
       .on("start", () => {
