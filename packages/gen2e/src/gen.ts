@@ -8,17 +8,23 @@ import {
   Gen2EPlaywriteCodeEvalFunc,
   Gen2ELLMCallHooks,
   Gen2EGenOptions,
+  Gen2EGenContext,
+  Gen2EScreenshotPolicy,
 } from "./types";
 import {
   createPlaywrightCodeGenAgent,
   generatePlaywrightCode,
 } from "./playwright-gen";
-import { PlainGenResultError, TestStepGenResultError } from "./errors";
+import { Gen2EGenError, TestStepGenResultError } from "./errors";
 import { getSnapshot } from "./snapshot";
 import { StaticStore } from "./static/store/store";
 import env from "./env";
 import { FSStaticStore } from "./static/store/fs";
-import { Gen2ELLMAgentModel, modelSupportsImage } from "@rhighs/gen2e-llm";
+import {
+  Gen2ELLMAgentModel,
+  isModelSupported,
+  modelSupportsImage,
+} from "@rhighs/gen2e-llm";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 const tryFetch = (
@@ -50,9 +56,162 @@ const tryFetch = (
   return undefined;
 };
 
-const genContext = {
+export type Gen2EEvalLoopPolicies = {
+  screenshot?: Gen2EScreenshotPolicy;
+  maxRetries?: number;
+};
+
+export type Gen2EEvalLoopInit = {
+  task: string;
+  page: Page;
+  policies: Gen2EEvalLoopPolicies;
+  evalCode: Gen2EPlaywriteCodeEvalFunc;
+};
+
+export type Gen2EEvalLoopResult =
+  | {
+      type: "error";
+      errors: Error[];
+    }
+  | {
+      type: "success";
+      result: {
+        expression: string;
+        evalResult: any;
+      };
+    };
+
+export type Gen2EEvalLoopOptions = {
+  model?: string;
+  debug?: boolean;
+};
+
+const evalLoop = async (
+  ctx: Gen2EGenContext,
+  {
+    task,
+    page,
+    policies = {
+      maxRetries: 3,
+      screenshot: "off",
+    },
+    evalCode,
+  }: Gen2EEvalLoopInit,
+  { debug, model }: Gen2EEvalLoopOptions,
+  hooks?: Gen2ELLMCallHooks
+): Promise<Gen2EEvalLoopResult> => {
+  if (!ctx.agent) {
+    throw new TestStepGenResultError("agent instance cannot be left undefined");
+  }
+
+  const logger = ctx.logger;
+  const retries = policies.maxRetries ?? 3;
+  const errors: Error[] = [];
+
+  const _spolicy = policies.screenshot ?? "onfail";
+  const _model = (model ?? env.OPENAI_MODEL) as Gen2ELLMAgentModel;
+
+  const shouldScreenshot = (
+    policy: Gen2EScreenshotPolicy,
+    params: {
+      attempts: number;
+      model: Gen2ELLMAgentModel;
+    }
+  ): boolean => {
+    if (modelSupportsImage(params.model)) {
+      if (policy === "model") {
+        return true;
+      }
+
+      if (policy === "onfail" && params.attempts > 0) {
+        return true;
+      }
+    }
+
+    return policy === "force";
+  };
+
+  let _r = 0;
+  for (; _r < retries; ++_r) {
+    const domInfo = await getSnapshot(page, debug ? logger : undefined, {
+      debug,
+      screenshot: shouldScreenshot(_spolicy, {
+        attempts: _r,
+        model: _model,
+      }),
+    });
+    const result = await generatePlaywrightCode({
+      agent: ctx.agent,
+      task,
+      domSnapshot: domInfo.dom,
+      pageScreenshot: domInfo.screenshot,
+      options: {
+        model: _model,
+      },
+      hooks: {
+        ...(hooks ?? {}),
+        onMessage: (message) => {
+          if (debug) {
+            logger.debug(
+              `[event] on message >>> ${JSON.stringify(message, null, 4)}`
+            );
+          }
+
+          if (hooks?.onMessage) {
+            hooks.onMessage(message);
+          }
+        },
+      },
+    });
+
+    if (result.type === "error") {
+      if (debug) {
+        ctx.logger.error(
+          `eval loop failed attempt ${_r} with screenshot policy "${_spolicy}"`,
+          result.errorMessage
+        );
+      }
+      continue;
+    }
+
+    const expression = result.result;
+    if (env.LOG_STEP) {
+      ctx.logger.info("evaluating", { task, expression });
+    }
+
+    try {
+      const evalResult = await evalCode(`${expression}`, page);
+      return {
+        type: "success",
+        result: {
+          evalResult: evalResult,
+          expression: result.result,
+        },
+      };
+    } catch (error) {
+      errors.push(error);
+      continue;
+    }
+  }
+
+  if (debug) {
+    ctx.logger.error(
+      `failed generating a valid playwright expression in ${retries} attemps`,
+      errors
+    );
+  }
+
+  return {
+    type: "error",
+    errors,
+  };
+};
+
+const genContext: Gen2EGenContext = {
+  agent: undefined,
   useStatic: env.USE_STATIC_STORE,
   logger: makeLogger("GEN2E-LIB"),
+  screenshot: "model",
 };
 
 const _gen: GenType = (
@@ -105,9 +264,9 @@ const _gen: GenType = (
       );
     }
 
-    let expression: string | undefined;
     if (store && this.useStatic) {
-      if ((expression = tryFetch(store, "", task, { logger }))) {
+      const expression = tryFetch(store, "", task, { logger });
+      if (expression) {
         return evalCode(`${expression}`, page);
       }
     }
@@ -115,43 +274,28 @@ const _gen: GenType = (
     if (env.LOG_STEP) {
       logger.info("generating playwright expression with task", { task });
     }
-    {
-      const model = (options?.model ?? env.OPENAI_MODEL) as Gen2ELLMAgentModel;
-      const screenshot =
-        modelSupportsImage(model as Gen2ELLMAgentModel) &&
-        options?.screenshot === undefined;
-      const domInfo = await getSnapshot(page, isDebug ? logger : undefined, {
-        debug: isDebug,
-        screenshot,
-      });
 
-      const result = await generatePlaywrightCode({
-        agent: this.agent,
+    const result = await evalLoop(
+      this,
+      {
         task,
-        domSnapshot: domInfo.dom,
-        pageScreenshot: domInfo.screenshot,
-        options: {
-          model,
+        page,
+        evalCode,
+        policies: {
+          maxRetries: 3,
+          screenshot: options?.screenshot,
         },
-        hooks: {
-          ...(init?.hooks ?? {}),
-          onMessage: (message) => {
-            if (isDebug) {
-              logger.debug(`[agent-ai:event] on message >>>`, message);
-            }
-            if (init?.hooks?.onMessage) {
-              init.hooks.onMessage(message);
-            }
-          },
-        },
-      });
+      },
+      { debug: isDebug, model: options?.model ?? env.OPENAI_MODEL },
+      init?.hooks
+    );
 
-      if (result.type == "error") {
-        throw new PlainGenResultError(result.errorMessage);
-      }
-
-      expression = result.result;
+    if (result.type == "error") {
+      throw new Gen2EGenError(result.errors.join("\n"));
     }
+
+    const { expression, evalResult } = result.result;
+
     if (env.LOG_STEP) {
       logger.info("evaluating", { task, expression });
     }
@@ -166,8 +310,7 @@ const _gen: GenType = (
       }
       store?.makeStatic(_static);
     }
-
-    return evalCode(`${expression}`, page);
+    return evalResult;
   } as GenType
 ).bind(genContext);
 
@@ -225,92 +368,66 @@ _gen.test = function (
       const { test, page } = config;
       const isDebug = options?.debug ?? env.DEBUG_MODE;
 
-      const testIdent = store.makeIdent(title, task);
-      let expression: string | undefined;
-      if (this.useStatic) {
-        if ((expression = tryFetch(store, title, task, { logger }))) {
-          return evalCode(`${expression}`, page);
-        }
+      if (!self.agent) {
+        logger.debug("creating agent...");
+        self.agent = createPlaywrightCodeGenAgent(
+          env.OPENAI_MODEL as Gen2ELLMAgentModel,
+          {
+            openaiApiKey: options?.openaiApiKey,
+            debug: isDebug,
+          },
+          logger
+        );
       }
 
       return await test.step(task, async () => {
-        let expression = "";
-        if (!self.agent) {
-          logger.debug("creating agent...");
-          self.agent = createPlaywrightCodeGenAgent(
-            env.OPENAI_MODEL as Gen2ELLMAgentModel,
-            {
-              openaiApiKey: options?.openaiApiKey,
-              debug: isDebug,
-            },
-            logger
-          );
+        const testIdent = store.makeIdent(title, task);
+        if (store && this.useStatic) {
+          const expression = tryFetch(store, title, task, { logger });
+          if (expression) {
+            return evalCode(`${expression}`, page);
+          }
         }
 
         if (env.LOG_STEP) {
           logger.info("generating playwright expression with task", { task });
         }
-        {
-          const model = (options?.model ??
-            env.OPENAI_MODEL) as Gen2ELLMAgentModel;
-          const screenshot =
-            modelSupportsImage(model as Gen2ELLMAgentModel) &&
-            options?.screenshot === undefined;
-          const domInfo = await getSnapshot(
-            page,
-            isDebug ? logger : undefined,
-            {
-              debug: isDebug,
-              screenshot,
-            }
-          );
 
-          const result = await generatePlaywrightCode({
-            agent: self.agent,
+        const result = await evalLoop(
+          this,
+          {
             task,
-            domSnapshot: domInfo.dom,
-            pageScreenshot: domInfo.screenshot,
-            options: {
-              model,
+            page,
+            evalCode,
+            policies: {
+              maxRetries: 3,
+              screenshot: options?.screenshot,
             },
-            hooks: {
-              ...(init?.hooks ?? {}),
-              onMessage: (message) => {
-                if (isDebug) {
-                  logger.debug(
-                    `[event] on message >>> ${JSON.stringify(message, null, 4)}`
-                  );
-                }
+          },
+          { debug: isDebug, model: options?.model ?? env.OPENAI_MODEL },
+          init?.hooks
+        );
 
-                if (init?.hooks?.onMessage) {
-                  init.hooks.onMessage(message);
-                }
-              },
-            },
-          });
-
-          if (result.type === "error") {
-            test.fail();
-            throw new TestStepGenResultError(result.errorMessage);
-          }
-
-          expression = result.result;
-          if (self.useStatic) {
-            const _static = {
-              ident: testIdent,
-              expression,
-            };
-            if (isDebug) {
-              logger.debug("storing static", _static);
-            }
-            store.makeStatic(_static);
-          }
+        if (result.type == "error") {
+          throw new Gen2EGenError(result.errors.join("\n"));
         }
+
+        const { expression, evalResult } = result.result;
+
         if (env.LOG_STEP) {
           logger.info("evaluating", { task, expression });
         }
 
-        const evalResult = await evalCode(`${expression}`, page);
+        if (self.useStatic) {
+          const _static = {
+            ident: testIdent,
+            expression,
+          };
+          if (isDebug) {
+            logger.debug("storing static", _static);
+          }
+          store.makeStatic(_static);
+        }
         return evalResult;
       });
     };
