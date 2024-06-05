@@ -17,11 +17,16 @@ export type ModelOptions = {
 
 export type Gen2EScreenshotPolicy = "force" | "model" | "onfail" | "off";
 
+export type Gen2EGenPolicies = {
+  screenshot?: Gen2EScreenshotPolicy;
+  maxRetries?: number;
+};
+
 export type Gen2EGenOptions = {
   debug?: boolean;
   model?: string;
   openaiApiKey?: string;
-  screenshot?: Gen2EScreenshotPolicy;
+  policies?: Gen2EGenPolicies;
 };
 
 export type Test = TestType<any, any>;

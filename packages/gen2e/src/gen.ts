@@ -282,8 +282,8 @@ const _gen: GenType = (
         page,
         evalCode,
         policies: {
-          maxRetries: 3,
-          screenshot: options?.screenshot,
+          maxRetries: options?.policies?.maxRetries ?? 3,
+          screenshot: options?.policies?.screenshot ?? "onfail",
         },
       },
       { debug: isDebug, model: options?.model ?? env.OPENAI_MODEL },
@@ -400,8 +400,8 @@ _gen.test = function (
             page,
             evalCode,
             policies: {
-              maxRetries: 3,
-              screenshot: options?.screenshot,
+              maxRetries: options?.policies?.maxRetries ?? 3,
+              screenshot: options?.policies?.screenshot ?? "onfail",
             },
           },
           { debug: isDebug, model: options?.model ?? env.OPENAI_MODEL },

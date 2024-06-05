@@ -3,41 +3,51 @@ import sanitize from "sanitize-html";
 import { Page } from "./types";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
-const sanitizeHtml = (subject: string) => {
-  return sanitize(subject, {
-    allowedTags: sanitize.defaults.allowedTags.concat([
-      "button",
-      "form",
-      "img",
-      "input",
-      "select",
-      "textarea",
-    ]),
-    allowedAttributes: {
-      "*": [
-        "id",
-        "class",
-        "name",
-        "placeholder",
-        "type",
-        "value",
-        "href",
-        "src",
-        "alt",
-        "role",
-        "title",
-        "aria-label",
-        "aria-labelledby",
-        "data-testid",
-        "data-*",
-        "for",
-        "textContent",
-        "innerText",
-        "tagName",
-        "index",
-      ],
-    },
+const sanitizeHtml = (subject: string, logger?: Gen2ELogger) => {
+  const tags = sanitize.defaults.allowedTags.concat([
+    "button",
+    "form",
+    "img",
+    "input",
+    "select",
+    "textarea",
+  ]);
+  const attributes = {
+    "*": [
+      "id",
+      "name",
+      "placeholder",
+      "type",
+      "href",
+      "role",
+      "title",
+      "aria-label",
+      "aria-labelledby",
+      "data-testid",
+      "data-*",
+      "for",
+      "textContent",
+    ],
+  };
+
+  if (logger) {
+    logger.debug("sanitizing html, preserving data ", { tags, attributes });
+  }
+
+  const s = sanitize(subject, {
+    allowedTags: tags,
+    allowedAttributes: attributes,
   });
+
+  if (logger) {
+    const p = ((subject.length - s.length) / subject.length) * 100;
+    logger.debug(`html shrinked by ${p}%`, {
+      orig: subject.length,
+      sanitized: s.length,
+    });
+  }
+
+  return s;
 };
 
 export type WebSnapshotOptions = {
@@ -61,7 +71,7 @@ export const getSnapshot = async (
     await page.waitForLoadState("networkidle");
   }
 
-  const content = sanitizeHtml(await page.content());
+  const content = sanitizeHtml(await page.content(), logger);
   if (logger) {
     logger.debug("captured snapshot", content);
   }
