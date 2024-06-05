@@ -38,7 +38,11 @@ const defaultArgsFmt: Gen2ELoggerArgsFmt = (
   } ${args
     .map((arg) =>
       typeof arg === "object"
-        ? util.inspect(arg, { depth: Infinity, colors: true })
+        ? util.inspect(arg, {
+            depth: Infinity,
+            colors: true,
+            maxStringLength: Infinity,
+          })
         : arg
     )
     .join(" ")}`;
