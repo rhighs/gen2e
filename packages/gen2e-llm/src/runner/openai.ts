@@ -66,15 +66,6 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
     image,
     tools = [],
   }: Gen2ELLMAgentRunnerInit): Promise<Gen2ELLMAgentRunnerResult> {
-    taskPrompt = this.adjustContext(systemMessage + taskPrompt, systemMessage);
-
-    if (this.debug) {
-      this.logger.debug("openai runner started using context", {
-        taskPrompt,
-        systemMessage,
-      });
-    }
-
     if (image && !modelSupportsImage(this.model)) {
       return {
         type: "error",
@@ -89,15 +80,25 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
       const imageb64 = image.toString("base64");
       if (this.debug) {
         this.logger.debug(
-          `runner sending png image ${imageb64.substring(0, 32)}...`
+          `runner sending jpeg image ${imageb64.substring(0, 32)}...`
         );
       }
 
       content.push({
         type: "image_url",
         image_url: {
-          url: `data:image/png;base64,${imageb64}`,
+          url: `data:image/jpeg;base64,${imageb64}`,
         },
+      });
+      taskPrompt = this.adjustContext(taskPrompt, systemMessage, imageb64);
+    } else {
+      taskPrompt = this.adjustContext(taskPrompt, systemMessage);
+    }
+
+    if (this.debug) {
+      this.logger.debug("openai runner started using context", {
+        taskPrompt,
+        systemMessage,
       });
     }
 
@@ -139,11 +140,16 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
     }
   }
 
-  private adjustContext(context: string, systemMessage: string): string {
+  private adjustContext(
+    task: string,
+    systemMessage: string,
+    image?: string
+  ): string {
+    const context = task + systemMessage + (image ?? "");
     if (!fitsContext(this.model as TiktokenModel, context)) {
-      const cutAt = maxCharactersApprox(this.model as TiktokenModel);
-      const adjustedContext = context.slice(0, cutAt);
-      const taskPrompt = adjustedContext.slice(systemMessage.length);
+      const max = maxCharactersApprox(this.model as TiktokenModel);
+      const mustCut = context.length - max;
+      const taskPrompt = context.slice(0, task.length - mustCut);
       if (this.debug) {
         this.logger.debug(
           `context for task ${taskPrompt.slice(0, 32)}... got cut`
