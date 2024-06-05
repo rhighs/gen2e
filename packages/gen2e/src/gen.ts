@@ -20,11 +20,7 @@ import { getSnapshot } from "./snapshot";
 import { StaticStore } from "./static/store/store";
 import env from "./env";
 import { FSStaticStore } from "./static/store/fs";
-import {
-  Gen2ELLMAgentModel,
-  isModelSupported,
-  modelSupportsImage,
-} from "@rhighs/gen2e-llm";
+import { Gen2ELLMAgentModel, modelSupportsImage } from "@rhighs/gen2e-llm";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 const tryFetch = (
@@ -133,12 +129,14 @@ const evalLoop = async (
 
   let _r = 0;
   for (; _r < retries; ++_r) {
+    const useScreenshot = shouldScreenshot(_spolicy, {
+      attempts: _r,
+      model: _model,
+    });
     const domInfo = await getSnapshot(page, debug ? logger : undefined, {
       debug,
-      screenshot: shouldScreenshot(_spolicy, {
-        attempts: _r,
-        model: _model,
-      }),
+      screenshot: useScreenshot,
+      stripLevel: "medium",
     });
     const result = await generatePlaywrightCode({
       agent: ctx.agent,

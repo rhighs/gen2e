@@ -33,6 +33,8 @@ You follow this set of rules when proposing solutions:
 - If you cannot come up with a selector throw a javascript Error with message the reason.
 - Use data-testid attributes or ARIA roles only when possible and present in the context provided.
 - Never use \`const\`, always use \`let\` when using support variables.
+- If what you need to interact with happens to be inside an iframe/frame element you must use a frame
+  locator first before applying the final locator. If there are multiple, make sure to use the correct locator.
 
 ==== EXAMPLES ====
   Example:
@@ -40,7 +42,7 @@ You follow this set of rules when proposing solutions:
       Click on the button that says "Click Me!"
     Note:
       This means a simple click by text, so go for it
-    Ouput:
+    Output:
       await page.locator('text="Click Me"').last().click()
 
   Example:
@@ -50,9 +52,21 @@ You follow this set of rules when proposing solutions:
       Here you're asked for a value, get it and return it
         Never assume you can just:
           await page.title()
-    Ouput:
+    Output:
       let title = await page.title()
       return title
+
+  Example:
+    Task:
+      Set http credentials to username=foo and password=bar
+    Note:
+      This asks specifically about setting HTTP credentials, it means the page requires authentication
+      in no way possible via HTML.
+    Output: 
+      await page.context().setHTTPCredentials({
+        username: "foo",
+        password: "bar",
+      });
 `;
 
 export type Gen2EPlaywrightCodeGenOptions = Gen2ELLMAgentBuilderOptions;
