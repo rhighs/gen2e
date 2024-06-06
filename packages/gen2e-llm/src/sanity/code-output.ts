@@ -8,6 +8,18 @@ export const sanitizeCodeOutput = (llmOutput: string): string => {
   // rob: sometimes the model won't really get it to remove ``` and not style the code as markdown.
   //      In that case we perform a check here and strip away the markdown annotations.
 
+  if (llmOutput.length > 6) {
+    for (let k = 0; k < llmOutput.length - 6; ++k) {
+      if (
+        llmOutput.substring(k, k + MARKDOWN_BLOCK_TOKEN.length) === "```" &&
+        k > 0
+      ) {
+        llmOutput = llmOutput.slice(k);
+        break;
+      }
+    }
+  }
+
   for (let startToken of [
     MARKDOWN_TYPESCRIPT_BLOCK_TOKEN,
     MARKDOWN_JAVASCRIPT_BLOCK_TOKEN,

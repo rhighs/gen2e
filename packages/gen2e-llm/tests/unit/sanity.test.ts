@@ -31,6 +31,12 @@ describe("sanitizeCodeOutput", () => {
     const expectedOutput = "console.log('Hello World');";
     expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
   });
+
+  it("should remove any text prior to the markdown block", () => {
+    const input = "text before it that must be stripped away:\n```js\n\nconsole.log('Hello World');\n\n```\n";
+    const expectedOutput = "console.log('Hello World');";
+    expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
+  });
 });
 
 jest.mock("esprima", () => ({
