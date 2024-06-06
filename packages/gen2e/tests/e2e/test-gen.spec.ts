@@ -85,25 +85,3 @@ test(
     expect(searchInputHasHeaderText).toBe(true);
   })
 );
-
-test(
-  "gen2e:compiled-output - gen2e - interpreter gen",
-  async (
-    {
-      page
-    }
-  ) => {
-
-await (async () => { await page.context().setHTTPCredentials({ username: 'rmontalti', password: '' }) })();
-await (async () => { await page.goto('https://tgweb.technogym.com/cprj/cprj_index.html') })();
-await (async () => { let frame = page.frameLocator('frame[name="lower"]')
-await frame.locator('text="Inserisci Ore"').last().click() })();
-await (async () => { let frame = page.frameLocator('frame[name="lower"]')
-await frame.locator('option[value="005"]').last().click() })();
-await (async () => { let frame = page.frameLocator('frame[name="lower"]')
-await frame.locator('select[name="p_commid"]').selectOption('RSFW2302-DDISW01') })();
-await (async () => { let frame = page.frameLocator('frame[name="lower"]')
-await frame.locator('select[name="p_nrhour"]').last().selectOption('8,00') })();
-await (async () => { let frameLocator = page.frameLocator('frame[name="lower"]')
-await frameLocator.locator('input[type="submit"][value="Submit"]').last().click() })();
-})

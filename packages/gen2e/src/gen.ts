@@ -9,7 +9,7 @@ import {
   Gen2ELLMCallHooks,
   Gen2EGenOptions,
   Gen2EGenContext,
-  Gen2EScreenshotPolicy,
+  Gen2EScreenshotUsagePolicy,
 } from "./types";
 import {
   createPlaywrightCodeGenAgent,
@@ -53,7 +53,7 @@ const tryFetch = (
 };
 
 export type Gen2EEvalLoopPolicies = {
-  screenshot?: Gen2EScreenshotPolicy;
+  screenshot?: Gen2EScreenshotUsagePolicy;
   maxRetries?: number;
 };
 
@@ -80,6 +80,8 @@ export type Gen2EEvalLoopResult =
 export type Gen2EEvalLoopOptions = {
   model?: string;
   debug?: boolean;
+  visualInfoLevel?: "none" | "medium" | "high";
+  saveScreenshots?: boolean;
 };
 
 const evalLoop = async (
@@ -93,7 +95,7 @@ const evalLoop = async (
     },
     evalCode,
   }: Gen2EEvalLoopInit,
-  { debug, model }: Gen2EEvalLoopOptions,
+  { debug, model, visualInfoLevel, saveScreenshots }: Gen2EEvalLoopOptions,
   hooks?: Gen2ELLMCallHooks
 ): Promise<Gen2EEvalLoopResult> => {
   if (!ctx.agent) {
@@ -108,7 +110,7 @@ const evalLoop = async (
   const _model = (model ?? env.OPENAI_MODEL) as Gen2ELLMAgentModel;
 
   const shouldScreenshot = (
-    policy: Gen2EScreenshotPolicy,
+    policy: Gen2EScreenshotUsagePolicy,
     params: {
       attempts: number;
       model: Gen2ELLMAgentModel;
@@ -136,6 +138,13 @@ const evalLoop = async (
     const domInfo = await getSnapshot(page, debug ? logger : undefined, {
       debug,
       screenshot: useScreenshot,
+      pageDataTags: useScreenshot && visualInfoLevel === "high",
+      pageOutlines:
+        useScreenshot &&
+        (visualInfoLevel === "medium" || visualInfoLevel === "high"),
+      saveScreenShot: useScreenshot && saveScreenshots,
+
+      // FIXME: temporarily set to medium, infer usage based on difficulty of the task at hand.
       stripLevel: "medium",
     });
     const result = await generatePlaywrightCode({
@@ -284,7 +293,12 @@ const _gen: GenType = (
           screenshot: options?.policies?.screenshot ?? "onfail",
         },
       },
-      { debug: isDebug, model: options?.model ?? env.OPENAI_MODEL },
+      {
+        debug: isDebug,
+        model: options?.model ?? env.OPENAI_MODEL,
+        saveScreenshots: isDebug,
+        visualInfoLevel: options?.policies?.visualDebugLevel ?? "medium",
+      },
       init?.hooks
     );
 
@@ -402,7 +416,12 @@ _gen.test = function (
               screenshot: options?.policies?.screenshot ?? "onfail",
             },
           },
-          { debug: isDebug, model: options?.model ?? env.OPENAI_MODEL },
+          {
+            debug: isDebug,
+            model: options?.model ?? env.OPENAI_MODEL,
+            saveScreenshots: isDebug,
+            visualInfoLevel: options?.policies?.visualDebugLevel ?? "medium",
+          },
           init?.hooks
         );
 

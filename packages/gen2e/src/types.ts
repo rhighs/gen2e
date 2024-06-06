@@ -15,10 +15,12 @@ export type ModelOptions = {
   model?: string;
 };
 
-export type Gen2EScreenshotPolicy = "force" | "model" | "onfail" | "off";
+export type Gen2EScreenshotUsagePolicy = "force" | "model" | "onfail" | "off";
+export type Gen2EVisualDebugLevel = "none" | "medium" | "high";
 
 export type Gen2EGenPolicies = {
-  screenshot?: Gen2EScreenshotPolicy;
+  screenshot?: Gen2EScreenshotUsagePolicy;
+  visualDebugLevel?: Gen2EVisualDebugLevel;
   maxRetries?: number;
 };
 
@@ -52,7 +54,7 @@ export interface Gen2EGenContext {
   agent?: Gen2ELLMCodeGenAgent;
   logger: Gen2ELogger;
   useStatic: boolean;
-  screenshot?: Gen2EScreenshotPolicy;
+  screenshot?: Gen2EScreenshotUsagePolicy;
 }
 
 export interface GenType extends GenFunction, Gen2EGenContext {
