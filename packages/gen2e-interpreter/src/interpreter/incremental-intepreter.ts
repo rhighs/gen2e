@@ -307,7 +307,7 @@ class IncrementalInterpreter {
     let genResult = "";
     switch (this.mode) {
       case "playwright":
-         {
+        {
           const fakeTestSource = generateFakeTestCode(
             "gen2e - interpreter gen",
             this.gen2eExpressions,
