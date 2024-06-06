@@ -97,6 +97,11 @@ app.whenReady().then(() => {
       },
       {
         model: model?.length ? model : 'gpt-4o',
+        policies: {
+          screenshot: 'model',
+          visualDebugLevel: 'medium',
+          maxRetries: 2
+        },
         debug: true
       }
     )
