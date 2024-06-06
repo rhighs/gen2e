@@ -66,6 +66,17 @@ program
     /^(medium|high|none)$/,
     "medium"
   )
+  .option(
+    "-k, --max-retries <maxRetries>",
+    "max number of retries allowed per each playwright instruction",
+    (value: string, _prev): number => {
+      const v = parseInt(value, 10);
+      if (isNaN(v)) {
+        return 3;
+      }
+      return v;
+    }
+  )
   .action(async (file, options) => {
     const verbose = options.verbose ? true : false;
     const isDebug = options.debug ? true : undefined;
@@ -77,6 +88,7 @@ program
     const outFile = options.out;
     const visualDebugLevel = options.visualDebug ?? "medium";
     const appendFile = options.append;
+    const maxRetries = options.maxRetries;
     const apiKey = options.openaiApiKey
       ? String(options.openaiApiKey).trim()
       : undefined;
@@ -101,8 +113,9 @@ program
         openaiApiKey: apiKey,
         recordUsage: showStats,
         policies: {
-          screenshot: screenshot,
-          visualDebugLevel: visualDebugLevel,
+          maxRetries,
+          screenshot,
+          visualDebugLevel,
         },
       }
     )
