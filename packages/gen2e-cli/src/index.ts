@@ -60,6 +60,12 @@ program
     /^(force|onfail|model|off)$/,
     "onfail"
   )
+  .option(
+    "-vd, --visual-debug <visualDebug>",
+    "visual debug cue, determines quantity of visual info per page screenshot (no-outlines, outlines, outlines + tagnames)",
+    /^(medium|high|none)$/,
+    "medium"
+  )
   .action(async (file, options) => {
     const verbose = options.verbose ? true : false;
     const isDebug = options.debug ? true : undefined;
@@ -69,6 +75,7 @@ program
     const imode = options.imode;
     const showStats = options.stats ?? false;
     const outFile = options.out;
+    const visualDebugLevel = options.visualDebug ?? "medium";
     const appendFile = options.append;
     const apiKey = options.openaiApiKey
       ? String(options.openaiApiKey).trim()
@@ -95,6 +102,7 @@ program
         recordUsage: showStats,
         policies: {
           screenshot: screenshot,
+          visualDebugLevel: visualDebugLevel,
         },
       }
     )
