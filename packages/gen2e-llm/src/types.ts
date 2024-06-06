@@ -21,6 +21,8 @@ export type Gen2ELLMAgentResult<T> =
 
 export type Gen2ELLMCodeGenAgentTask = Gen2ELLMAgentTask & {
   codeContext?: string;
+  previousErrors?: string;
+  previousAttempts?: string;
 };
 
 export type Gen2ELLMAgentUsageStats = {
