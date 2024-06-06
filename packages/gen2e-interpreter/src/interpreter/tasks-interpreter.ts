@@ -1,6 +1,6 @@
-import { Gen2EGenPolicies, Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
+import { Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
 import { Gen2EInterpreterError } from "../errors";
-import { Gen2EBrowser, Gen2EBrowserOptions } from "./browser";
+import { Gen2EBrowser } from "./browser";
 import { StaticStore } from "@rhighs/gen2e";
 import env from "../env";
 import { pwCompile } from "../ast/pw-compile";
@@ -12,103 +12,40 @@ import {
   isModelSupported,
 } from "@rhighs/gen2e-llm";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
-
-const generateFakeTestCode = (
-  testTitle: string,
-  gen2eExpressions: string[],
-  includeTimeout: boolean = true
-) => {
-  let code = `\
-test(
-  "${testTitle}",
-  gen.test(async ({ page, gen }) => {
-    ${
-      includeTimeout
-        ? `
-    // safety timeout block:
-    //  this is generated and is put here to ensure all gen calls complete correctly in a somewhat
-    //  expected amount of time. if this test block fails due to time constraints feel free
-    //  to increase \`GEN2E_CALLS_TIMEOUT\`.
-    {
-      page.setDefaultTimeout(5000);
-      const GEN2E_CALLS_TIMEOUT = 300000;
-      test.setTimeout(GEN2E_CALLS_TIMEOUT);
-    }
-    `
-        : ""
-    }
-`;
-  for (let g of gen2eExpressions) {
-    code += g + "\n";
-  }
-  code += "}))";
-  return code;
-};
-
-type InterpreterEvent =
-  | "start"
-  | "end"
-  | "task-success"
-  | "task-error"
-  | "ai-message";
-type InterpreterEventCallback = (...args: any[]) => void;
-
-type InterpreterOptions = {
-  debug?: boolean;
-  model?: string;
-  gen2eModel?: string;
-  playwrightModel?: string;
-  openaiApiKey?: string;
-  recordUsage?: boolean;
-  policies?: Gen2EGenPolicies;
-};
-
-type InterpreterMode = "gen2e" | "playwright";
-
-type InterpreterConfig = {
-  mode?: InterpreterMode;
-  browserOptions?: Gen2EBrowserOptions;
-  logger?: Gen2ELogger;
-};
-
-type InpterpreterPerModelStats = {
-  model: string;
-  completionTokens: number;
-  totalTokens: number;
-  promptTokens: number;
-  toolCalls?: number;
-};
-
-type InterpreterUsageStats = {
-  perModel: InpterpreterPerModelStats[];
-  totalCalls: number;
-  completionTokens: number;
-  totalTokens: number;
-  promptTokens: number;
-};
-
-type InterpreterResult = {
-  result: string;
-  usageStats?: InterpreterUsageStats;
-};
+import {
+  Gen2EInterpreterConfig,
+  Gen2EInterpreterEvent,
+  Gen2EInterpreterEventCallback,
+  Gen2EInterpreterMode,
+  Gen2EInterpreterOptions,
+  Gen2EInterpreterResult,
+  Gen2EInterpreterUsageStats,
+} from "./types";
+import { inMemStore } from "./store";
+import { generateFakeTestCode } from "./test-code";
 
 class TasksInterpreter {
-  private events: Record<InterpreterEvent, InterpreterEventCallback> | {} = {};
-  private options: InterpreterOptions = {};
+  private events:
+    | Record<Gen2EInterpreterEvent, Gen2EInterpreterEventCallback>
+    | {} = {};
+  private options: Gen2EInterpreterOptions = {};
   private agent: Gen2ELLMCodeGenAgent;
-  private mode: InterpreterMode = "gen2e";
+  private mode: Gen2EInterpreterMode = "gen2e";
   private browser?: Gen2EBrowser;
   private logger: Gen2ELogger = makeLogger("GEN2E-INTEPRETER");
 
   private startup?: Promise<any>;
 
   private recordModelsUsage: boolean;
-  private usageStats?: InterpreterUsageStats;
+  private usageStats?: Gen2EInterpreterUsageStats;
 
   private fallbackModel: string = env.OPENAI_MODEL;
   private llmCallHooks: Gen2ELLMCallHooks;
 
-  constructor(config: InterpreterConfig, options: InterpreterOptions) {
+  constructor(
+    config: Gen2EInterpreterConfig,
+    options: Gen2EInterpreterOptions
+  ) {
     this.options = options;
     if (config.mode) {
       this.mode = config.mode;
@@ -193,14 +130,14 @@ class TasksInterpreter {
   }
 
   on(
-    event: InterpreterEvent,
-    callback: InterpreterEventCallback
+    event: Gen2EInterpreterEvent,
+    callback: Gen2EInterpreterEventCallback
   ): TasksInterpreter {
     this.events[event] = callback;
     return this;
   }
 
-  private _call_event(e: InterpreterEvent, ...args: any[]): void {
+  private _call_event(e: Gen2EInterpreterEvent, ...args: any[]): void {
     if (e in this.events) {
       this.events[e](...args);
     }
@@ -266,7 +203,9 @@ class TasksInterpreter {
     return gens;
   }
 
-  private async runMode_gen2e(tasks: string[]): Promise<InterpreterResult> {
+  private async _runTasks_mode_gen2e(
+    tasks: string[]
+  ): Promise<Gen2EInterpreterResult> {
     const genResult = await this.contextWiseGen2eGen(tasks);
     if (this.options.debug) {
       this.logger.debug("interpreter received generated code", {
@@ -281,20 +220,10 @@ class TasksInterpreter {
     };
   }
 
-  private async runMode_playwright(
-    tasks: string[]
-  ): Promise<InterpreterResult> {
-    const inMemoryStatic: { [key: string]: string } = {};
-    const staticStore: StaticStore = {
-      makeIdent: (title, task) => `gen2.interpreter - [${title}](${task})`,
-      fetchStatic: (ident: string) => ({
-        ident,
-        expression: inMemoryStatic[ident],
-      }),
-      makeStatic: (content) =>
-        (inMemoryStatic[content.ident] = content.expression),
-    };
-
+  private async _runTasks_mode_playwright(
+    tasks: string[],
+    staticStore: StaticStore
+  ): Promise<Gen2EInterpreterResult> {
     if (!this.browser) {
       throw new Gen2EInterpreterError(
         "a browser instance must be initialized to perform gen2e evaluations"
@@ -348,12 +277,7 @@ class TasksInterpreter {
       false
     );
 
-    if (this.options.debug) {
-      this.logger.debug(inMemoryStatic);
-    }
-
     const code = pwCompile(fakeTestSource, staticStore);
-    await this.browser.close();
 
     return {
       result: code,
@@ -367,7 +291,7 @@ class TasksInterpreter {
     }
   }
 
-  async run(tasks: string[]): Promise<InterpreterResult> {
+  async runTasks(tasks: string[]): Promise<Gen2EInterpreterResult> {
     if (this.startup) {
       await this.startup;
     }
@@ -376,14 +300,15 @@ class TasksInterpreter {
       .map((t) => t.trim())
       .filter((t) => typeof t === "string" && t.length > 0);
     this._call_event("start", this);
-    let result: InterpreterResult;
+    let result: Gen2EInterpreterResult;
     switch (this.mode) {
       case "playwright":
-        result = await this.runMode_playwright(tasks);
+        const [_mem, staticStore] = inMemStore();
+        result = await this._runTasks_mode_playwright(tasks, staticStore);
         break;
       case "gen2e":
       default:
-        result = await this.runMode_gen2e(tasks);
+        result = await this._runTasks_mode_gen2e(tasks);
     }
     this._call_event("end", this);
 
@@ -392,6 +317,6 @@ class TasksInterpreter {
 }
 
 export const tasksInterpreter = (
-  config: InterpreterConfig,
-  options: InterpreterOptions
+  config: Gen2EInterpreterConfig,
+  options: Gen2EInterpreterOptions
 ): TasksInterpreter => new TasksInterpreter(config, options);
