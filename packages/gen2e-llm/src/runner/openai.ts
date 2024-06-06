@@ -30,6 +30,7 @@ export type Gen2EOpenAIRunnerOptions = {
   debug?: boolean;
   openai?: OpenAI;
   logger?: Gen2ELogger;
+  baseURL?: string;
 };
 
 export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
@@ -49,8 +50,9 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
     debug = false,
     openai,
     logger,
+    baseURL,
   }: Gen2EOpenAIRunnerOptions) {
-    this.openai = openai ?? new OpenAI({ apiKey });
+    this.openai = openai ?? new OpenAI({ apiKey, baseURL });
     this.model = model;
     this.debug = debug;
     this.usage = { completionTokens: 0, promptTokens: 0, totalTokens: 0 };
