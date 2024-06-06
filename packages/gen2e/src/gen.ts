@@ -1,27 +1,27 @@
-import {
-  type Page,
-  type Test,
-  type TestFunction,
-  type GenType,
-  type GenStepFunction,
-  type PlaywrightTestFunction,
-  Gen2EPlaywriteCodeEvalFunc,
-  Gen2ELLMCallHooks,
-  Gen2EGenOptions,
-  Gen2EGenContext,
-  Gen2EScreenshotUsagePolicy,
-} from "./types";
+import { Gen2ELLMAgentModel, modelSupportsImage } from "@rhighs/gen2e-llm";
+import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import env from "./env";
+import { Gen2EGenError, TestStepGenResultError } from "./errors";
 import {
   createPlaywrightCodeGenAgent,
   generatePlaywrightCode,
 } from "./playwright-gen";
-import { Gen2EGenError, TestStepGenResultError } from "./errors";
 import { getSnapshot } from "./snapshot";
-import { StaticStore } from "./static/store/store";
-import env from "./env";
 import { FSStaticStore } from "./static/store/fs";
-import { Gen2ELLMAgentModel, modelSupportsImage } from "@rhighs/gen2e-llm";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import { StaticStore } from "./static/store/store";
+import {
+  Gen2EGenContext,
+  Gen2EGenOptions,
+  Gen2ELLMCallHooks,
+  Gen2EPlaywriteCodeEvalFunc,
+  Gen2EScreenshotUsagePolicy,
+  type GenStepFunction,
+  type GenType,
+  type Page,
+  type PlaywrightTestFunction,
+  type Test,
+  type TestFunction,
+} from "./types";
 
 const tryFetch = (
   store: StaticStore,
@@ -105,6 +105,7 @@ const evalLoop = async (
   const logger = ctx.logger;
   const retries = policies.maxRetries ?? 3;
   const errors: Error[] = [];
+  const attempts: string[] = [];
 
   const _spolicy = policies.screenshot ?? "onfail";
   const _model = (model ?? env.OPENAI_MODEL) as Gen2ELLMAgentModel;
@@ -129,8 +130,7 @@ const evalLoop = async (
     return policy === "force";
   };
 
-  let _r = 0;
-  for (; _r < retries; ++_r) {
+  for (let _r = 0; _r < retries; ++_r) {
     const useScreenshot = shouldScreenshot(_spolicy, {
       attempts: _r,
       model: _model,
@@ -149,11 +149,17 @@ const evalLoop = async (
     });
     const result = await generatePlaywrightCode({
       agent: ctx.agent,
-      task,
-      domSnapshot: domInfo.dom,
-      pageScreenshot: domInfo.screenshot,
-      options: {
-        model: _model,
+      task: {
+        task: task,
+        domSnapshot: domInfo.dom,
+        pageScreenshot: domInfo.screenshot,
+        previousErrors: errors
+          .map((e, i) => `${i}. ${e.toString().slice(0, 300)}`)
+          .join("\n"),
+        previousAttempts: attempts.map((a, i) => `${i}. ${a}`).join("\n"),
+        options: {
+          model: _model,
+        },
       },
       hooks: {
         ...(hooks ?? {}),
@@ -196,6 +202,7 @@ const evalLoop = async (
         },
       };
     } catch (error) {
+      attempts.push(expression);
       errors.push(error);
       continue;
     }

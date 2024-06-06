@@ -21,7 +21,7 @@ You follow this set of rules when proposing solutions:
   \`\`\`<lang>
   \`\`\`
 
-  or 
+  or
 
   \`\`\`
   \`\`\`
@@ -62,7 +62,7 @@ You follow this set of rules when proposing solutions:
     Note:
       This asks specifically about setting HTTP credentials, it means the page requires authentication
       in no way possible via HTML.
-    Output: 
+    Output:
       await page.context().setHTTPCredentials({
         username: "foo",
         password: "bar",
@@ -86,14 +86,20 @@ export const createPlaywrightCodeGenAgent = (
     logger
   );
 
-export type Gen2EPlaywrightCodeGenInit = {
-  agent: Gen2ELLMCodeGenAgent;
+export type Gen2EPlaywrightTask = {
   task: string;
   domSnapshot: string;
   pageScreenshot?: Buffer;
+  previousErrors?: string;
+  previousAttempts?: string;
   options?: {
     model?: Gen2ELLMAgentModel;
   };
+};
+
+export type Gen2EPlaywrightCodeGenInit = {
+  agent: Gen2ELLMCodeGenAgent;
+  task: Gen2EPlaywrightTask;
   hooks?: Gen2ELLMAgentHooks;
 };
 
@@ -110,17 +116,16 @@ export type Gen2EPlaywrightCodeGenResult =
 export const generatePlaywrightCode = async ({
   agent,
   task,
-  domSnapshot,
-  pageScreenshot,
-  options,
   hooks,
 }: Gen2EPlaywrightCodeGenInit): Promise<Gen2EPlaywrightCodeGenResult> => {
   const result = await agent(
     {
-      task: task,
-      codeContext: domSnapshot,
-      image: pageScreenshot,
-      options: options ?? undefined,
+      task: task.task,
+      codeContext: task.domSnapshot,
+      image: task.pageScreenshot,
+      options: task.options ?? undefined,
+      previousAttempts: task.previousAttempts,
+      previousErrors: task.previousErrors,
     },
     hooks
   );
