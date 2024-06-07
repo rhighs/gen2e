@@ -1,6 +1,6 @@
 {
   "name": "@rhighs/gen2e-logger",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "simple, minimal and dependency-free logger supporting terminal colors",
   "main": "dist/index.js",
   "publishConfig": {

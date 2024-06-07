@@ -1,6 +1,6 @@
 {
   "name": "@rhighs/gen2e",
-  "version": "1.1.7",
+  "version": "1.2.0",
   "description": "A playwright assistant library, write e2e tests as plain english instructions",
   "main": "dist/index.js",
   "directories": {
@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.2.0",
-    "@rhighs/gen2e-llm": "^1.0.8",
-    "@rhighs/gen2e-logger": "^1.0.2",
+    "@rhighs/gen2e-llm": "^1.0.9",
+    "@rhighs/gen2e-logger": "^1.0.3",
     "@types/jscodeshift": "^0.11.11",
     "hono": "^3.9.2",
     "openai": "^4.17.3",
