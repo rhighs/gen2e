@@ -291,7 +291,7 @@ class TasksInterpreter {
     }
   }
 
-  async runTasks(tasks: string[]): Promise<Gen2EInterpreterResult> {
+  async run(tasks: string[]): Promise<Gen2EInterpreterResult> {
     if (this.startup) {
       await this.startup;
     }

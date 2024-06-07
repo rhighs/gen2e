@@ -23,17 +23,19 @@ import {
 import { Gen2EInterpreterInMemStatic, inMemStore } from "./store";
 import { generateFakeTestCode } from "./test-code";
 
-export type IncTasksInterpreterOptions = {};
-
-export type Gen2EIncrementalResult = {
+export type Gen2ERecordingResult = {
   result: string;
 };
 
-export type Gen2EIncrementalStep = {
+export type Gen2ERecordingStep = {
   result: string;
 };
 
-class IncrementalInterpreter {
+export type Gen2ERecordingPeekResult = {
+  result: string;
+};
+
+export class RecordingInterpreter {
   private events:
     | Record<Gen2EInterpreterEvent, Gen2EInterpreterEventCallback>
     | {} = {};
@@ -145,7 +147,7 @@ class IncrementalInterpreter {
   on(
     event: Gen2EInterpreterEvent,
     callback: Gen2EInterpreterEventCallback
-  ): IncrementalInterpreter {
+  ): RecordingInterpreter {
     this.events[event] = callback;
     return this;
   }
@@ -212,7 +214,7 @@ class IncrementalInterpreter {
     this.state = "running";
   }
 
-  async update(task: string): Promise<Gen2EIncrementalStep> {
+  async update(task: string): Promise<Gen2ERecordingStep> {
     if (this.state !== "running") {
       throw new Gen2EIncrementalStateError(
         "cannot update while idle, you must call start() first"
@@ -220,75 +222,14 @@ class IncrementalInterpreter {
     }
 
     task = task.trim();
-
     let genResult = "";
+
     switch (this.mode) {
       case "playwright":
-        {
-          if (!this.browser) {
-            throw new Gen2EInterpreterError(
-              "a browser instance must be initialized to perform gen2e evaluations"
-            );
-          }
-
-          if (!this.browser.page) {
-            throw new Gen2EInterpreterError(
-              "a browser page instance must be initialized to perform gen2e evaluations"
-            );
-          }
-
-          const result = await this.gen2e(
-            task,
-            this.gen2eExpressions.join("\n")
-          );
-          if (!result) {
-            this.logger.error("gen2e gen gave empty result", { result });
-          } else {
-            const [getMem, localStore] = inMemStore();
-            const fakeTestSource = generateFakeTestCode(
-              "gen2e - interpreter gen",
-              [result]
-            );
-            const page = this.browser.page;
-            if (this.options.debug) {
-              this.logger.debug("executing sanbox for expr", { result });
-            }
-            await sandboxEval(
-              fakeTestSource,
-              page,
-              localStore,
-              this.llmCallHooks,
-              {
-                model: this.options.playwrightModel ?? this.fallbackModel,
-                openaiApiKey: this.options.openaiApiKey,
-                debug: this.options.debug,
-                policies: this.options.policies,
-              },
-              (code: string, page: Page) => {
-                const evalFunc = new Function(
-                  "page",
-                  `return (async () => { const result = await ${code}(); return result })()`
-                );
-                return evalFunc(page);
-              },
-              undefined,
-              this.logger
-            );
-            const mem = getMem();
-            const [[k, v]] = Object.entries(mem);
-            this.currentStore.makeStatic({ ident: k, expression: v });
-            genResult = v;
-          }
-        }
+        genResult = await this.handlePlaywrightMode(task);
         break;
       case "gen2e":
-        const result = await this.gen2e(task, this.gen2eExpressions.join("\n"));
-        if (!result) {
-          this.logger.error("gen2e gen gave empty result", { result });
-        } else {
-          this.gen2eExpressions.push(result);
-          genResult = result;
-        }
+        genResult = await this.handleGen2EMode(task);
         break;
     }
 
@@ -297,13 +238,118 @@ class IncrementalInterpreter {
     };
   }
 
-  async finish(): Promise<Gen2EIncrementalResult> {
+  private async handlePlaywrightMode(task: string): Promise<string> {
+    if (!this.browser) {
+      throw new Gen2EInterpreterError(
+        "a browser instance must be initialized to perform gen2e evaluations"
+      );
+    }
+
+    if (!this.browser.page) {
+      throw new Gen2EInterpreterError(
+        "a browser page instance must be initialized to perform gen2e evaluations"
+      );
+    }
+
+    const result = await this.gen2e(task, this.gen2eExpressions.join("\n"));
+    if (!result) {
+      this.handleError("gen2e gen gave empty result", result);
+      return "";
+    }
+
+    this.gen2eExpressions.push(result);
+    const [getMem, localStore] = inMemStore();
+    const fakeTestSource = generateFakeTestCode("gen2e - interpreter gen", [
+      result,
+    ]);
+    const page = this.browser.page;
+
+    if (this.options.debug) {
+      this.logger.debug("executing sandbox for expr", { result });
+    }
+
+    await this.executeSandboxEval(fakeTestSource, page, localStore);
+
+    const mem = getMem();
+    const [[k, v]] = Object.entries(mem);
+    this.currentStore.makeStatic({ ident: k, expression: v });
+
+    if (this.options.debug) {
+      this.logger.debug("sandbox memory", this.getStaticMem());
+      this.logger.debug("playwright mode", v);
+    }
+
+    return v;
+  }
+
+  private async handleGen2EMode(task: string): Promise<string> {
+    const result = await this.gen2e(task, this.gen2eExpressions.join("\n"));
+    if (!result) {
+      this.handleError("gen2e gen gave empty result", result);
+      return "";
+    }
+
+    this.gen2eExpressions.push(result);
+    this.logger.debug("gen2e mode", result);
+    return result;
+  }
+
+  private handleError(message: string, result: any) {
+    this.logger.error(message, { result });
+  }
+
+  private async executeSandboxEval(
+    fakeTestSource: string,
+    page: Page,
+    localStore: any
+  ): Promise<void> {
+    await sandboxEval(
+      fakeTestSource,
+      page,
+      localStore,
+      this.llmCallHooks,
+      {
+        model: this.options.playwrightModel ?? this.fallbackModel,
+        openaiApiKey: this.options.openaiApiKey,
+        debug: this.options.debug,
+        policies: this.options.policies,
+      },
+      (code: string, page: Page) => {
+        const evalFunc = new Function(
+          "page",
+          `return (async () => { const result = await ${code}(); return result })()`
+        );
+        return evalFunc(page);
+      },
+      undefined,
+      this.logger
+    );
+  }
+
+  async finish(): Promise<Gen2ERecordingResult> {
     if (this.state !== "running") {
       throw new Gen2EIncrementalStateError(
         "cannot finish while idle, you must call start() first"
       );
     }
 
+    const { result } = this.peek();
+
+    this.state = "idle";
+    if (this.options.debug) {
+      this.logger.info("tearing down instances");
+    }
+    await this.teardown();
+    if (this.options.debug) {
+      this.logger.info("teardown done");
+    }
+
+    return {
+      result,
+    };
+  }
+
+  peek(): Gen2ERecordingPeekResult {
     let genResult = "";
     switch (this.mode) {
       case "playwright":
@@ -329,15 +375,23 @@ class IncrementalInterpreter {
         break;
     }
 
-    this.state = "idle";
-
     return {
-      result: genResult ?? "",
+      result: genResult,
     };
+  }
+
+  async teardown(): Promise<void> {
+    if (this.browser) {
+      await this.browser.close();
+    }
+  }
+
+  ready(): boolean {
+    return this.state !== "idle";
   }
 }
 
-export const incrementalInterpreter = (
+export const recordingInterpreter = (
   config: Gen2EInterpreterConfig,
   options: Gen2EInterpreterOptions
-): IncrementalInterpreter => new IncrementalInterpreter(config, options);
+): RecordingInterpreter => new RecordingInterpreter(config, options);
