@@ -9,6 +9,7 @@ import {
 import * as pjson from "../package.json";
 import { makeLogger } from "@rhighs/gen2e-logger";
 import readline from "readline";
+import { makeREPL } from "./repl";
 const logger = makeLogger("GEN2E-CLI");
 
 program
@@ -376,6 +377,42 @@ program
     }).on("close", async () => {
       await interpreter.teardown();
     });
+  });
+
+
+program
+  .command("repl")
+  .description("Simple repl mode with no test generation")
+  .option("-d, --debug", "enabled debug mode, shows debug logs and more")
+  .option("--openai-api-key <openaiApiKey>", "api key for openai services")
+  .option("--model <model>", "openai model to use for each task")
+  .option(
+    "--browser <browser>",
+    "playwright browser to use (chromium, firefox)",
+    "chromium"
+  )
+  .option("--headless", "start browser in headless mode")
+  .option("-v, --verbose", "show more REPL activity logging")
+  .action(async (options) => {
+    const verbose = options.verbose ? true : false;
+    const isDebug = options.debug ? true : undefined;
+    const model = options.model ? String(options.model).trim() : undefined;
+    const apiKey = options.openaiApiKey
+      ? String(options.openaiApiKey).trim()
+      : undefined;
+
+    const REPL = makeREPL({
+      browserOptions: {
+        browser: options.browser,
+        headless: options.headless,
+      },
+      debug: isDebug,
+      model,
+      openaiApiKey: apiKey,
+      verbose,
+    });
+
+    await REPL.start();
   });
 
 program.parse(process.argv);
