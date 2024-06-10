@@ -88,6 +88,7 @@ const attributes: {
       "data-*",
       "for",
       "textContent",
+      "class",
     ],
     iframe: ["src"],
     frame: ["src"],
@@ -117,6 +118,9 @@ const sanitizeHtml = (
 
   const s = sanitize(subject, {
     allowedTags,
+    allowedClasses: {
+      "*": ["Mui*"],
+    },
     allowedAttributes,
   });
 
@@ -146,18 +150,37 @@ export type WebSnapshotResult = {
   screenshot?: Buffer;
 };
 
-export const getSnapshot = async (
+const resolveHTMLRoot = async (page: Page): Promise<string> => {
+  const element: Element | null = await page.evaluate(() => {
+    const x = window.innerWidth / 2;
+    const y = window.innerHeight / 2;
+    let element = document.elementFromPoint(x, y);
+    while (
+      element &&
+      element.parentElement &&
+      element.parentElement.tagName.toLowerCase() !== "body"
+    )
+      element = element.parentElement;
+    return element;
+  });
+  if (!element) {
+    return "";
+  }
+  return element.outerHTML;
+};
+
+const resolvePageContent = async (
   page: Page,
-  logger?: Gen2ELogger,
-  opts?: WebSnapshotOptions
-): Promise<WebSnapshotResult> => {
-  // rob: prevent snapshotting the wrong page
-  {
-    await page.waitForLoadState("domcontentloaded");
-    await page.waitForLoadState("networkidle");
+  logger?: Gen2ELogger
+): Promise<string> => {
+  let mainPageContent = await page.content();
+  if (mainPageContent.includes("<body")) {
+    const contextRoot = await resolveHTMLRoot(page);
+    if (contextRoot !== "") {
+      mainPageContent = contextRoot;
+    }
   }
 
-  const mainPageContent = await page.content();
   const frames = page.frames();
   const framesContent: string[] = [];
   for (let f of frames) {
@@ -171,10 +194,91 @@ export const getSnapshot = async (
     }
   }
 
+  const pageContent = mainPageContent + framesContent.join("\n");
+  return pageContent;
+};
+
+const outlinePage = async (page: Page): Promise<void> => {
+  const frames = page.frames();
+  const outline = {
+    content: `
+  * {
+    border: 1px solid black !important;
+  }
+  `,
+  };
+
+  for (let p of [...frames, page]) {
+    await p.addStyleTag(outline);
+  }
+};
+
+const debugPageElementsTag = async (
+  page: Page,
+  tags: string[]
+): Promise<void> => {
+  const frames = page.frames();
+  const metaTagName = {
+    content: `
+    *::before {
+        content: attr(data-tag);
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        color: red;
+        font-size: 12px;
+        border: 1px solid black;
+        padding: 2px;
+        z-index: 9999;
+    }
+
+    * {
+      position: relative;
+    }
+
+    body * {
+        counter-reset: el-counter;
+    }
+
+    body *::before {
+        counter-increment: el-counter;
+        content: attr(data-tag) " " counter(el-counter);
+    }
+`,
+  };
+
+  for (let p of [...frames, page]) {
+    await p.addStyleTag(metaTagName);
+    await p.evaluate(
+      (tags) =>
+        document.querySelectorAll("*").forEach((el) => {
+          if (Array.isArray(tags)) {
+            if (tags.includes(el.tagName)) {
+              el.setAttribute("data-tag", el.tagName.toLowerCase());
+            }
+          }
+        }),
+      tags
+    );
+  }
+};
+
+export const getSnapshot = async (
+  page: Page,
+  logger?: Gen2ELogger,
+  opts?: WebSnapshotOptions
+): Promise<WebSnapshotResult> => {
+  // rob: prevent snapshotting the wrong page
+  {
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForLoadState("networkidle");
+  }
+
   const _tags = tags[opts?.stripLevel ?? "medium"];
   const _attrs = attributes[opts?.stripLevel ?? "medium"];
 
-  const pageContent = mainPageContent + framesContent.join("\n");
+  const pageContent = await resolvePageContent(page, logger);
   const strippedPageContent = pageContent.replace(/[\t\r\n]/g, "");
   const content = sanitizeHtml(
     strippedPageContent,
@@ -198,62 +302,9 @@ export const getSnapshot = async (
     // a floating text at the left-top corner of each element saying what kind of html tag
     // the outlined element is.
     if (opts.pageOutlines) {
-      const outline = {
-        content: `
-      * {
-        border: 1px solid black !important;
-      }
-      `,
-      };
-      if (opts.pageDataTags) {
-        const metaTagName = {
-          content: `
-          *::before {
-              content: attr(data-tag);
-              display: block;
-              position: absolute;
-              top: 0;
-              left: 0;
-              color: red;
-              font-size: 12px;
-              border: 1px solid black;
-              padding: 2px;
-              z-index: 9999;
-          }
-
-          * {
-            position: relative;
-          }
-
-          body * {
-              counter-reset: el-counter;
-          }
-
-          body *::before {
-              counter-increment: el-counter;
-              content: attr(data-tag) " " counter(el-counter);
-          }
-      `,
-        };
-
-        for (let p of [...frames, page]) {
-          await p.addStyleTag(metaTagName);
-          await p.evaluate(
-            (_tags) =>
-              document.querySelectorAll("*").forEach((el) => {
-                if (Array.isArray(_tags)) {
-                  if (_tags.includes(el.tagName)) {
-                    el.setAttribute("data-tag", el.tagName.toLowerCase());
-                  }
-                }
-              }),
-            _tags
-          );
-        }
-      }
-
-      for (let p of [...frames, page]) {
-        await p.addStyleTag(outline);
+      await outlinePage(page);
+      if (opts.pageDataTags && Array.isArray(_tags)) {
+        await debugPageElementsTag(page, _tags);
       }
     }
 
