@@ -19,21 +19,12 @@ import {
   Gen2EInterpreterMode,
   Gen2EInterpreterOptions,
   Gen2EInterpreterUsageStats,
+  Gen2ERecordingPeekResult,
+  Gen2ERecordingResult,
+  Gen2ERecordingStep,
 } from "./types";
 import { Gen2EInterpreterInMemStatic, inMemStore } from "./store";
 import { generateFakeTestCode } from "./test-code";
-
-export type Gen2ERecordingResult = {
-  result: string;
-};
-
-export type Gen2ERecordingStep = {
-  result: string;
-};
-
-export type Gen2ERecordingPeekResult = {
-  result: string;
-};
 
 export class RecordingInterpreter {
   private events:

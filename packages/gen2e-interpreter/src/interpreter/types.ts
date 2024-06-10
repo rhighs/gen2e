@@ -48,3 +48,15 @@ export type Gen2EInterpreterResult = {
   result: string;
   usageStats?: Gen2EInterpreterUsageStats;
 };
+
+export type Gen2ERecordingResult = {
+  result: string;
+};
+
+export type Gen2ERecordingStep = {
+  result: string;
+};
+
+export type Gen2ERecordingPeekResult = {
+  result: string;
+};
