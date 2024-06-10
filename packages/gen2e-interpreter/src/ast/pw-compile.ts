@@ -61,9 +61,13 @@ const compiler = (store: StaticStore): Gen2ECompileFunction => {
 
                   if (code) {
                     if (!code.expression) {
-                      throw new Error(
-                        "got undefined or empty expression for " + ident
-                      );
+                      if (logger) {
+                        logger.error(
+                          "got undefined or empty expression for ",
+                          ident
+                        );
+                      }
+                      return;
                     }
 
                     if (

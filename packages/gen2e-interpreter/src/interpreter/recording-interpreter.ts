@@ -26,6 +26,10 @@ import {
 import { Gen2EInterpreterInMemStatic, inMemStore } from "./store";
 import { generateFakeTestCode } from "./test-code";
 
+export type Gen2EInterpreterSandboxEvalResult =
+  | { type: "success"; result: any }
+  | { type: "error"; reason: string };
+
 export class RecordingInterpreter {
   private events:
     | Record<Gen2EInterpreterEvent, Gen2EInterpreterEventCallback>
@@ -47,6 +51,8 @@ export class RecordingInterpreter {
   private gen2eExpressions: string[] = [];
   private currentStore: StaticStore;
   private getStaticMem: () => Gen2EInterpreterInMemStatic;
+
+  private tasks: string[] = [];
 
   constructor(
     config: Gen2EInterpreterConfig,
@@ -143,12 +149,6 @@ export class RecordingInterpreter {
     return this;
   }
 
-  private setupStore() {
-    const [getMem, staticStore] = inMemStore();
-    this.currentStore = staticStore;
-    this.getStaticMem = getMem;
-  }
-
   private _call_event(e: Gen2EInterpreterEvent, ...args: any[]): void {
     if (e in this.events) {
       this.events[e](...args);
@@ -215,6 +215,7 @@ export class RecordingInterpreter {
     task = task.trim();
     let genResult = "";
 
+    this.tasks.push(task);
     switch (this.mode) {
       case "playwright":
         genResult = await this.handlePlaywrightMode(task);
@@ -222,6 +223,9 @@ export class RecordingInterpreter {
       case "gen2e":
         genResult = await this.handleGen2EMode(task);
         break;
+    }
+    if (genResult === "") {
+      this.tasks.pop();
     }
 
     return {
@@ -259,18 +263,29 @@ export class RecordingInterpreter {
       this.logger.debug("executing sandbox for expr", { result });
     }
 
-    await this.executeSandboxEval(fakeTestSource, page, localStore);
-
-    const mem = getMem();
-    const [[k, v]] = Object.entries(mem);
-    this.currentStore.makeStatic({ ident: k, expression: v });
-
-    if (this.options.debug) {
-      this.logger.debug("sandbox memory", this.getStaticMem());
-      this.logger.debug("playwright mode", v);
+    const seResult = await this.executeSandboxEval(
+      fakeTestSource,
+      page,
+      localStore
+    );
+    if (seResult.type === "success") {
+      const mem = getMem();
+      const [[k, v]] = Object.entries(mem);
+      this.currentStore.makeStatic({ ident: k, expression: v });
+      if (this.options.debug) {
+        this.logger.debug("sandbox memory", this.getStaticMem());
+        this.logger.debug("playwright mode", v);
+      }
+      return v;
+    } else {
+      this.gen2eExpressions.pop();
+      this.logger.warn("sandbox execution has failed, ignoring...");
+      if (this.options.debug) {
+        this.logger.debug("sanbox eval error", seResult.reason);
+      }
     }
 
-    return v;
+    return "";
   }
 
   private async handleGen2EMode(task: string): Promise<string> {
@@ -293,28 +308,44 @@ export class RecordingInterpreter {
     fakeTestSource: string,
     page: Page,
     localStore: any
-  ): Promise<void> {
-    await sandboxEval(
-      fakeTestSource,
-      page,
-      localStore,
-      this.llmCallHooks,
-      {
-        model: this.options.playwrightModel ?? this.fallbackModel,
-        openaiApiKey: this.options.openaiApiKey,
-        debug: this.options.debug,
-        policies: this.options.policies,
-      },
-      (code: string, page: Page) => {
-        const evalFunc = new Function(
-          "page",
-          `return (async () => { const result = await ${code}(); return result })()`
-        );
-        return evalFunc(page);
-      },
-      undefined,
-      this.logger
-    );
+  ): Promise<Gen2EInterpreterSandboxEvalResult> {
+    try {
+      const result: any = await sandboxEval(
+        fakeTestSource,
+        page,
+        localStore,
+        this.llmCallHooks,
+        {
+          model: this.options.playwrightModel ?? this.fallbackModel,
+          openaiApiKey: this.options.openaiApiKey,
+          debug: this.options.debug,
+          policies: this.options.policies,
+        },
+        (code: string, page: Page) => {
+          const evalFunc = new Function(
+            "page",
+            `return (async () => { const result = await ${code}(); return result })()`
+          );
+          return evalFunc(page);
+        },
+        undefined,
+        this.logger
+      );
+      return {
+        type: "success",
+        result: result,
+      };
+    } catch (error) {
+      if (this.logger) {
+        this.logger.error(error);
+      }
+
+      // FIXME: find a way to log a better error here
+      return {
+        type: "error",
+        reason: `attempts have failed or some other exception has occurred: ${error}`,
+      };
+    }
   }
 
   async finish(): Promise<Gen2ERecordingResult> {
@@ -324,7 +355,7 @@ export class RecordingInterpreter {
       );
     }
 
-    const { result } = this.peek();
+    const { code, tasks, gen2eCode } = this.peek();
 
     this.state = "idle";
     if (this.options.debug) {
@@ -336,12 +367,15 @@ export class RecordingInterpreter {
     }
 
     return {
-      result,
+      code,
+      tasks,
+      gen2eCode,
     };
   }
 
   peek(): Gen2ERecordingPeekResult {
-    let genResult = "";
+    let code = "";
+    let gen2eCode = "";
     switch (this.mode) {
       case "playwright":
         {
@@ -350,14 +384,13 @@ export class RecordingInterpreter {
             this.gen2eExpressions,
             false
           );
-
-          const code = pwCompile(fakeTestSource, this.currentStore);
-          genResult = code;
+          gen2eCode = fakeTestSource;
+          code = pwCompile(fakeTestSource, this.currentStore);
         }
         break;
       case "gen2e":
         {
-          genResult = generateFakeTestCode(
+          gen2eCode = generateFakeTestCode(
             "gen2e - interpreter gen",
             this.gen2eExpressions,
             false
@@ -367,7 +400,9 @@ export class RecordingInterpreter {
     }
 
     return {
-      result: genResult,
+      tasks: this.tasks,
+      code,
+      gen2eCode,
     };
   }
 

@@ -88,7 +88,7 @@ what the task asking you to do:
     const searchInputHasHeaderText = await gen(\`Is the contents of the header equal to "Hello, Gen2E!"?\`, { page, test });
     expect(searchInputHasHeaderText).toBe(true);
     \`\`\`
-    
+
     instead do:
     \`\`\`
     const headerText = await gen(\`get page header content\`, { page, test });
@@ -141,6 +141,10 @@ export const generateGen2ECode = async ({
   options,
   hooks,
 }: Gen2EGen2ECodeGenInit): Promise<Gen2EGen2ECodeGenResult> => {
+  if (codeContext) {
+    codeContext = `${codeContext}\n// NOTE: never infer the task argument to the next gen(...) call from previous gen(...) calls, all calls are independent instructions`;
+  }
+
   const result = await agent(
     {
       task: task,

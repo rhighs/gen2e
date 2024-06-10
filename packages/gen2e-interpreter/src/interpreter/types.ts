@@ -50,7 +50,9 @@ export type Gen2EInterpreterResult = {
 };
 
 export type Gen2ERecordingResult = {
-  result: string;
+  tasks: string[];
+  gen2eCode: string;
+  code: string;
 };
 
 export type Gen2ERecordingStep = {
@@ -58,5 +60,7 @@ export type Gen2ERecordingStep = {
 };
 
 export type Gen2ERecordingPeekResult = {
-  result: string;
+  tasks: string[];
+  gen2eCode: string;
+  code: string;
 };
