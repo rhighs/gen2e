@@ -3,12 +3,11 @@ import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
 import { Gen2ECompileFunction, makeCompiler } from "./compiler";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
-const compiler = (store: StaticStore): Gen2ECompileFunction => {
-  const transform = (
-    fileInfo: FileInfo,
-    api: API,
-    logger?: Gen2ELogger
-  ): string => {
+const compiler = (
+  store: StaticStore,
+  logger?: Gen2ELogger
+): Gen2ECompileFunction => {
+  const transform = (fileInfo: FileInfo, api: API): string => {
     const j = api.jscodeshift;
     const root = j(fileInfo.source);
 
@@ -183,5 +182,6 @@ const compiler = (store: StaticStore): Gen2ECompileFunction => {
  */
 export const pwCompile = (
   source: string,
-  store: StaticStore = FSStaticStore
-): string => compiler(store)(source);
+  store: StaticStore = FSStaticStore,
+  logger?: Gen2ELogger
+): string => compiler(store, logger)(source);
