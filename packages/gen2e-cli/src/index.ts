@@ -322,22 +322,35 @@ program
         return;
       }
 
+      const formatCodeOutput = (peek: {
+        tasks: string[] | undefined;
+        gen2eCode: string;
+        code: string;
+      }) => `tasks:
+${peek.tasks ? peek.tasks.join("\n") : "no tasks available"}
+
+gen2e IL:
+${peek.gen2eCode}
+
+playwright code:
+${peek.code}`;
+
       if (interpreter.ready()) {
         switch (input) {
           case "/stop":
             {
               const result = await interpreter.finish();
-              const code = result.result;
-              process.stdout.write(code + "\n");
+              const out = formatCodeOutput(result);
+              process.stdout.write(out + "\n");
               rl.setPrompt(makePrompt("idle"));
 
               if (appendFile) {
                 logger.info(`appending result to ${appendFile}...`);
-                appendFileSync(appendFile, code);
+                appendFileSync(appendFile, result.code);
                 logger.info(`done appending result to ${appendFile}`);
               } else if (outFile) {
                 logger.info(`writing result to ${outFile}...`);
-                writeFileSync(outFile, code, {
+                writeFileSync(outFile, result.code, {
                   flag: "wx",
                 });
                 logger.info(`done writing result to ${outFile}`);
@@ -347,7 +360,8 @@ program
           case "/peek":
             {
               const peek = interpreter.peek();
-              process.stdout.write(peek.result + "\n");
+              const out = formatCodeOutput(peek);
+              process.stdout.write(out + "\n");
             }
             break;
           default:
@@ -363,7 +377,7 @@ program
           rl.setPrompt(makePrompt("recording"));
         } else {
           process.stdout.write(
-            `\n        Recorder is not recording, use command /start\n`
+            `\n        Recorder is not recording, use command / start\n`
           );
           printHelp();
         }
@@ -378,7 +392,6 @@ program
       await interpreter.teardown();
     });
   });
-
 
 program
   .command("repl")
