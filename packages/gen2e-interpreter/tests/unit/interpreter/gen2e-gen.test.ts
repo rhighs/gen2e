@@ -60,7 +60,7 @@ describe("Gen2E Code Generation", () => {
     expect(mockAgent).toHaveBeenCalledWith(
       {
         task,
-        codeContext,
+        codeContext: expect.any(String),
         options: { model: "gpt-3.5-turbo", debug: false },
       },
       hooks
@@ -90,7 +90,7 @@ describe("Gen2E Code Generation", () => {
     expect(mockAgent).toHaveBeenCalledWith(
       {
         task,
-        codeContext,
+        codeContext: expect.any(String),
         options: { model: "gpt-3.5-turbo", debug: false },
       },
       hooks

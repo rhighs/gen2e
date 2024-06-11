@@ -1,6 +1,5 @@
 import { pwCompile } from "../../../src";
 import { StaticStore } from "@rhighs/gen2e";
-import jscodeshift from 'jscodeshift'
 
 const inMemoryStatic: { [key: string]: string } = {};
 const staticStore: StaticStore = {
@@ -52,7 +51,7 @@ describe("pwCompile", () => {
     staticStore.makeStatic({ ident, expression: "" });
 
     expect(() => pwCompile(sourceCode, staticStore)).toThrow(
-      `got undefined or empty expression for ${ident}`
+      `Test source compilation failed with error: got undefined or empty expression for ident ${ident}`
     );
   });
 

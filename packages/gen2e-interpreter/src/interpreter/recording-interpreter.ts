@@ -385,7 +385,12 @@ export class RecordingInterpreter {
             false
           );
           gen2eCode = fakeTestSource;
-          code = pwCompile(fakeTestSource, this.currentStore);
+
+          try {
+            code = pwCompile(fakeTestSource, this.currentStore);
+          } catch (error) {
+            this.logger.error(error);
+          }
         }
         break;
       case "gen2e":

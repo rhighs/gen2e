@@ -2,6 +2,7 @@ import { API, FileInfo } from "jscodeshift";
 import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
 import { Gen2ECompileFunction, makeCompiler } from "./compiler";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
+import { Gen2ECompileError } from "../errors";
 
 const compiler = (
   store: StaticStore,
@@ -60,13 +61,11 @@ const compiler = (
 
                   if (code) {
                     if (!code.expression) {
+                      const message = `got undefined or empty expression for ident`;
                       if (logger) {
-                        logger.error(
-                          "got undefined or empty expression for ",
-                          ident
-                        );
+                        logger.error(message, { ident });
                       }
-                      return;
+                      throw new Gen2ECompileError(`${message} ${ident}`);
                     }
 
                     if (
