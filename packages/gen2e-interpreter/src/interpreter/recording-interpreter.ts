@@ -268,7 +268,8 @@ export class RecordingInterpreter {
       page,
       localStore
     );
-    if (seResult.type === "success") {
+
+    if (seResult.type === "success" && Object.keys(getMem()).length > 0) {
       const mem = getMem();
       const [[k, v]] = Object.entries(mem);
       this.currentStore.makeStatic({ ident: k, expression: v });
@@ -277,12 +278,14 @@ export class RecordingInterpreter {
         this.logger.debug("playwright mode", v);
       }
       return v;
-    } else {
+    } else if (seResult.type === "error") {
       this.gen2eExpressions.pop();
       this.logger.warn("sandbox execution has failed, ignoring...");
       if (this.options.debug) {
         this.logger.debug("sanbox eval error", seResult.reason);
       }
+    } else {
+      this.logger.warn("no expression was generated for task", task);
     }
 
     return "";
@@ -307,7 +310,7 @@ export class RecordingInterpreter {
   private async executeSandboxEval(
     fakeTestSource: string,
     page: Page,
-    localStore: any
+    localStore: StaticStore
   ): Promise<Gen2EInterpreterSandboxEvalResult> {
     try {
       const result: any = await sandboxEval(
@@ -331,6 +334,7 @@ export class RecordingInterpreter {
         undefined,
         this.logger
       );
+
       return {
         type: "success",
         result: result,

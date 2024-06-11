@@ -15,7 +15,6 @@ const staticStore: StaticStore = {
 
 describe("pwCompile", () => {
   beforeEach(() => {
-    // Clear the in-memory store before each test
     for (const key in inMemoryStatic) {
       delete inMemoryStatic[key];
     }
@@ -37,20 +36,6 @@ test('example test', async () => {
     const result = pwCompile(sourceCode, staticStore);
     expect(result).toContain(staticCode);
     expect(result).toContain("gen2e:compiled-output - example test");
-  });
-
-  test("should throw an error for undefined or empty expression", () => {
-    const sourceCode = `\
-test('example test', async () => {
-  await gen('task 1', { page, test });
-});`;
-
-    const ident = staticStore.makeIdent("example test", "task 1");
-    staticStore.makeStatic({ ident, expression: "" });
-
-    expect(() => pwCompile(sourceCode, staticStore)).toThrow(
-      `Test source compilation failed with error: got undefined or empty expression for ident ${ident}`
-    );
   });
 
   test("should replace gen.test(({ page, gen }) => { ... }) with native Playwright test expressions", () => {

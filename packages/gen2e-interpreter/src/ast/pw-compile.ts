@@ -2,7 +2,6 @@ import { API, FileInfo } from "jscodeshift";
 import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
 import { Gen2ECompileFunction, makeCompiler } from "./compiler";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
-import { Gen2ECompileError } from "../errors";
 
 const transformGenCall = (
   j: any,
@@ -57,12 +56,13 @@ const transformGenCall = (
                 const code = store.fetchStatic(ident);
 
                 if (code) {
+                  // if no expression is found for replacement, skip it
                   if (!code.expression) {
                     const message = `got undefined or empty expression for ident`;
                     if (logger) {
                       logger.error(message, { ident });
                     }
-                    throw new Gen2ECompileError(`${message} ${ident}`);
+                    return;
                   }
 
                   if (
@@ -163,10 +163,8 @@ const transform = (
 ): string => {
   const j = api.jscodeshift;
   const root = j(fileInfo.source);
-
   transformGenCall(j, root, store, logger);
   transformGenTest(j, root);
-
   return root.toSource();
 };
 

@@ -17,9 +17,3 @@ export class Gen2EIncrementalStateError extends Gen2EError {
     super(`Incremental interpreter failed with error ${message}`);
   }
 }
-
-export class Gen2ECompileError extends Gen2EError {
-  public constructor(message?: string) {
-    super(`Test source compilation failed with error: ${message}`);
-  }
-}
