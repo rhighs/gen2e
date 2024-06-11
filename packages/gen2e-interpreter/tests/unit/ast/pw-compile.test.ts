@@ -22,30 +22,28 @@ describe("pwCompile", () => {
   });
 
   test('should replace gen("<task>", { page, test }) with static Playwright expressions', () => {
-    const sourceCode = `
-      test('example test', async () => {
-        await gen('task 1', { page, test });
-      });
-    `;
+    const sourceCode = `\
+test('example test', async () => {
+  await gen('task 1', { page, test });
+});`;
 
     const ident = staticStore.makeIdent("example test", "task 1");
+    const staticCode = "async () => { /* static code */ }";
     staticStore.makeStatic({
       ident,
-      expression: "async () => { /* static code */ }",
+      expression: staticCode,
     });
 
     const result = pwCompile(sourceCode, staticStore);
-
-    expect(result).toContain("async () => { /* static code */ }");
+    expect(result).toContain(staticCode);
     expect(result).toContain("gen2e:compiled-output - example test");
   });
 
   test("should throw an error for undefined or empty expression", () => {
-    const sourceCode = `
-      test('example test', async () => {
-        await gen('task 1', { page, test });
-      });
-    `;
+    const sourceCode = `\
+test('example test', async () => {
+  await gen('task 1', { page, test });
+});`;
 
     const ident = staticStore.makeIdent("example test", "task 1");
     staticStore.makeStatic({ ident, expression: "" });
@@ -83,11 +81,10 @@ test(
   });
 
   test("should handle source code with no relevant gen calls", () => {
-    const sourceWithNoGenCalls = `
-      test('example test', async () => {
-        await someOtherFunction();
-      });
-    `;
+    const sourceWithNoGenCalls = `\
+test('example test', async () => {
+  await someOtherFunction();
+});`;
     const result = pwCompile(sourceWithNoGenCalls, staticStore);
     expect(result).toBe(sourceWithNoGenCalls);
   });
