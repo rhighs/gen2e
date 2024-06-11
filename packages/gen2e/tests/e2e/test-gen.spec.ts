@@ -45,7 +45,7 @@ test(
       page,
       test,
     });
-    await expect(parseInt(count)).toBe(2);
+    expect(parseInt(count)).toBe(2);
   })
 );
 
