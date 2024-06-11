@@ -107,7 +107,7 @@ const evalLoop = async (
   const errors: Error[] = [];
   const attempts: string[] = [];
 
-  const _spolicy = policies.screenshot ?? "onfail";
+  const _spolicy = policies.screenshot ?? "model";
   const _model = (model ?? env.OPENAI_MODEL) as Gen2ELLMAgentModel;
 
   const shouldScreenshot = (
@@ -297,7 +297,7 @@ const _gen: GenType = (
         evalCode,
         policies: {
           maxRetries: options?.policies?.maxRetries ?? 3,
-          screenshot: options?.policies?.screenshot ?? "onfail",
+          screenshot: options?.policies?.screenshot ?? "model",
         },
       },
       {
@@ -420,7 +420,7 @@ _gen.test = function (
             evalCode,
             policies: {
               maxRetries: options?.policies?.maxRetries ?? 3,
-              screenshot: options?.policies?.screenshot ?? "onfail",
+              screenshot: options?.policies?.screenshot ?? "model",
             },
           },
           {

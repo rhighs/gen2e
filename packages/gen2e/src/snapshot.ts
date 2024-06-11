@@ -82,8 +82,7 @@ const attributes: {
       "href",
       "role",
       "title",
-      "aria-label",
-      "aria-labelledby",
+      "aria*",
       "data-testid",
       "data-*",
       "for",
@@ -94,7 +93,7 @@ const attributes: {
     frame: ["src"],
   },
   high: {
-    "*": ["id", "placeholder", "data-testid", "textContent"],
+    "*": ["id", "placeholder", "data-testid", "textContent", "aria*"],
     iframe: ["src"],
     frame: ["src"],
   },
