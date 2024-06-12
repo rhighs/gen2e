@@ -101,6 +101,22 @@ export interface GenFunction {
 }
 
 /**
+ * Gen2E library configuration options.
+ * @param {string} staticStorePath - The path use by the file system store used to preserve generated code.
+ * @param {string} openaiApiKey - API key for openai services.
+ * @param {debug} boolean - Enable debug mode, severe logging.
+ * @param {model} string - Model to be used among all available.
+ * @param {policies} Gen2EGenPolicies - Code generation agent policies.
+ */
+export type Gen2EConfig = {
+  staticStorePath?: string;
+  openaiApiKey?: string;
+  debug?: boolean;
+  model?: string;
+  policies?: Gen2EGenPolicies;
+};
+
+/**
  * Playwright test function wrapper, allowing the use of gen inside a test case.
  * @param {TestFunction} testFunction - The test function to execute.
  * @param {Object} [init] - Optional initialization object.
