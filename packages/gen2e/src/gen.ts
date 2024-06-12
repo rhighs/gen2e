@@ -111,7 +111,6 @@ const evalLoop = async (
 
   const _spolicy = policies.screenshot ?? "model";
   const _model = (model ?? env.OPENAI_MODEL) as Gen2ELLMAgentModel;
-  logger.debug('using model',_model);
 
   const shouldScreenshot = (
     policy: Gen2EScreenshotUsagePolicy,

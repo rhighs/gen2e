@@ -1,13 +1,10 @@
 import {
-  Dirent,
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   writeFileSync,
 } from "fs";
 import { FSStaticStore, StaticGenStep } from "../../../src/";
-import { hash } from "crypto";
 import path from "path";
 
 jest.mock("tiktoken", () => ({
@@ -30,7 +27,6 @@ const mockMkdirSync = mkdirSync as jest.MockedFunction<typeof mkdirSync>;
 const mockReadFileSync = readFileSync as jest.MockedFunction<
   typeof readFileSync
 >;
-const mockReaddirSync = readdirSync as jest.MockedFunction<typeof readdirSync>;
 const mockWriteFileSync = writeFileSync as jest.MockedFunction<
   typeof writeFileSync
 >;
