@@ -11,9 +11,13 @@ import { hash } from "crypto";
 import path from "path";
 import { defaultMakeIdent } from "../ident";
 
+import globalConfig from "../../config";
+
 const shouldPreload = !!process.env.GEN2E_PRELOAD_ENABLED;
 const BASE_STATIC_PATH =
-  process.env.GEN2E_STATIC_PATH ?? path.join(process.cwd(), ".static");
+  globalConfig.staticStorePath ??
+  process.env.GEN2E_STATIC_PATH ??
+  path.join(process.cwd(), ".static");
 const stepsDirPath = `${BASE_STATIC_PATH}/steps`;
 
 /**
