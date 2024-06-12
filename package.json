@@ -1,7 +1,7 @@
 {
   "name": "gen2e",
   "version": "1.0.0",
-  "description": "",
+  "description": "gen2e monorepo, including examples and docs",
   "workspaces": [
     "packages/*"
   ],
