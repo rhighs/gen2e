@@ -64,6 +64,11 @@ const filterNode = (node: any): boolean => {
       ? resolveChainedMemberCall(node.expression.callee)
       : undefined;
 
+  if (node.type === "IfStatement") {
+    node.consequent.body.filter(filterNode)
+    return true;
+  }
+
   if (
     (node.type === "ExpressionStatement" &&
       node.expression.type === "CallExpression" &&

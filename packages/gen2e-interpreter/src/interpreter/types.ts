@@ -63,4 +63,5 @@ export type Gen2ERecordingPeekResult = {
   tasks: string[];
   gen2eCode: string;
   code: string;
+  mem: { [key: string]: string };
 };

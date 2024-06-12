@@ -408,10 +408,12 @@ export class RecordingInterpreter {
         break;
     }
 
+    const mem = this.getStaticMem();
     return {
       tasks: this.tasks,
       code,
       gen2eCode,
+      mem,
     };
   }
 
