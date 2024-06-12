@@ -1,5 +1,5 @@
 import { Gen2ELLMAgentModel, modelSupportsImage } from "@rhighs/gen2e-llm";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import { Gen2ELogger } from "@rhighs/gen2e-logger";
 import env from "./env";
 import { Gen2EGenError, TestStepGenResultError } from "./errors";
 import {
@@ -22,6 +22,8 @@ import {
   type Test,
   type TestFunction,
 } from "./types";
+import loggerInstance from "./logger";
+import globalConfig from "./config";
 
 const tryFetch = (
   store: StaticStore,
@@ -109,6 +111,7 @@ const evalLoop = async (
 
   const _spolicy = policies.screenshot ?? "model";
   const _model = (model ?? env.OPENAI_MODEL) as Gen2ELLMAgentModel;
+  logger.debug('using model',_model);
 
   const shouldScreenshot = (
     policy: Gen2EScreenshotUsagePolicy,
@@ -224,7 +227,7 @@ const evalLoop = async (
 const genContext: Gen2EGenContext = {
   agent: undefined,
   useStatic: env.USE_STATIC_STORE,
-  logger: makeLogger("GEN2E-LIB"),
+  logger: loggerInstance,
   screenshot: "model",
 };
 
@@ -253,7 +256,7 @@ const _gen: GenType = (
       );
     }
     const page = config.page;
-    const isDebug = options?.debug ?? env.DEBUG_MODE;
+    const isDebug = options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE;
     if (init?.logger) {
       this.logger.config(init.logger);
     }
@@ -271,7 +274,7 @@ const _gen: GenType = (
       this.agent = createPlaywrightCodeGenAgent(
         env.OPENAI_MODEL as Gen2ELLMAgentModel,
         {
-          openaiApiKey: options?.openaiApiKey,
+          openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
           debug: isDebug,
         },
         logger
@@ -296,15 +299,24 @@ const _gen: GenType = (
         page,
         evalCode,
         policies: {
-          maxRetries: options?.policies?.maxRetries ?? 3,
-          screenshot: options?.policies?.screenshot ?? "model",
+          maxRetries:
+            options?.policies?.maxRetries ??
+            globalConfig.policies?.maxRetries ??
+            3,
+          screenshot:
+            options?.policies?.screenshot ??
+            globalConfig.policies?.screenshot ??
+            "model",
         },
       },
       {
         debug: isDebug,
-        model: options?.model ?? env.OPENAI_MODEL,
+        model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
         saveScreenshots: isDebug,
-        visualInfoLevel: options?.policies?.visualDebugLevel ?? "medium",
+        visualInfoLevel:
+          options?.policies?.visualDebugLevel ??
+          globalConfig.policies?.visualDebugLevel ??
+          "medium",
       },
       init?.hooks
     );
@@ -385,14 +397,14 @@ _gen.test = function (
       }
 
       const { test, page } = config;
-      const isDebug = options?.debug ?? env.DEBUG_MODE;
+      const isDebug = options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE;
 
       if (!self.agent) {
         logger.debug("creating agent...");
         self.agent = createPlaywrightCodeGenAgent(
           env.OPENAI_MODEL as Gen2ELLMAgentModel,
           {
-            openaiApiKey: options?.openaiApiKey,
+            openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
             debug: isDebug,
           },
           logger
@@ -419,15 +431,24 @@ _gen.test = function (
             page,
             evalCode,
             policies: {
-              maxRetries: options?.policies?.maxRetries ?? 3,
-              screenshot: options?.policies?.screenshot ?? "model",
+              maxRetries:
+                options?.policies?.maxRetries ??
+                globalConfig.policies?.maxRetries ??
+                3,
+              screenshot:
+                options?.policies?.screenshot ??
+                globalConfig.policies?.screenshot ??
+                "model",
             },
           },
           {
             debug: isDebug,
-            model: options?.model ?? env.OPENAI_MODEL,
+            model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
             saveScreenshots: isDebug,
-            visualInfoLevel: options?.policies?.visualDebugLevel ?? "medium",
+            visualInfoLevel:
+              options?.policies?.visualDebugLevel ??
+              globalConfig.policies?.visualDebugLevel ??
+              "medium",
           },
           init?.hooks
         );
