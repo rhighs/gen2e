@@ -1,12 +1,44 @@
-import { API, FileInfo } from "jscodeshift";
+import { API, CommentBlock, FileInfo, JSCodeshift } from "jscodeshift";
 import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
 import { Gen2ECompileFunction, makeCompiler } from "./compiler";
+import { StaticGenStep } from "@rhighs/gen2e";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
+type Defined<T> = T extends undefined ? never : T;
+const contextCommentBlock = (
+  j: JSCodeshift,
+  context: Defined<StaticGenStep["context"]>
+): CommentBlock => {
+  let comment = "\n";
+  if (context.testTitle) {
+    comment += `testTitle: "${context.testTitle}"\n`;
+  }
+  if (context.task) {
+    comment += `task: "${context.task}"\n`;
+  }
+  if (context.refs) {
+    comment += "refs:\n";
+    if (context.refs.pageUrl) {
+      comment += `    pageUrl: "${context.refs.pageUrl}"\n`;
+    }
+    if (context.refs.htmlPath) {
+      comment += `    htmlPath: "${context.refs.htmlPath}"\n`;
+    }
+    if (context.refs.screenshotPath) {
+      comment += `    screenshotPath: "${context.refs.screenshotPath}"\n`;
+    }
+  }
+  if (context.notes) {
+    comment += `notes: \`${context.notes}\`\n`;
+  }
+  return j.commentBlock(comment);
+};
+
 const transformGenCall = (
-  j: any,
+  j: JSCodeshift,
   root: any,
   store: StaticStore,
+  includeContext: boolean,
   logger?: Gen2ELogger
 ) => {
   let titleWasSet = false;
@@ -88,12 +120,24 @@ const transformGenCall = (
                   );
                   internalArrowFunction.async = true;
 
-                  return j.awaitExpression(
+                  const result = j.awaitExpression(
                     j.callExpression(
                       j.parenthesizedExpression(internalArrowFunction),
                       []
                     )
                   );
+
+                  // If we've got to include context, wrap each substituted call within a block statement.
+                  // Context will give meaning/info to this group.
+                  if (includeContext && code.context) {
+                    const block = j.blockStatement([
+                      j.expressionStatement(result),
+                    ]);
+                    block.comments = [contextCommentBlock(j, code.context)];
+                    return block;
+                  }
+
+                  return result;
                 }
               }
             }
@@ -104,7 +148,7 @@ const transformGenCall = (
     });
 };
 
-const transformGenTest = (j: any, root: any) => {
+const transformGenTest = (j: JSCodeshift, root: any) => {
   root
     .find(j.CallExpression, {
       callee: {
@@ -159,21 +203,23 @@ const transform = (
   fileInfo: FileInfo,
   api: API,
   store: StaticStore,
+  includeContext: boolean,
   logger?: Gen2ELogger
 ): string => {
   const j = api.jscodeshift;
   const root = j(fileInfo.source);
-  transformGenCall(j, root, store, logger);
+  transformGenCall(j, root, store, includeContext, logger);
   transformGenTest(j, root);
   return root.toSource();
 };
 
 const compiler = (
   store: StaticStore,
+  includeContext: boolean,
   logger?: Gen2ELogger
 ): Gen2ECompileFunction =>
   makeCompiler((fileInfo: FileInfo, api: API) =>
-    transform(fileInfo, api, store, logger)
+    transform(fileInfo, api, store, includeContext, logger)
   );
 
 /**
@@ -190,10 +236,12 @@ const compiler = (
  *
  * @param {string} source - The source code to be compiled.
  * @param {StaticStore} store - The static code store used to fetch playwright expressions.
+ * @param {boolean} includeContext - Include relevant context info on top of each instruction.
  * @returns {string} compile step output.
  */
 export const pwCompile = (
   source: string,
   store: StaticStore = FSStaticStore,
+  includeContext: boolean = false,
   logger?: Gen2ELogger
-): string => compiler(store, logger)(source);
+): string => compiler(store, includeContext, logger)(source);
