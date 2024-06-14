@@ -9,11 +9,7 @@ import { type Page } from "@playwright/test";
 import { StaticStore } from "./static/store/store";
 import { Gen2ELLMAgentHooks, Gen2ELLMCodeGenAgent } from "@rhighs/gen2e-llm";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
-
-export type ModelOptions = {
-  debug?: boolean;
-  model?: string;
-};
+import { WebSnapshotResult } from "./snapshot";
 
 export type Gen2EScreenshotUsagePolicy = "force" | "model" | "onfail" | "off";
 export type Gen2EVisualDebugLevel = "none" | "medium" | "high";
@@ -29,6 +25,7 @@ export type Gen2EGenOptions = {
   model?: string;
   openaiApiKey?: string;
   policies?: Gen2EGenPolicies;
+  saveContext?: boolean;
 };
 
 export type Test = TestType<any, any>;
@@ -62,13 +59,54 @@ export interface GenType extends GenFunction, Gen2EGenContext {
 }
 
 export type StaticGenStep = {
-  ident: string;
   expression: string;
+  context?: {
+    task?: string;
+    testTitle?: string;
+    notes?: string;
+    refs?: {
+      screenshotPath?: string;
+      htmlPath?: string;
+      pageUrl: string;
+    };
+  };
 };
 
 export type Gen2EExpression = {
   task: string;
   expression: string;
+};
+
+export type Gen2EEvalLoopPolicies = {
+  screenshot?: Gen2EScreenshotUsagePolicy;
+  maxRetries?: number;
+};
+
+export type Gen2EEvalLoopInit = {
+  task: string;
+  page: Page;
+  policies: Gen2EEvalLoopPolicies;
+  evalCode: Gen2EPlaywriteCodeEvalFunc;
+};
+
+export type Gen2EEvalLoopResult =
+  | {
+      type: "error";
+      errors: Error[];
+    }
+  | {
+      type: "success";
+      result: {
+        expression: string;
+        evalResult: any;
+      };
+    };
+
+export type Gen2EEvalLoopOptions = {
+  model?: string;
+  debug?: boolean;
+  visualInfoLevel?: "none" | "medium" | "high";
+  saveScreenshots?: boolean;
 };
 
 export type Gen2ELLMCallHooks = Gen2ELLMAgentHooks;
@@ -78,7 +116,7 @@ export type Gen2ELLMCallHooks = Gen2ELLMAgentHooks;
  * @param {string} task - The task description.
  * @param {Object} config - The configuration object.
  * @param {Page} config.page - The Playwright page object.
- * @param {ModelOptions} [options] - Optional model options.
+ * @param {Gen2EGenOptions} [options] - Optional model options.
  * @param {Object} [init] - Optional initialization object.
  * @param {Gen2ELLMCallHooks} [init.hooks] - Optional hooks for the generation process.
  * @param {StaticStore} [init.store] - Optional static store for caching expressions.
@@ -90,7 +128,7 @@ export interface GenFunction {
   (
     task: string,
     config: { page: Page },
-    options?: ModelOptions,
+    options?: Gen2EGenOptions,
     init?: {
       store?: StaticStore;
       hooks?: Gen2ELLMCallHooks;

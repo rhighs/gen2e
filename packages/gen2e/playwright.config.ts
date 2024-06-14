@@ -5,7 +5,7 @@ process.env.GEN2E_DBG = "1"
 export default defineConfig({
   testDir: './tests/e2e',
   use: {
-    baseURL: "https://prolocal.mywellness.com:12443",
+    baseURL: "http://127.0.0.1:9999",
     testIdAttribute: 'data-testid',
     trace: 'on-first-retry',
     ignoreHTTPSErrors: true,

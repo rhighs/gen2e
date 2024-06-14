@@ -6,15 +6,20 @@ import {
   createPlaywrightCodeGenAgent,
   generatePlaywrightCode,
 } from "./playwright-gen";
-import { getSnapshot } from "./snapshot";
+import { WebSnapshotResult, getSnapshot } from "./snapshot";
 import { FSStaticStore } from "./static/store/fs";
 import { StaticStore } from "./static/store/store";
 import {
+  Gen2EEvalLoopInit,
+  Gen2EEvalLoopOptions,
+  Gen2EEvalLoopResult,
   Gen2EGenContext,
   Gen2EGenOptions,
+  Gen2EGenPolicies,
   Gen2ELLMCallHooks,
   Gen2EPlaywriteCodeEvalFunc,
   Gen2EScreenshotUsagePolicy,
+  StaticGenStep,
   type GenStepFunction,
   type GenType,
   type Page,
@@ -24,6 +29,26 @@ import {
 } from "./types";
 import loggerInstance from "./logger";
 import globalConfig from "./config";
+import { FSWriter } from "./io";
+import { defaultMakeIdent, wrapIdent } from "./static/ident";
+
+type Gen2EStepInit = {
+  task: string;
+  page: Page;
+  title: string;
+  evalCode: Gen2EPlaywriteCodeEvalFunc;
+  logger: Gen2ELogger;
+  store?: StaticStore;
+  hooks?: Gen2ELLMCallHooks;
+};
+
+type Gen2EStepOptions = {
+  debug: boolean;
+  model: string;
+  saveContext: boolean;
+  policies: Gen2EGenPolicies;
+  openaiApiKey?: string;
+};
 
 const tryFetch = (
   store: StaticStore,
@@ -54,38 +79,6 @@ const tryFetch = (
   return undefined;
 };
 
-export type Gen2EEvalLoopPolicies = {
-  screenshot?: Gen2EScreenshotUsagePolicy;
-  maxRetries?: number;
-};
-
-export type Gen2EEvalLoopInit = {
-  task: string;
-  page: Page;
-  policies: Gen2EEvalLoopPolicies;
-  evalCode: Gen2EPlaywriteCodeEvalFunc;
-};
-
-export type Gen2EEvalLoopResult =
-  | {
-      type: "error";
-      errors: Error[];
-    }
-  | {
-      type: "success";
-      result: {
-        expression: string;
-        evalResult: any;
-      };
-    };
-
-export type Gen2EEvalLoopOptions = {
-  model?: string;
-  debug?: boolean;
-  visualInfoLevel?: "none" | "medium" | "high";
-  saveScreenshots?: boolean;
-};
-
 const evalLoop = async (
   ctx: Gen2EGenContext,
   {
@@ -98,7 +91,7 @@ const evalLoop = async (
     evalCode,
   }: Gen2EEvalLoopInit,
   { debug, model, visualInfoLevel, saveScreenshots }: Gen2EEvalLoopOptions,
-  hooks?: Gen2ELLMCallHooks
+  llmhooks?: Gen2ELLMCallHooks
 ): Promise<Gen2EEvalLoopResult> => {
   if (!ctx.agent) {
     throw new TestStepGenResultError("agent instance cannot be left undefined");
@@ -132,12 +125,14 @@ const evalLoop = async (
     return policy === "force";
   };
 
+  let snapshot: WebSnapshotResult;
   for (let _r = 0; _r < retries; ++_r) {
     const useScreenshot = shouldScreenshot(_spolicy, {
       attempts: _r,
       model: _model,
     });
-    const domInfo = await getSnapshot(page, debug ? logger : undefined, {
+
+    snapshot = await getSnapshot(page, debug ? logger : undefined, {
       debug,
       screenshot: useScreenshot,
       pageDataTags: useScreenshot && visualInfoLevel === "high",
@@ -149,12 +144,13 @@ const evalLoop = async (
       // FIXME: temporarily set to medium, infer usage based on difficulty of the task at hand.
       stripLevel: "medium",
     });
+
     const result = await generatePlaywrightCode({
       agent: ctx.agent,
       task: {
         task: task,
-        domSnapshot: domInfo.dom,
-        pageScreenshot: domInfo.screenshot,
+        domSnapshot: snapshot.dom,
+        pageScreenshot: snapshot.screenshot,
         previousErrors: errors
           .map((e, i) => `${i}. ${e.toString().slice(0, 300)}`)
           .join("\n"),
@@ -164,7 +160,7 @@ const evalLoop = async (
         },
       },
       hooks: {
-        ...(hooks ?? {}),
+        ...(llmhooks ?? {}),
         onMessage: (message) => {
           if (debug) {
             logger.debug(
@@ -172,8 +168,8 @@ const evalLoop = async (
             );
           }
 
-          if (hooks?.onMessage) {
-            hooks.onMessage(message);
+          if (llmhooks?.onMessage) {
+            llmhooks.onMessage(message);
           }
         },
       },
@@ -223,6 +219,118 @@ const evalLoop = async (
   };
 };
 
+const step = async (
+  ctx: Gen2EGenContext,
+  { task, title, page, store, evalCode, logger, hooks }: Gen2EStepInit,
+  options: Gen2EStepOptions
+) => {
+  title = title ?? "";
+  store = store ?? FSStaticStore;
+  const testIdent = store.makeIdent(title, task);
+  if (store) {
+    const expression = tryFetch(store, title, task, { logger });
+    if (expression) {
+      return evalCode(`${expression}`, page);
+    }
+  }
+
+  if (!ctx.agent) {
+    logger.debug("creating agent...");
+    ctx.agent = createPlaywrightCodeGenAgent(
+      env.OPENAI_MODEL as Gen2ELLMAgentModel,
+      {
+        openaiApiKey: options?.openaiApiKey,
+        debug: options.debug,
+      },
+      logger
+    );
+  }
+
+  if (env.LOG_STEP) {
+    logger.info("generating playwright expression with task", { task });
+  }
+
+  let savedContext: WebSnapshotResult | undefined;
+  if (options?.saveContext) {
+    savedContext = await getSnapshot(page, options.debug ? logger : undefined, {
+      debug: options.debug,
+      screenshotFullPage: true,
+      screenshot: true,
+      stripLevel: "medium",
+    });
+  }
+
+  const result = await evalLoop(
+    ctx,
+    {
+      task,
+      page,
+      evalCode,
+      policies: options.policies,
+    },
+    {
+      debug: options.debug,
+      model: options.model,
+      saveScreenshots: options.debug,
+      visualInfoLevel:
+        options?.policies?.visualDebugLevel ??
+        globalConfig.policies?.visualDebugLevel ??
+        "medium",
+    },
+    hooks
+  );
+
+  if (result.type == "error") {
+    throw new Gen2EGenError(result.errors.join("\n"));
+  }
+
+  const { expression, evalResult } = result.result;
+
+  if (env.LOG_STEP) {
+    logger.info("evaluating", { task, expression });
+  }
+
+  if (store) {
+    const _static: StaticGenStep = {
+      expression,
+      context: {
+        task,
+        testTitle: title,
+        refs: {
+          pageUrl: page.url(),
+        },
+      },
+    };
+
+    if (options.saveContext && savedContext && _static.context?.refs) {
+      const ident = wrapIdent(defaultMakeIdent(title, task));
+      _static.context.refs.htmlPath = `${ident}.gen.html`;
+      _static.context.refs.screenshotPath = `${ident}.gen.jpg`;
+
+      Promise.all([
+        FSWriter.write(_static.context.refs.htmlPath, savedContext.dom),
+        FSWriter.write(
+          _static.context.refs.screenshotPath,
+          savedContext.screenshot ?? Buffer.from([])
+        ),
+      ]).then((_) => {
+        if (options.debug) {
+          logger.debug("saved web context data at", [
+            (_static.context!.refs!.htmlPath,
+            _static.context!.refs!.screenshotPath),
+          ]);
+        }
+      });
+    }
+
+    if (options.debug) {
+      logger.debug("storing static", _static);
+    }
+    store.makeStatic(testIdent, _static);
+  }
+  return evalResult;
+};
+
 const genContext: Gen2EGenContext = {
   agent: undefined,
   useStatic: env.USE_STATIC_STORE,
@@ -269,34 +377,21 @@ const _gen: GenType = (
       this.useStatic = false;
     }
 
-    if (!this.agent) {
-      this.agent = createPlaywrightCodeGenAgent(
-        env.OPENAI_MODEL as Gen2ELLMAgentModel,
-        {
-          openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
-          debug: isDebug,
-        },
-        logger
-      );
-    }
-
-    if (store && this.useStatic) {
-      const expression = tryFetch(store, "", task, { logger });
-      if (expression) {
-        return evalCode(`${expression}`, page);
-      }
-    }
-
-    if (env.LOG_STEP) {
-      logger.info("generating playwright expression with task", { task });
-    }
-
-    const result = await evalLoop(
+    return await step(
       this,
       {
         task,
+        title: "",
         page,
+        store: this.useStatic ? store : undefined,
+        hooks: init?.hooks,
+        logger,
         evalCode,
+      },
+      {
+        debug: isDebug,
+        model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
+        openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
         policies: {
           maxRetries:
             options?.policies?.maxRetries ??
@@ -307,40 +402,9 @@ const _gen: GenType = (
             globalConfig.policies?.screenshot ??
             "model",
         },
-      },
-      {
-        debug: isDebug,
-        model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
-        saveScreenshots: isDebug,
-        visualInfoLevel:
-          options?.policies?.visualDebugLevel ??
-          globalConfig.policies?.visualDebugLevel ??
-          "medium",
-      },
-      init?.hooks
-    );
-
-    if (result.type == "error") {
-      throw new Gen2EGenError(result.errors.join("\n"));
-    }
-
-    const { expression, evalResult } = result.result;
-
-    if (env.LOG_STEP) {
-      logger.info("evaluating", { task, expression });
-    }
-
-    if (store && this.useStatic) {
-      const _static = {
-        ident: store.makeIdent("", task),
-        expression: expression,
-      };
-      if (isDebug) {
-        logger.debug("storing static", _static);
+        saveContext: options?.saveContext ?? false,
       }
-      store?.makeStatic(_static);
-    }
-    return evalResult;
+    );
   } as GenType
 ).bind(genContext);
 
@@ -389,46 +453,25 @@ _gen.test = function (
         );
       }
 
-      if (!config.test) {
-        throw Error(
-          "The gen() function is missing the required `{ test }` argument."
-        );
-      }
-
       const { test, page } = config;
       const isDebug = options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE;
 
-      if (!self.agent) {
-        logger.debug("creating agent...");
-        self.agent = createPlaywrightCodeGenAgent(
-          env.OPENAI_MODEL as Gen2ELLMAgentModel,
-          {
-            openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
-            debug: isDebug,
-          },
-          logger
-        );
-      }
-
       return await test.step(task, async () => {
-        const testIdent = store.makeIdent(title, task);
-        if (store && this.useStatic) {
-          const expression = tryFetch(store, title, task, { logger });
-          if (expression) {
-            return evalCode(`${expression}`, page);
-          }
-        }
-
-        if (env.LOG_STEP) {
-          logger.info("generating playwright expression with task", { task });
-        }
-
-        const result = await evalLoop(
-          this,
+        return await step(
+          self,
           {
             task,
+            title,
             page,
+            store: self.useStatic ? store : undefined,
+            hooks: init?.hooks,
+            logger,
             evalCode,
+          },
+          {
+            debug: isDebug,
+            model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
+            openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
             policies: {
               maxRetries:
                 options?.policies?.maxRetries ??
@@ -439,40 +482,9 @@ _gen.test = function (
                 globalConfig.policies?.screenshot ??
                 "model",
             },
-          },
-          {
-            debug: isDebug,
-            model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
-            saveScreenshots: isDebug,
-            visualInfoLevel:
-              options?.policies?.visualDebugLevel ??
-              globalConfig.policies?.visualDebugLevel ??
-              "medium",
-          },
-          init?.hooks
-        );
-
-        if (result.type == "error") {
-          throw new Gen2EGenError(result.errors.join("\n"));
-        }
-
-        const { expression, evalResult } = result.result;
-
-        if (env.LOG_STEP) {
-          logger.info("evaluating", { task, expression });
-        }
-
-        if (self.useStatic) {
-          const _static = {
-            ident: testIdent,
-            expression,
-          };
-          if (isDebug) {
-            logger.debug("storing static", _static);
+            saveContext: options?.saveContext ?? false,
           }
-          store.makeStatic(_static);
-        }
-        return evalResult;
+        );
       });
     };
 
