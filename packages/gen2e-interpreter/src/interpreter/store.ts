@@ -1,20 +1,16 @@
-import { StaticStore } from "@rhighs/gen2e";
+import { StaticStore, StaticGenStep } from "@rhighs/gen2e";
 
-export type Gen2EInterpreterInMemStatic = { [key: string]: string };
+export type Gen2EInterpreterInMemStatic = { [key: string]: StaticGenStep };
 
-export const inMemStore = (): [
-  () => Gen2EInterpreterInMemStatic,
-  StaticStore
-] => {
-  const inMemoryStatic: { [key: string]: string } = {};
+export const inMemStore = (
+  id: string
+): [() => Gen2EInterpreterInMemStatic, StaticStore] => {
+  const inMemoryStatic: Gen2EInterpreterInMemStatic = {};
   const staticStore: StaticStore = {
-    makeIdent: (title, task) => `gen2.interpreter - [${title}](${task})`,
-    fetchStatic: (ident: string) => ({
-      ident,
-      expression: inMemoryStatic[ident],
-    }),
-    makeStatic: (content) =>
-      (inMemoryStatic[content.ident] = content.expression),
+    makeIdent: (title, task) => `[${title}](${task}) ${id}`,
+    fetchStatic: (ident: string) => inMemoryStatic[ident],
+    makeStatic: (ident: string, content: StaticGenStep) =>
+      (inMemoryStatic[ident] = content),
   };
   return [() => inMemoryStatic, staticStore];
 };

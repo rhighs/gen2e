@@ -52,6 +52,9 @@ export class RecordingInterpreter {
   private currentStore: StaticStore;
   private getStaticMem: () => Gen2EInterpreterInMemStatic;
 
+  private testTitle: string = "gen2e-recording-interpreter generated test";
+  private runTimestamp: string;
+
   private tasks: string[] = [];
 
   constructor(
@@ -67,7 +70,8 @@ export class RecordingInterpreter {
       this.logger.config(config.logger);
     }
 
-    const [getMem, staticStore] = inMemStore();
+    this.runTimestamp = (+new Date()).toString();
+    const [getMem, staticStore] = inMemStore(this.runTimestamp);
     this.currentStore = staticStore;
     this.getStaticMem = getMem;
 
@@ -195,7 +199,7 @@ export class RecordingInterpreter {
 
     this.gen2eExpressions = [];
     if (this.mode === "playwright") {
-      const [getMem, store] = inMemStore();
+      const [getMem, store] = inMemStore(this.runTimestamp);
       this.browser = new Gen2EBrowser(this.config.browserOptions);
       await this.browser.startup();
       this.currentStore = store;
@@ -253,10 +257,8 @@ export class RecordingInterpreter {
     }
 
     this.gen2eExpressions.push(result);
-    const [getMem, localStore] = inMemStore();
-    const fakeTestSource = generateFakeTestCode("gen2e - interpreter gen", [
-      result,
-    ]);
+    const [getMem, localStore] = inMemStore(this.runTimestamp);
+    const fakeTestSource = generateFakeTestCode(this.testTitle, [result]);
     const page = this.browser.page;
 
     if (this.options.debug) {
@@ -269,15 +271,22 @@ export class RecordingInterpreter {
       localStore
     );
 
-    if (seResult.type === "success" && Object.keys(getMem()).length > 0) {
-      const mem = getMem();
-      const [[k, v]] = Object.entries(mem);
-      this.currentStore.makeStatic({ ident: k, expression: v });
-      if (this.options.debug) {
-        this.logger.debug("sandbox memory", this.getStaticMem());
-        this.logger.debug("playwright mode", v);
+    const mem = getMem();
+    if (this.options.debug) {
+      this.logger.debug("SANDBOX EVAL temp mem:", getMem());
+    }
+
+    if (seResult.type === "success" && Object.keys(mem).length > 0) {
+      let code = "";
+      for (let [k, v] of Object.entries(mem)) {
+        this.currentStore.makeStatic(k, v);
+        code += v.expression + "\n";
       }
-      return v;
+
+      if (this.options.debug) {
+        this.logger.debug("playwright mode", code);
+      }
+      return code;
     } else if (seResult.type === "error") {
       this.gen2eExpressions.pop();
       this.logger.warn("sandbox execution has failed, ignoring...");
@@ -299,7 +308,9 @@ export class RecordingInterpreter {
     }
 
     this.gen2eExpressions.push(result);
-    this.logger.debug("gen2e mode", result);
+    if (this.options.debug) {
+      this.logger.debug("gen2e mode", result);
+    }
     return result;
   }
 
@@ -323,6 +334,7 @@ export class RecordingInterpreter {
           openaiApiKey: this.options.openaiApiKey,
           debug: this.options.debug,
           policies: this.options.policies,
+          saveContext: true,
         },
         (code: string, page: Page) => {
           const evalFunc = new Function(
@@ -384,14 +396,14 @@ export class RecordingInterpreter {
       case "playwright":
         {
           const fakeTestSource = generateFakeTestCode(
-            "gen2e - interpreter gen",
+            this.testTitle,
             this.gen2eExpressions,
             false
           );
           gen2eCode = fakeTestSource;
 
           try {
-            code = pwCompile(fakeTestSource, this.currentStore);
+            code = pwCompile(fakeTestSource, this.currentStore, true);
           } catch (error) {
             this.logger.error(error);
           }
@@ -400,7 +412,7 @@ export class RecordingInterpreter {
       case "gen2e":
         {
           gen2eCode = generateFakeTestCode(
-            "gen2e - interpreter gen",
+            this.testTitle,
             this.gen2eExpressions,
             false
           );

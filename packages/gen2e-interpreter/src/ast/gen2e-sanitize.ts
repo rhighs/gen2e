@@ -65,7 +65,7 @@ const filterNode = (node: any): boolean => {
       : undefined;
 
   if (node.type === "IfStatement") {
-    node.consequent.body.filter(filterNode)
+    node.consequent.body.filter(filterNode);
     return true;
   }
 

@@ -1,6 +1,7 @@
 import { Gen2EGenPolicies } from "@rhighs/gen2e";
 import { Gen2EBrowserOptions } from "./browser";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
+import { Gen2EInterpreterInMemStatic } from "./store";
 
 export type Gen2EInterpreterEvent =
   | "start"
@@ -63,5 +64,5 @@ export type Gen2ERecordingPeekResult = {
   tasks: string[];
   gen2eCode: string;
   code: string;
-  mem: { [key: string]: string };
+  mem: Gen2EInterpreterInMemStatic;
 };

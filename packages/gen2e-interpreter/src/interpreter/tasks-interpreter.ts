@@ -42,6 +42,9 @@ class TasksInterpreter {
   private fallbackModel: string = env.OPENAI_MODEL;
   private llmCallHooks: Gen2ELLMCallHooks;
 
+  private testTitle: string = "gen2e-recording-interpreter generated test";
+  private runTimestamp: string;
+
   constructor(
     config: Gen2EInterpreterConfig,
     options: Gen2EInterpreterOptions
@@ -53,6 +56,7 @@ class TasksInterpreter {
     if (config.logger) {
       this.logger.config(config.logger);
     }
+    this.runTimestamp = (+new Date()).toString();
 
     this.recordModelsUsage = options.recordUsage ?? false;
     if (this.recordModelsUsage) {
@@ -303,7 +307,7 @@ class TasksInterpreter {
     let result: Gen2EInterpreterResult;
     switch (this.mode) {
       case "playwright":
-        const [_mem, staticStore] = inMemStore();
+        const [_mem, staticStore] = inMemStore(this.runTimestamp);
         result = await this._runTasks_mode_playwright(tasks, staticStore);
         break;
       case "gen2e":
