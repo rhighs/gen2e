@@ -7,17 +7,11 @@ import {
 } from "fs";
 import { StaticGenStep } from "../../types";
 import { StaticStore } from "./store";
-import { hash } from "crypto";
 import path from "path";
-import { defaultMakeIdent } from "../ident";
-
-import globalConfig from "../../config";
+import { defaultMakeIdent, wrapIdent } from "../ident";
+import { BASE_STATIC_PATH } from "..";
 
 const shouldPreload = !!process.env.GEN2E_PRELOAD_ENABLED;
-const BASE_STATIC_PATH =
-  globalConfig.staticStorePath ??
-  process.env.GEN2E_STATIC_PATH ??
-  path.join(process.cwd(), ".static");
 const stepsDirPath = `${BASE_STATIC_PATH}/steps`;
 
 /**
@@ -28,7 +22,7 @@ const stepsDirPath = `${BASE_STATIC_PATH}/steps`;
 const stepFilePath = (ident: string): string =>
   `${BASE_STATIC_PATH}/steps/${wrapIdent(ident)}`;
 
-type PreloadedStaticSteps = Map<string, string>;
+type PreloadedStaticSteps = Map<string, StaticGenStep>;
 
 /**
  * Preloads the static steps from the steps directory.
@@ -36,7 +30,8 @@ type PreloadedStaticSteps = Map<string, string>;
  */
 export const preload = (): PreloadedStaticSteps =>
   readdirSync(stepsDirPath).reduce((acc, file): PreloadedStaticSteps => {
-    acc.set(file, readFileSync(path.join(stepsDirPath, file)).toString());
+    const fileContents = readFileSync(path.join(stepsDirPath, file)).toString();
+    acc.set(file, JSON.parse(fileContents));
     return acc;
   }, new Map());
 
@@ -46,13 +41,6 @@ if (shouldPreload) {
 }
 
 /**
- * Wraps an identifier with an MD5 hash.
- * @param {string} ident - The identifier.
- * @returns {string} The wrapped identifier.
- */
-const wrapIdent = (ident: string): string => `${hash("md5", ident)}.gen.step`;
-
-/**
  * File system-based implementation of the StaticStore interface.
  */
 export const FSStaticStore: StaticStore = {
@@ -60,8 +48,6 @@ export const FSStaticStore: StaticStore = {
 
   /**
    * Fetches a static generation step by its identifier.
-   * @param {string} ident - The identifier.
-   * @returns {StaticGenStep | undefined} The fetched static generation step, or undefined if not found.
    */
   fetchStatic: (ident): StaticGenStep | undefined => {
     if (!existsSync(stepsDirPath)) {
@@ -71,17 +57,20 @@ export const FSStaticStore: StaticStore = {
     if (shouldPreload) {
       const maybeStatic = preloadedSteps.get(wrapIdent(ident));
       if (maybeStatic) {
-        return {
-          ident,
-          expression: maybeStatic,
-        };
+        return maybeStatic;
       }
     }
 
     try {
+      const fileContents = readFileSync(stepFilePath(ident)).toString();
+      const content = JSON.parse(fileContents);
+      if (!content.expression) {
+        return undefined;
+      }
+
       return {
-        ident,
-        expression: readFileSync(stepFilePath(ident)).toString(),
+        ...content,
+        expression: content.expression,
       };
     } catch (err) {
       return undefined;
@@ -90,15 +79,14 @@ export const FSStaticStore: StaticStore = {
 
   /**
    * Writes a static generation step to the file system.
-   * @param {StaticGenStep} staticInfo - The static generation step information.
    */
-  makeStatic: (staticInfo: StaticGenStep) => {
-    return writeFileSync(
-      stepFilePath(staticInfo.ident),
-      staticInfo.expression,
-      {
-        flag: "wx",
-      }
-    );
+  makeStatic: (ident: string, content: StaticGenStep) => {
+    if (!existsSync(stepsDirPath)) {
+      mkdirSync(stepsDirPath, { recursive: true });
+    }
+
+    return writeFileSync(stepFilePath(ident), JSON.stringify(content), {
+      flag: "wx",
+    });
   },
 };

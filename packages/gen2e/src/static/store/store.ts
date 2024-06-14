@@ -15,8 +15,9 @@ export interface StaticStore {
   fetchStatic: (ident: string) => StaticGenStep | undefined;
 
   /**
-   * Writes a static generation step to the store.
-   * @param {StaticGenStep} content - The static generation step content.
+   * Writes some generated code in a store by ident key.
+   * @param {string} ident - Code identifier the saved code will be associated with.
+   * @param {string} code - Code to be saved.
    */
-  makeStatic: (content: StaticGenStep) => void;
+  makeStatic: (ident: string, content: StaticGenStep) => void;
 }
