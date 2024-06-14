@@ -8,7 +8,7 @@
   "scripts": {
     "build": "lerna run build",
     "publish": "lerna run build && lerna publish",
-    "start": "tsx ./packages/gen2e-cli/src/index.ts",
+    "start": "ts-node ./packages/gen2e-cli/src/index.ts",
     "test": "lerna run test",
     "format": "lerna run format",
     "cloc": "find packages \\( -iname \\*.ts -o -iname \\*.js \\) -not -path \"*/node_modules/*\" -not -path \"*/out/*\" -not -path \"*/dist/*\" -not -path \"*.test.ts\" -not -path \"*.spec.ts\" | xargs wc -l"
