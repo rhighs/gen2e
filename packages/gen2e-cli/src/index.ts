@@ -1,7 +1,7 @@
 import { appendFileSync, readFileSync, writeFileSync } from "fs";
 import { program } from "commander";
 import util from "util";
-import { type Gen2EExpression } from "@rhighs/gen2e";
+import { type Gen2EExpression, StaticGenStep } from "@rhighs/gen2e";
 import {
   recordingInterpreter,
   tasksInterpreter,
@@ -327,16 +327,14 @@ program
         tasks: string[] | undefined;
         gen2eCode: string;
         code: string;
-        mem?: { [key: string]: string };
+        mem?: { [key: string]: StaticGenStep };
       }) => `tasks:
 ${peek.tasks ? peek.tasks.join("\n") : "no tasks available"}
 
 gen2e IL:
 ${peek.gen2eCode}
 
-${
-    peek.mem ? `mem:\n${util.inspect(peek.mem)}` : ''
-}
+${peek.mem ? `mem:\n${util.inspect(peek.mem)}` : ""}
 
 playwright code:
 ${peek.code}`;
