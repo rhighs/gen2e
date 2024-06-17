@@ -8,8 +8,8 @@ const staticStore: StaticStore = {
     ident,
     expression: inMemoryStatic[ident],
   }),
-  makeStatic: (content) => {
-    inMemoryStatic[content.ident] = content.expression;
+  makeStatic: (ident, content) => {
+    inMemoryStatic[ident] = content.expression;
   },
 };
 
@@ -28,8 +28,7 @@ test('example test', async () => {
 
     const ident = staticStore.makeIdent("example test", "task 1");
     const staticCode = "async () => { /* static code */ }";
-    staticStore.makeStatic({
-      ident,
+    staticStore.makeStatic(ident, {
       expression: staticCode,
     });
 
