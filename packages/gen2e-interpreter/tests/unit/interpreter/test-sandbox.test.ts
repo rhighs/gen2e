@@ -34,7 +34,7 @@ describe("sandboxEval", () => {
 
               return await config.test.step("task", async () => {
                 const expression = `async () => {return ${mockNoop}}`;
-                staticStore.makeStatic({ ident, expression });
+                staticStore.makeStatic(ident, { expression });
                 return evalCode!(expression, page);
               });
             },
@@ -53,8 +53,8 @@ describe("sandboxEval", () => {
       ident,
       expression: inMemoryStatic[ident],
     }),
-    makeStatic: (content) => {
-      inMemoryStatic[content.ident] = content.expression;
+    makeStatic: (ident, content) => {
+      inMemoryStatic[ident] = content.expression;
     },
   };
 
@@ -77,7 +77,7 @@ describe("sandboxEval", () => {
     const ident = staticStore.makeIdent("gen test", "task 1");
     const staticExpression =
       "(async () => { await page.goto('https://example.com'); })";
-    staticStore.makeStatic({ ident, expression: staticExpression });
+    staticStore.makeStatic(ident, { expression: staticExpression });
     const customEvalPwCode = jest.fn().mockResolvedValue(Promise.resolve());
 
     await sandboxEval(

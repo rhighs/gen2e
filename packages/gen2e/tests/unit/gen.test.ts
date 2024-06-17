@@ -42,13 +42,15 @@ const mockGetSnapshot = getSnapshot as jest.MockedFunction<typeof getSnapshot>;
 describe("gen function", () => {
   const codeSample =
     '(async () => {return async () => (await page.goto("https://example.com"));})';
-  const mockPage = {} as Page;
+  const mockPage = {
+    url: () => "https://example.com"
+  } as Page;
   const staticStore = {};
   const mockStaticStore: StaticStore = {
     makeIdent: jest.fn((title, task) => task),
     fetchStatic: (ident) => staticStore[ident],
-    makeStatic: (content: StaticGenStep): void => {
-      staticStore[content.ident] = content.expression;
+    makeStatic: (ident: string, content: StaticGenStep): void => {
+      staticStore[ident] = content.expression;
     },
   };
 
