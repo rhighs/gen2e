@@ -1,5 +1,5 @@
 export const formatBlock = ([task, expr]: [string, string]): string => `\
-// task
+// ${task}
 {
 ${expr}
 }`;
