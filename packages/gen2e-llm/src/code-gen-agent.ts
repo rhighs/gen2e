@@ -1,4 +1,8 @@
-import { sanitizeCodeOutput, validateJSCode } from "./sanity";
+import {
+  sanitizeCodeOutput,
+  validateJSCode,
+  validateJSONString,
+} from "./sanity";
 import { makeTool, makeTracedTool } from "./tools";
 import { makeFormatTool } from "./tools/ensure-format";
 import {
@@ -13,38 +17,56 @@ import {
   Gen2ELLMAgentOpenAIModel,
   Gen2ELLMCodeGenAgent,
   Gen2ELLMAgentRunnerInit,
+  Gen2ELLMAgentTool,
 } from "./types";
 import { Gen2ELLMGenericError } from "./errors";
 import { Gen2EOpenAIRunner } from "./runner/openai";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
-const tools = [
-  makeTracedTool(
-    makeTool(({ code }) => {
-      return validateJSCode(code);
-    })
-  ),
-  makeTracedTool(
-    makeFormatTool(({ code }) => {
-      if (
-        code.startsWith("```") ||
-        code.startsWith("\\`\\`\\`") ||
-        code.endsWith("```") ||
-        code.endsWith("\\`\\`\\`")
-      ) {
-        return {
-          success: false,
-          reason:
-            "Invalid format, do not use markdown. Code should be formatted as plain string.",
-        };
-      }
+const createCodeGenTools = (lang: string) => {
+  const tools = [
+    makeTracedTool(
+      makeFormatTool(({ code }) => {
+        if (
+          code.startsWith("```") ||
+          code.startsWith("\\`\\`\\`") ||
+          code.endsWith("```") ||
+          code.endsWith("\\`\\`\\`")
+        ) {
+          return {
+            success: false,
+            reason:
+              "Invalid format, do not use markdown. Code should be formatted as plain string.",
+          };
+        }
 
-      return {
-        success: true,
-      };
-    })
-  ),
-];
+        return {
+          success: true,
+        };
+      })
+    ),
+  ];
+
+  if (lang === "javascript" || lang === "typescript") {
+    tools.push(
+      makeTracedTool(
+        makeTool(({ code }) => {
+          return validateJSCode(code);
+        })
+      )
+    );
+  }
+
+  if (lang === "json") {
+    makeTracedTool(
+      makeTool(({ code }) => {
+        return validateJSONString(code);
+      })
+    );
+  }
+
+  return tools;
+};
 
 const makePrompt = (
   message: string,
@@ -93,12 +115,20 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
   options?: Gen2ELLMAgentBuilderOptions,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
+  tools?: Gen2ELLMAgentTool<{ code?: string; [key: string]: any }>[],
+  defaultLang: string = "javascript"
 ): Gen2ELLMAgent<Gen2ELLMCodeGenAgentTask, string> => {
   const isDebug = options?.debug ?? false;
   const _logger = defaultAgentLogger;
   if (logger) {
     _logger.config(logger);
+  }
+
+  const defaultTools = createCodeGenTools(defaultLang);
+  let allTools = [...defaultTools];
+  if (tools) {
+    allTools = [...allTools, ...tools.map((tool) => makeTracedTool(tool))];
   }
 
   let runner: Gen2ELLMAgentRunner;
@@ -166,7 +196,7 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
         task: {
           prompt: taskPrompt,
           output: expression ?? "",
-          noToolCalls: tools
+          noToolCalls: allTools
             .map((tool) => tool.callCount())
             .reduce((acc, v) => acc + v, 0),
         },

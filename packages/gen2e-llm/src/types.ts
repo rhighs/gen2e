@@ -1,5 +1,6 @@
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
 import OpenAI from "openai";
+import { JSONSchema } from "./jsonschema";
 
 export type Gen2ELLMAgentTask = {
   task: string;
@@ -59,11 +60,21 @@ export type Gen2ELLMCodeGenAgent = Gen2ELLMAgent<
   string
 >;
 
+export type Gen2ELLMAgentTool<Args extends object> = {
+  function: (args: Args) => Promise<any> | any;
+  description: string;
+  name: string;
+  parameters: JSONSchema;
+  parse: (args: string) => any;
+};
+
 export type Gen2ELLMAgentBuilder<Agent extends object> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
   options?: Gen2ELLMAgentBuilderOptions,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
+  tools?: Gen2ELLMAgentTool<{ code?: string; [key: string]: any }>[],
+  defaultLang?: string
 ) => Agent;
 
 export type Gen2ELLMAgentRunnerInit = {
@@ -120,3 +131,8 @@ export const Gen2ELLMAgentModels = {
 export type Gen2ELLMAgentOpenAIModel = keyof typeof Gen2ELLMAgentOpenAIModels;
 
 export type Gen2ELLMAgentModel = keyof typeof Gen2ELLMAgentModels;
+
+export interface Gen2LLMAgentTracedTool<T extends object>
+  extends Gen2ELLMAgentTool<T> {
+  callCount(): number;
+}

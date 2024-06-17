@@ -1,26 +1,14 @@
-import {
-  ChatCompletionRunner,
-  ChatCompletionStreamingRunner,
-  RunnableFunctionWithParse,
-} from "openai/resources/beta/chat/completions";
-
-export interface TracedRunnableFunctionWithParse<T extends object>
-  extends RunnableFunctionWithParse<T> {
-  callCount(): number;
-}
+import { Gen2ELLMAgentTool, Gen2LLMAgentTracedTool } from "../types";
 
 export const makeTracedTool = <T extends object>(
-  toolFunction: RunnableFunctionWithParse<T>
-): TracedRunnableFunctionWithParse<T> => {
+  toolFunction: Gen2ELLMAgentTool<T>
+): Gen2LLMAgentTracedTool<T> => {
   let _callCount = 0;
   return {
     ...toolFunction,
-    function: (
-      args: T,
-      _runner: ChatCompletionRunner | ChatCompletionStreamingRunner
-    ): Promise<any> | any => {
+    function: (args: T): Promise<any> | any => {
       _callCount += 1;
-      return toolFunction.function(args, _runner);
+      return toolFunction.function(args);
     },
     callCount: () => _callCount,
   };
