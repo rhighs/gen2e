@@ -1,16 +1,10 @@
-import { ChatCompletionRunner } from "openai/lib/ChatCompletionRunner";
-import { ChatCompletionStreamingRunner } from "openai/lib/ChatCompletionStreamingRunner";
-import { RunnableFunctionWithParse } from "openai/lib/RunnableFunction";
-
 import { z } from "zod";
+import { Gen2ELLMAgentTool } from "../types";
 
 export const makeFormatTool = (
   validator: (args: { code: string }) => { success: boolean; reason?: string }
-): RunnableFunctionWithParse<{ code: string }> => ({
-  function: (
-    args: { code: string },
-    _runner: ChatCompletionRunner | ChatCompletionStreamingRunner
-  ): Promise<any> | any => {
+): Gen2ELLMAgentTool<{ code: string }> => ({
+  function: (args: { code: string }): Promise<any> | any => {
     return validator(args);
   },
   description: `This is a function you use to pass it the generated code you would give as final response to the user.
