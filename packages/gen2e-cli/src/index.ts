@@ -1,15 +1,16 @@
 import { appendFileSync, readFileSync, writeFileSync } from "fs";
 import { program } from "commander";
 import util from "util";
+import path from "path";
+import readline from "readline";
 import { type Gen2EExpression, StaticGenStep } from "@rhighs/gen2e";
+import { makeLogger } from "@rhighs/gen2e-logger";
 import {
   recordingInterpreter,
   tasksInterpreter,
 } from "@rhighs/gen2e-interpreter";
 
 import * as pjson from "../package.json";
-import { makeLogger } from "@rhighs/gen2e-logger";
-import readline from "readline";
 import { makeREPL } from "./repl";
 const logger = makeLogger("GEN2E-CLI");
 
@@ -314,6 +315,7 @@ program
         /start - Start the interpreter
         /stop - Stop the interpreter and get the result
         /peek - Peek at the current state of the interpreter
+        /dump - Dump current recorder state info to a file (playwright mode only)
         /help - Display this help message`;
         process.stdout.write(`\n${helpMessage}\n`);
       };
@@ -366,6 +368,17 @@ ${peek.code}`;
               const peek = interpreter.peek();
               const out = formatCodeOutput(peek);
               process.stdout.write(out + "\n");
+            }
+            break;
+          case "/dump":
+            {
+              const dump = interpreter.dump();
+              const filepath = path.join(
+                process.cwd(),
+                `gen2e-dump_${dump.testId}.json`
+              );
+              writeFileSync(filepath, JSON.stringify(dump, null, 4));
+              process.stdout.write(`test info dumped at ${filepath}\n`);
             }
             break;
           default:
