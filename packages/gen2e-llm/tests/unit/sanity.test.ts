@@ -1,4 +1,8 @@
-import { sanitizeCodeOutput, validateJSCode } from "../../src";
+import {
+  sanitizeCodeOutput,
+  validateJSCode,
+  validateJSONString,
+} from "../../src";
 import * as esprima from "esprima";
 
 describe("sanitizeCodeOutput", () => {
@@ -33,7 +37,8 @@ describe("sanitizeCodeOutput", () => {
   });
 
   it("should remove any text prior to the markdown block", () => {
-    const input = "text before it that must be stripped away:\n```js\n\nconsole.log('Hello World');\n\n```\n";
+    const input =
+      "text before it that must be stripped away:\n```js\n\nconsole.log('Hello World');\n\n```\n";
     const expectedOutput = "console.log('Hello World');";
     expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
   });
@@ -65,5 +70,29 @@ describe("validateJSCode", () => {
     const result = validateJSCode(code);
     expect(result).toBe(false);
     expect(esprima.parseScript).toHaveBeenCalledWith(`(async () => {${code}})`);
+  });
+});
+
+describe("validateJSONString", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should return false for an empty string", () => {
+    const code = "";
+    const result = validateJSONString(code);
+    expect(result).toBe(false);
+  });
+
+  it("should return true for valid JSON string", () => {
+    const code = '{"name": "John", "age": 30}';
+    const result = validateJSONString(code);
+    expect(result).toBe(true);
+  });
+
+  it("should return false for invalid JSON string", () => {
+    const code = '{"name": "John", "age": 30,}';
+    const result = validateJSONString(code);
+    expect(result).toBe(false);
   });
 });

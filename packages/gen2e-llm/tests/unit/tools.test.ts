@@ -1,12 +1,9 @@
 import {
-  ChatCompletionRunner,
-  RunnableFunctionWithParse,
-} from "openai/resources/beta/chat/completions";
-import {
   makeTool,
   makeFormatTool,
   makeTracedTool,
-  TracedRunnableFunctionWithParse,
+  Gen2LLMAgentTracedTool,
+  Gen2ELLMAgentTool,
 } from "../../src";
 
 describe("makeTracedTool", () => {
@@ -14,8 +11,9 @@ describe("makeTracedTool", () => {
     input: string;
   }
 
-  const mockToolFunction: RunnableFunctionWithParse<TestArgs> = {
+  const mockToolFunction: Gen2ELLMAgentTool<TestArgs> = {
     function: jest.fn(),
+    name: "some tool name",
     parameters: {
       type: "object",
       properties: {
@@ -29,25 +27,23 @@ describe("makeTracedTool", () => {
     parse: jest.fn(),
   };
 
-  let tracedTool: TracedRunnableFunctionWithParse<TestArgs>;
+  let tracedTool: Gen2LLMAgentTracedTool<TestArgs>;
   beforeEach(() => {
     tracedTool = makeTracedTool(mockToolFunction);
   });
 
   test("should call the original function with correct arguments", async () => {
     const args = { input: "test" };
-    const runner = {} as ChatCompletionRunner;
-    await tracedTool.function(args, runner);
-    expect(mockToolFunction.function).toHaveBeenCalledWith(args, runner);
+    await tracedTool.function(args);
+    expect(mockToolFunction.function).toHaveBeenCalledWith(args);
   });
 
   test("should increment call count correctly", async () => {
     const args = { input: "test" };
-    const runner = {} as ChatCompletionRunner;
     expect(tracedTool.callCount()).toBe(0);
-    await tracedTool.function(args, runner);
+    await tracedTool.function(args);
     expect(tracedTool.callCount()).toBe(1);
-    await tracedTool.function(args, runner);
+    await tracedTool.function(args);
     expect(tracedTool.callCount()).toBe(2);
   });
 });
@@ -63,18 +59,16 @@ describe("makeFormatTool", () => {
 
   test("should validate the provided code", () => {
     const args = { code: "test code" };
-    const runner = {} as ChatCompletionRunner;
     mockValidator.mockReturnValue({ success: true });
-    const result = formatTool.function(args, runner);
+    const result = formatTool.function(args);
     expect(mockValidator).toHaveBeenCalledWith(args);
     expect(result).toEqual({ success: true });
   });
 
   test("should return validation failure reason", () => {
     const args = { code: "invalid code" };
-    const runner = {} as ChatCompletionRunner;
     mockValidator.mockReturnValue({ success: false, reason: "Invalid format" });
-    const result = formatTool.function(args, runner);
+    const result = formatTool.function(args);
     expect(mockValidator).toHaveBeenCalledWith(args);
     expect(result).toEqual({ success: false, reason: "Invalid format" });
   });
@@ -102,18 +96,16 @@ describe("makeTool", () => {
 
   test("should validate the provided code", () => {
     const args = { code: "test code" };
-    const runner = {} as ChatCompletionRunner;
     mockValidator.mockReturnValue(true);
-    const result = tool.function(args, runner);
+    const result = tool.function(args);
     expect(mockValidator).toHaveBeenCalledWith(args);
     expect(result).toBe(true);
   });
 
   test("should return false when validation fails", () => {
     const args = { code: "invalid code" };
-    const runner = {} as ChatCompletionRunner;
     mockValidator.mockReturnValue(false);
-    const result = tool.function(args, runner);
+    const result = tool.function(args);
     expect(mockValidator).toHaveBeenCalledWith(args);
     expect(result).toBe(false);
   });
