@@ -223,11 +223,13 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
     }
 
     const sanitizedExpr = sanitizeCodeOutput(expression);
-    if (!validateJSCode(sanitizedExpr)) {
-      return {
-        type: "error",
-        errorMessage: `llm runner failed generation a valid javascript expression, got ${sanitizedExpr}`,
-      };
+    if (defaultLang === "javascript" || defaultLang === "typescript") {
+      if (!validateJSCode(sanitizedExpr)) {
+        return {
+          type: "error",
+          errorMessage: `llm runner failed generation a valid javascript expression, got ${sanitizedExpr}`,
+        };
+      }
     }
 
     if (isDebug) {

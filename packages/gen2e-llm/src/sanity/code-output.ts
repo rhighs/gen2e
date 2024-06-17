@@ -1,5 +1,6 @@
 const MARKDOWN_BLOCK_TOKEN = "```";
 const MARKDOWN_TS_BLOCK_TOKEN = "```ts";
+const MARKDOWN_JSON_BLOCK_TOKEN = "```json";
 const MARKDOWN_JS_BLOCK_TOKEN = "```js";
 const MARKDOWN_TYPESCRIPT_BLOCK_TOKEN = "```typescript";
 const MARKDOWN_JAVASCRIPT_BLOCK_TOKEN = "```javascript";
@@ -24,6 +25,7 @@ export const sanitizeCodeOutput = (llmOutput: string): string => {
     MARKDOWN_TYPESCRIPT_BLOCK_TOKEN,
     MARKDOWN_JAVASCRIPT_BLOCK_TOKEN,
     MARKDOWN_TS_BLOCK_TOKEN,
+    MARKDOWN_JSON_BLOCK_TOKEN,
     MARKDOWN_JS_BLOCK_TOKEN,
     MARKDOWN_BLOCK_TOKEN,
   ]) {
