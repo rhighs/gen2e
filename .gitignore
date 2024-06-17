@@ -130,6 +130,7 @@ dist
 .pnp.*
 
 # gen2e
+gen2e-dump_*
 .static
 test.*
 .DS_Store
