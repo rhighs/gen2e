@@ -12,7 +12,7 @@ export interface IOWriter {
    * Writes some static data by ident key.
    * @param {string} ident - Data identifier the saved data will be associated with.
    * @param {string} data - Data to be saved.
-   * @return {Promise<void>} - Promise resolving on write end.
+   * @return {Promise<string>} - Promise resolving on write end with value the fully qualified write path.
    */
-  write: (filename: string, data: StaticData) => Promise<void>;
+  write: (filename: string, data: StaticData) => Promise<string>;
 }

@@ -20,7 +20,7 @@ const stepsDirPath = `${BASE_STATIC_PATH}/steps`;
  * @returns {string} The constructed file path.
  */
 const stepFilePath = (ident: string): string =>
-  `${BASE_STATIC_PATH}/steps/${wrapIdent(ident)}`;
+  `${BASE_STATIC_PATH}/steps/${wrapIdent(ident)}.gen.step`;
 
 type PreloadedStaticSteps = Map<string, StaticGenStep>;
 
@@ -55,7 +55,7 @@ export const FSStaticStore: StaticStore = {
     }
 
     if (shouldPreload) {
-      const maybeStatic = preloadedSteps.get(wrapIdent(ident));
+      const maybeStatic = preloadedSteps.get(wrapIdent(ident) + ".gen.step");
       if (maybeStatic) {
         return maybeStatic;
       }

@@ -37,5 +37,4 @@ export const hashBasedIdent: MakeIdentFunction = (
  * @param {string} ident - The identifier.
  * @returns {string} The wrapped identifier.
  */
-export const wrapIdent = (ident: string): string =>
-  `${hash("md5", ident)}.gen.step`;
+export const wrapIdent = (ident: string): string => `${hash("md5", ident)}`;

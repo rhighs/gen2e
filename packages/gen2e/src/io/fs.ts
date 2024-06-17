@@ -30,13 +30,12 @@ export const FSWriter: IOWriter = {
     filename: string,
     data: StaticData,
     dir: string = FILES_DIR
-  ): Promise<void> => {
+  ): Promise<string> => {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
     const fp = path.join(dir, filename);
-    return await writeFileAsync(fp, data, {
-      flag: "wx",
-    });
+    await writeFileAsync(fp, data);
+    return fp;
   },
 };

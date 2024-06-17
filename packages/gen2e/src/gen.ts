@@ -304,16 +304,15 @@ const step = async (
 
     if (options.saveContext && savedContext && _static.context?.refs) {
       const ident = wrapIdent(defaultMakeIdent(title, task));
-      _static.context.refs.htmlPath = `${ident}.gen.html`;
-      _static.context.refs.screenshotPath = `${ident}.gen.jpg`;
+      const htmlFile = `${ident}.gen.html`;
+      const jpgFile = `${ident}.gen.jpg`;
 
       Promise.all([
-        FSWriter.write(_static.context.refs.htmlPath, savedContext.dom),
-        FSWriter.write(
-          _static.context.refs.screenshotPath,
-          savedContext.screenshot ?? Buffer.from([])
-        ),
-      ]).then((_) => {
+        FSWriter.write(htmlFile, savedContext.dom),
+        FSWriter.write(jpgFile, savedContext.screenshot ?? Buffer.from([])),
+      ]).then(([htmlPath, jpgPath]) => {
+        _static.context!.refs!.htmlPath = htmlPath;
+        _static.context!.refs!.screenshotPath = jpgPath;
         if (options.debug) {
           logger.debug("saved web context data at", [
             (_static.context!.refs!.htmlPath,
