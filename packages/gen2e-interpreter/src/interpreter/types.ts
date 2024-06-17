@@ -66,3 +66,31 @@ export type Gen2ERecordingPeekResult = {
   code: string;
   mem: Gen2EInterpreterInMemStatic;
 };
+
+export type Gen2ERecordingDump = {
+  testId: string;
+  blocks: Gen2ECodeBlock[];
+  compiledTestCode: string;
+  gen2eTestCode: string;
+};
+
+export type Gen2ECodeBlock = {
+  task: string;
+  blocks: Gen2EPlaywrightBlock[];
+};
+
+export type Gen2EPlaywrightBlock = {
+  body: string;
+  context?: Gen2EPlaywrightGenContext;
+};
+
+export type Gen2EPlaywrightGenContext = {
+  task?: string;
+  testTitle?: string;
+  notes?: string;
+  refs?: {
+    screenshotPath?: string;
+    htmlPath?: string;
+    pageUrl: string;
+  };
+};

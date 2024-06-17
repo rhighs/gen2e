@@ -22,7 +22,7 @@ import {
   Gen2EInterpreterUsageStats,
 } from "./types";
 import { inMemStore } from "./store";
-import { generateFakeTestCode } from "./test-code";
+import { formatBlock, generateFakeTestCode } from "./test-code";
 
 class TasksInterpreter {
   private events:
@@ -217,7 +217,12 @@ class TasksInterpreter {
       });
     }
 
-    const source = generateFakeTestCode("gen2e - interpreter gen", genResult);
+    const body = Array.from({ length: tasks.length })
+      .map((_, i): [string, string] => [tasks[i], genResult[i]])
+      .map(formatBlock)
+      .join("\n");
+
+    const source = generateFakeTestCode("gen2e - interpreter gen", body);
     return {
       result: source,
       usageStats: this.usageStats,
@@ -244,9 +249,10 @@ class TasksInterpreter {
     const gen2eResult = await this.contextWiseGen2eGen(
       tasks,
       async (expr: string): Promise<any> => {
-        const fakeTestSource = generateFakeTestCode("gen2e - interpreter gen", [
-          expr,
-        ]);
+        const fakeTestSource = generateFakeTestCode(
+          "gen2e - interpreter gen",
+          expr
+        );
 
         if (this.options.debug) {
           this.logger.debug("executing sanbox for expr", { expr });
@@ -275,9 +281,14 @@ class TasksInterpreter {
       }
     );
 
+    const body = Array.from({ length: tasks.length })
+      .map((_, i): [string, string] => [tasks[i], gen2eResult[i]])
+      .map(formatBlock)
+      .join("\n");
+
     const fakeTestSource = generateFakeTestCode(
       "gen2e - interpreter gen",
-      gen2eResult,
+      body,
       false
     );
 

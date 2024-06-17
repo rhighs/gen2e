@@ -13,18 +13,22 @@ import {
 } from "@rhighs/gen2e-llm";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import {
+  Gen2ECodeBlock,
   Gen2EInterpreterConfig,
   Gen2EInterpreterEvent,
   Gen2EInterpreterEventCallback,
   Gen2EInterpreterMode,
   Gen2EInterpreterOptions,
   Gen2EInterpreterUsageStats,
+  Gen2EPlaywrightBlock,
+  Gen2ERecordingDump,
   Gen2ERecordingPeekResult,
   Gen2ERecordingResult,
   Gen2ERecordingStep,
 } from "./types";
 import { Gen2EInterpreterInMemStatic, inMemStore } from "./store";
-import { generateFakeTestCode } from "./test-code";
+import { formatBlock, generateFakeTestCode } from "./test-code";
+import { hash } from "crypto";
 
 export type Gen2EInterpreterSandboxEvalResult =
   | { type: "success"; result: any }
@@ -48,7 +52,8 @@ export class RecordingInterpreter {
   private config: Gen2EInterpreterConfig;
 
   private state: "idle" | "running" = "idle";
-  private gen2eExpressions: string[] = [];
+  private gen2eExpressions: [string, string][] = [];
+  private gen2eExecsMem: [string, Gen2EInterpreterInMemStatic][] = [];
   private currentStore: StaticStore;
   private getStaticMem: () => Gen2EInterpreterInMemStatic;
 
@@ -250,15 +255,18 @@ export class RecordingInterpreter {
       );
     }
 
-    const result = await this.gen2e(task, this.gen2eExpressions.join("\n"));
+    const result = await this.gen2e(
+      task,
+      this.gen2eExpressions.map(([_, e]) => e).join("\n")
+    );
     if (!result) {
       this.handleError("gen2e gen gave empty result", result);
       return "";
     }
 
-    this.gen2eExpressions.push(result);
+    this.gen2eExpressions.push([task, result]);
     const [getMem, localStore] = inMemStore(this.runTimestamp);
-    const fakeTestSource = generateFakeTestCode(this.testTitle, [result]);
+    const fakeTestSource = generateFakeTestCode(this.testTitle, result);
     const page = this.browser.page;
 
     if (this.options.debug) {
@@ -273,8 +281,9 @@ export class RecordingInterpreter {
 
     const mem = getMem();
     if (this.options.debug) {
-      this.logger.debug("SANDBOX EVAL temp mem:", getMem());
+      this.logger.debug("sandbox eval temp mem:", getMem());
     }
+    this.gen2eExecsMem.push([task, { ...mem }]);
 
     if (seResult.type === "success" && Object.keys(mem).length > 0) {
       let code = "";
@@ -301,13 +310,16 @@ export class RecordingInterpreter {
   }
 
   private async handleGen2EMode(task: string): Promise<string> {
-    const result = await this.gen2e(task, this.gen2eExpressions.join("\n"));
+    const result = await this.gen2e(
+      task,
+      this.gen2eExpressions.map(([_, e]) => e).join("\n")
+    );
     if (!result) {
       this.handleError("gen2e gen gave empty result", result);
       return "";
     }
 
-    this.gen2eExpressions.push(result);
+    this.gen2eExpressions.push([task, result]);
     if (this.options.debug) {
       this.logger.debug("gen2e mode", result);
     }
@@ -397,7 +409,7 @@ export class RecordingInterpreter {
         {
           const fakeTestSource = generateFakeTestCode(
             this.testTitle,
-            this.gen2eExpressions,
+            this.gen2eExpressions.map(formatBlock).join("\n"),
             false
           );
           gen2eCode = fakeTestSource;
@@ -413,7 +425,7 @@ export class RecordingInterpreter {
         {
           gen2eCode = generateFakeTestCode(
             this.testTitle,
-            this.gen2eExpressions,
+            this.gen2eExpressions.map(formatBlock).join("\n"),
             false
           );
         }
@@ -426,6 +438,38 @@ export class RecordingInterpreter {
       code,
       gen2eCode,
       mem,
+    };
+  }
+
+  dump(): Gen2ERecordingDump {
+    const gen2eTestCode = generateFakeTestCode(
+      this.testTitle,
+      this.gen2eExpressions.map(formatBlock).join("\n"),
+      false
+    );
+
+    let compiledTestCode = "";
+    try {
+      compiledTestCode = pwCompile(gen2eTestCode, this.currentStore, true);
+    } catch (error) {
+      this.logger.error(error);
+    }
+
+    return {
+      testId: hash("md5", "Gen2E recorder generated test " + this.runTimestamp),
+      blocks: this.gen2eExecsMem.map(
+        ([task, mem]): Gen2ECodeBlock => ({
+          task,
+          blocks: Object.entries(mem).map(
+            ([_subTask, data]): Gen2EPlaywrightBlock => ({
+              body: data.expression,
+              context: data.context,
+            })
+          ),
+        })
+      ),
+      gen2eTestCode,
+      compiledTestCode,
     };
   }
 

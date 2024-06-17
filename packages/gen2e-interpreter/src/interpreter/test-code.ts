@@ -1,6 +1,12 @@
+export const formatBlock = ([task, expr]: [string, string]): string => `\
+// task
+{
+${expr}
+}`;
+
 export const generateFakeTestCode = (
   testTitle: string,
-  gen2eExpressions: string[],
+  body: string,
   includeTimeout: boolean = true
 ) => {
   let code = `\
@@ -23,9 +29,7 @@ test(
         : ""
     }
 `;
-  for (let g of gen2eExpressions) {
-    code += g + "\n";
-  }
+  code += body + "\n";
   code += "}))";
   return code;
 };
