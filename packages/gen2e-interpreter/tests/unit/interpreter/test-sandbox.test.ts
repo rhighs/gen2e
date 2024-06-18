@@ -94,65 +94,6 @@ describe("sandboxEval", () => {
     expect(inMemoryStatic[ident]).toBe(staticExpression);
   });
 
-  /* FIXME:
-   rob: cannot be tested under jest runtime, eval and new Function dynamic evals seem to be disabled
-        always leading to a noop.
-   test("should handle evaluation errors gracefully", async () => {
-     const gen2eTestSource = `
-     test('gen test',
-       gen.test(async ({ page, gen }) => {
-         throw new Error('Test error');
-       })
-     );
-     `;
-  
-     const customEvalPwCode = jest.fn().mockResolvedValue(Promise.resolve());
-     const promise = sandboxEval(
-       gen2eTestSource,
-       mockPage,
-       staticStore,
-       undefined,
-       undefined,
-       customEvalPwCode,
-       mockGen
-     );
-  
-     expect(gen2eSanitize).toHaveBeenCalledWith(gen2eTestSource);
-     expect(promise).rejects.toThrow("Test error");
-   });
-  */
-
-  /* FIXME:
-   rob: cannot be tested under jest runtime, eval and new Function dynamic evals seem to be disabled
-        always leading to a noop.
-   test("should use provided evalPwCode function", async () => {
-     const gen2eTestSource = `
-     test('gen test',
-       gen.test(async ({ page, gen }) => {
-         await gen('task 1', { page, test });
-       })
-     );
-     `;
-
-     const ident = staticStore.makeIdent("gen test", "task 1");
-     const staticExpression = "(async () => { await page.goto('https://example.com'); })";
-     staticStore.makeStatic({ ident, expression: staticExpression });
-  
-     const customEvalPwCode = jest.fn().mockResolvedValue(Promise.resolve());
-     await sandboxEval(
-       gen2eTestSource,
-       mockPage,
-       staticStore,
-       undefined,
-       undefined,
-       customEvalPwCode,
-       mockGen
-     );
-  
-     expect(customEvalPwCode).toHaveBeenCalledWith(staticExpression, mockPage);
-  });
-  */
-
   test("should handle empty gen2eTestSource", async () => {
     await sandboxEval(
       "",
