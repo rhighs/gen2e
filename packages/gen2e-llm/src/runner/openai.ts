@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import {
+  Gen2ELLMAgentHooks,
   Gen2ELLMAgentOpenAIModel,
   Gen2ELLMAgentRunner,
   Gen2ELLMAgentRunnerInit,
@@ -62,12 +63,10 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
     }
   }
 
-  async run({
-    taskPrompt,
-    systemMessage,
-    image,
-    tools = [],
-  }: Gen2ELLMAgentRunnerInit): Promise<Gen2ELLMAgentRunnerResult> {
+  async run(
+    { taskPrompt, systemMessage, image, tools = [] }: Gen2ELLMAgentRunnerInit,
+    hooks?: Gen2ELLMAgentHooks
+  ): Promise<Gen2ELLMAgentRunnerResult> {
     if (image && !modelSupportsImage(this.model)) {
       return {
         type: "error",
@@ -105,18 +104,24 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
     }
 
     try {
-      const runner = this.openai.beta.chat.completions.runTools({
-        model: this.model,
-        temperature: 0,
-        messages: [
-          { role: "system", content: systemMessage },
-          { role: "user", content },
-        ],
-        tools: tools.map((tool) => ({
-          type: "function",
-          function: tool,
-        })),
-      });
+      const runner = this.openai.beta.chat.completions
+        .runTools({
+          model: this.model,
+          temperature: 0,
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content },
+          ],
+          tools: tools.map((tool) => ({
+            type: "function",
+            function: tool,
+          })),
+        })
+        .on("message", (message) => {
+          if (hooks?.onMessage) {
+            hooks.onMessage(message);
+          }
+        });
 
       const finalContent = await runner.finalContent();
       const usage = await runner.totalUsage();

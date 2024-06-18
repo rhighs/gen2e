@@ -98,7 +98,10 @@ export type Gen2ELLMAgentRunnerResult =
     };
 
 export interface Gen2ELLMAgentRunner {
-  run(init: Gen2ELLMAgentRunnerInit): Promise<Gen2ELLMAgentRunnerResult>;
+  run(
+    init: Gen2ELLMAgentRunnerInit,
+    hooks?: Gen2ELLMAgentHooks
+  ): Promise<Gen2ELLMAgentRunnerResult>;
   getUsage(): Promise<{
     completionTokens: number;
     promptTokens: number;

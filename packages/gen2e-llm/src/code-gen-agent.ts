@@ -181,7 +181,7 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
         runOpts.image = task.image;
       }
 
-      const result = await runner.run(runOpts);
+      const result = await runner.run(runOpts, hooks);
       if (result.type === "error") {
         return {
           type: "error",
