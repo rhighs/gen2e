@@ -1,6 +1,6 @@
 import { API, CommentBlock, FileInfo, JSCodeshift } from "jscodeshift";
 import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
-import { Gen2ECompileFunction, makeCompiler } from "./compiler";
+import { Gen2ETransformFunction, makeTransformer } from "./compiler";
 import { StaticGenStep } from "@rhighs/gen2e";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
@@ -213,20 +213,11 @@ const transform = (
   return root.toSource();
 };
 
-const compiler = (
-  store: StaticStore,
-  includeContext: boolean,
-  logger?: Gen2ELogger
-): Gen2ECompileFunction =>
-  makeCompiler((fileInfo: FileInfo, api: API) =>
-    transform(fileInfo, api, store, includeContext, logger)
-  );
-
 /**
  * Translates source code from the gen2e library into native playwright JavaScript code.
  *
  * This function processes the given source code to replace gen2e IL syntax with
- * equivalent native Playwright expressions assumed to be fetched from a static store, where to code is at.
+ * equivalent native Playwright expressions assumed to be fetched from a static store, where the code is at.
  * It performs the following transformations:
  *
  * 1. Replaces calls to `gen("<task>", { page, test })` with corresponding static Playwright expressions
@@ -244,4 +235,7 @@ export const pwCompile = (
   store: StaticStore = FSStaticStore,
   includeContext: boolean = false,
   logger?: Gen2ELogger
-): string => compiler(store, includeContext, logger)(source);
+): string =>
+  makeTransformer((fileInfo: FileInfo, api: API) =>
+    transform(fileInfo, api, store, includeContext, logger)
+  )(source);

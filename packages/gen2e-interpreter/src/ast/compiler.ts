@@ -1,22 +1,23 @@
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import jscodeshift, { API, FileInfo } from "jscodeshift";
+import { parse as babelParse } from "@babel/parser";
 
 const DEBUG_AST_UTILS = !!process.env.GEN2EI_DEBUG_AST;
 
-export type Gen2ECompileFunction = (source: string) => string;
-export type Gen2ECompilerTransformer = (
+export type Gen2ETransformFunction<R> = (source: string) => R;
+export type Gen2ETransformer<R> = (
   fileInfo: FileInfo,
   api: API,
   logger?: Gen2ELogger
-) => string;
+) => R;
 
-export const makeCompiler =
-  (
-    transformer: Gen2ECompilerTransformer,
+export const makeTransformer =
+  <R>(
+    transformer: Gen2ETransformer<R>,
     _logger?: Gen2ELogger
-  ): Gen2ECompileFunction =>
-  (source: string): string => {
-    const logger = makeLogger("GEN2E-AST-COMPILER");
+  ): Gen2ETransformFunction<R> =>
+  (source: string): R => {
+    const logger = makeLogger("GEN2E-AST-TRANSFORMER");
     if (_logger) {
       logger.config(_logger);
     }
@@ -24,19 +25,29 @@ export const makeCompiler =
     if (DEBUG_AST_UTILS) {
       logger.info("compiling source:\n", source);
     }
+
+    const parser = {
+      parse: (source: string) =>
+        babelParse(source, {
+          sourceType: "unambiguous",
+          plugins: ["typescript"],
+        }),
+    };
+
     const out = transformer(
       {
         path: "",
         source: source,
       },
       {
-        j: jscodeshift,
-        jscodeshift: jscodeshift,
+        j: jscodeshift.withParser(parser),
+        jscodeshift: jscodeshift.withParser(parser),
         stats: () => {},
         report: () => {},
       },
       logger
     );
+
     if (DEBUG_AST_UTILS) {
       logger.info("compilation ended successfully, transformer result:\n", out);
     }
