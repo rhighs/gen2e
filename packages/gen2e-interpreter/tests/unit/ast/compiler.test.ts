@@ -1,16 +1,16 @@
 import {
-  makeCompiler,
-  Gen2ECompileFunction,
-  Gen2ECompilerTransformer,
+  makeTransformer,
+  Gen2ETransformFunction,
+  Gen2ETransformer,
 } from "../../../src";
 
-describe("makeCompiler", () => {
-  const mockTransformer: Gen2ECompilerTransformer = (fileInfo, api) => {
+describe("makeTransformer", () => {
+  const mockTransformer: Gen2ETransformer<string> = (fileInfo, api) => {
     return `transformed ${fileInfo.source}`;
   };
 
   test("should compile source correctly", () => {
-    const compile: Gen2ECompileFunction = makeCompiler(mockTransformer);
+    const compile: Gen2ETransformFunction<string> = makeTransformer(mockTransformer);
     const source = "const x = 1;";
     const result = compile(source);
 
@@ -18,10 +18,10 @@ describe("makeCompiler", () => {
   });
 
   test("should pass fileInfo and api to transformer correctly", () => {
-    const mockTransformer: Gen2ECompilerTransformer = jest
+    const mockTransformer: Gen2ETransformer<string> = jest
       .fn()
       .mockReturnValue("mocked result");
-    const compile: Gen2ECompileFunction = makeCompiler(mockTransformer);
+    const compile: Gen2ETransformFunction<string> = makeTransformer(mockTransformer);
     const source = "const y = 2;";
     const result = compile(source);
 
