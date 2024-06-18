@@ -5,7 +5,7 @@ import {
   FileInfo,
   CallExpression,
 } from "jscodeshift";
-import { makeCompiler } from "./compiler";
+import { makeTransformer } from "./compiler";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
 const isGenCall = (e: AwaitExpression | CallExpression): boolean => {
@@ -134,7 +134,7 @@ const sanitizeGenCalls = (root: any, j: any): void => {
 };
 
 export const gen2eSanitize = (source: string) =>
-  makeCompiler((fileInfo: FileInfo, api: API, logger?: Gen2ELogger) => {
+  makeTransformer((fileInfo: FileInfo, api: API, logger?: Gen2ELogger) => {
     const { j } = api;
     const root = j(fileInfo.source);
     sanitizeGenCalls(root, j);
