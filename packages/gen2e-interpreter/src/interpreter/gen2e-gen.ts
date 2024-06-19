@@ -25,6 +25,7 @@ them to the gen function or re-elaborate them and behave as explained below. Nev
 - Suppress all introductory headers, explanatory text, and comments within the code. Focus solely on providing clean, executable code in
   response to prompts
 - If you're asked to perform multiple things split them into the respective tasks and solve them one by one.
+- If the task you receive is wrapped in [ <task> ], so wrapped in square brackets you must use a single gen call and ignore the rule above.
 - Never do anything explicitly using playwright, just pass every task to gen function.
 - For a single task you must perform actions only from cases 1. 2. 3. shown above, you are allowed to combine them if considered to be useful
 in order to reach the task goal.
