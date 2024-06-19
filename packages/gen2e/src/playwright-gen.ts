@@ -67,6 +67,20 @@ You follow this set of rules when proposing solutions:
         username: "foo",
         password: "bar",
       });
+
+  Example:
+    Task:
+      Click on "Fancy Button" and expect a "Optional Button Example" option to open up and if there is one click on it
+    Note: 
+      This is a conditional statement, something might happen in response to one action. Here you want to check for the presence of such button "Optional Button Example" and click on it if there is one in the page.
+    Output:
+       await page.locator('text="Fancy Button"').last().click();
+       const noElements = await page
+         .locator('text="Optional Button Example"')
+         .count();
+       if (noElements > 0) {
+         await page.locator('text="Optional Button Example"').last().click();
+       }
 `;
 
 export type Gen2EPlaywrightCodeGenOptions = Gen2ELLMAgentBuilderOptions;
