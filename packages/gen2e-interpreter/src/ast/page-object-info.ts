@@ -7,6 +7,11 @@ export type Gen2EPageObjectInfo = {
   className: string;
   pageUrl: string;
   description: string;
+  methods: {
+    name: string;
+    params: string[];
+    returnType: string;
+  }[];
 };
 
 /**
@@ -28,6 +33,7 @@ export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
 
     root.find(j.ClassDeclaration).forEach((path) => {
       const className = path!.node!.id!.name;
+      const methods: Gen2EPageObjectInfo["methods"] = [];
       let pageUrl = "";
       let description = "";
 
@@ -49,6 +55,24 @@ export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
             description = member.value.value;
           }
         }
+
+        if (
+          member.type === "MethodDefinition" &&
+          member.key.type === "Identifier"
+        ) {
+          const methodName = member.key.name;
+          const params = member.value.params.map((param) =>
+            j(param).toSource()
+          );
+          const returnType = member.value.returnType
+            ? j(member.value.returnType).toSource()
+            : "void";
+          methods.push({
+            name: methodName,
+            params: params,
+            returnType: returnType,
+          });
+        }
       });
 
       if (className || pageUrl || description) {
@@ -56,6 +80,7 @@ export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
           className: className ?? "",
           pageUrl: pageUrl ?? "",
           description: description ?? "",
+          methods,
         });
       }
     });
