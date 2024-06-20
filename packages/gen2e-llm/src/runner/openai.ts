@@ -64,20 +64,24 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
   }
 
   async run(
-    { taskPrompt, systemMessage, image, tools = [] }: Gen2ELLMAgentRunnerInit,
+    { taskPrompt, systemMessage, images, tools = [] }: Gen2ELLMAgentRunnerInit,
     hooks?: Gen2ELLMAgentHooks
   ): Promise<Gen2ELLMAgentRunnerResult> {
-    if (image && !modelSupportsImage(this.model)) {
+    if (images && !modelSupportsImage(this.model)) {
       return {
         type: "error",
         reason: "model does not supporting feeding images",
       };
     }
 
-    const content: OpenAI.Chat.ChatCompletionContentPart[] = [
-      { type: "text", text: taskPrompt },
-    ];
-    if (image) {
+    const makePromptImage = (
+      image: Buffer
+    ): {
+      type: "image_url";
+      image_url: {
+        url: string;
+      };
+    } => {
       const imageb64 = image.toString("base64");
       if (this.debug) {
         this.logger.debug(
@@ -85,13 +89,28 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
         );
       }
 
-      content.push({
+      return {
         type: "image_url",
         image_url: {
           url: `data:image/jpeg;base64,${imageb64}`,
         },
-      });
-      taskPrompt = this.adjustContext(taskPrompt, systemMessage, imageb64);
+      };
+    };
+
+    const content: OpenAI.Chat.ChatCompletionContentPart[] = [
+      { type: "text", text: taskPrompt },
+    ];
+
+    if (images) {
+      const promptImages = images.map((image) => makePromptImage(image));
+      content.concat(promptImages);
+
+      // FIXME: this is really wrong as images might still make the prompt exceed the context window limits.
+      taskPrompt = this.adjustContext(
+        taskPrompt,
+        systemMessage,
+        promptImages.map((i) => i.image_url.url).join("")
+      );
     } else {
       taskPrompt = this.adjustContext(taskPrompt, systemMessage);
     }
