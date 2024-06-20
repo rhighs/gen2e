@@ -4,7 +4,7 @@ import { JSONSchema } from "./jsonschema";
 
 export type Gen2ELLMAgentTask = {
   task: string;
-  image?: Buffer;
+  images?: Buffer[];
   options?: {
     model?: Gen2ELLMAgentModel;
   };
@@ -80,7 +80,7 @@ export type Gen2ELLMAgentBuilder<Agent extends object> = (
 export type Gen2ELLMAgentRunnerInit = {
   taskPrompt: string;
   systemMessage: string;
-  image?: Buffer;
+  images?: Buffer[];
   tools?: any[];
   options?: {
     model?: Gen2ELLMAgentModel;
