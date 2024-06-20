@@ -136,7 +136,7 @@ export const generatePlaywrightCode = async ({
     {
       task: task.task,
       codeContext: task.domSnapshot,
-      image: task.pageScreenshot,
+      images: task.pageScreenshot ? [task.pageScreenshot] : undefined,
       options: task.options ?? undefined,
       previousAttempts: task.previousAttempts,
       previousErrors: task.previousErrors,
