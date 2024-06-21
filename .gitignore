@@ -134,3 +134,5 @@ gen2e-dump_*
 .static
 test.*
 .DS_Store
+./static/
+static/
