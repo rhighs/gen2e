@@ -8,7 +8,11 @@ import {
 import env from "./env";
 import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import z from "zod";
-import { Gen2EPOCodeAPI, Gen2EPageObjectFileContents } from "./types";
+import {
+  Gen2EPOCodeAPI,
+  Gen2EPOCodeGenOptions,
+  Gen2EPageObjectFileContents,
+} from "./types";
 
 const SYSTEM_MESSAGE = `\
 ==== DESCRIPTION ====
@@ -83,9 +87,6 @@ The above will be formatted in JSON, so expect something like:
 - You always add jsdoc documentation, make sure every method explains what it does in the context it operates.
 - If you ever need to change a playwright selector, you must only do so by means of parametrizion: you cannot change the selector core behavior but only the data it uses.
 `;
-
-export type Gen2EPOCodeGenOptions = Gen2ELLMAgentBuilderOptions;
-
 
 function makeTools(
   api: Gen2EPOCodeAPI,
@@ -191,7 +192,6 @@ If multiple exports are detected this function returns false and you must create
 make sure to use the import path correctly to create the other class file, import paths always end with .gen2e-po. You can use this function to create multiple page objects file at a time.`,
     function: async (params: any): Promise<boolean> => {
       const { pageObjects } = params;
-
       logger.debug("creating page objects:", pageObjects);
       for (let { filepath, source } of pageObjects) {
         const nexports = source

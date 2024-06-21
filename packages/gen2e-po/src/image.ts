@@ -3,7 +3,6 @@ import Jimp from "jimp";
 import fs from "fs";
 const { readFile } = fs.promises;
 
-
 export const loadImageWithLabel = async (
   path: string,
   label: string
