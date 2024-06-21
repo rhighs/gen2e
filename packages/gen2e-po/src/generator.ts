@@ -33,7 +33,7 @@ export class Gen2EPOGenerator {
    * @param {Gen2ELogger} [logger] - Optional logger, defaulting to a new logger instance.
    */
   constructor(
-    options: Gen2EPOGeneratorOptions,
+    options: Gen2EPOGeneratorOptions = {},
     codeAPI: Gen2EPOCodeAPI = FSCodeAPI,
     logger?: Gen2ELogger
   ) {
