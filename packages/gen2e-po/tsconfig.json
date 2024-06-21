@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "moduleResolution": "Node",
+    "module": "CommonJS",
+    "noEmit": true,
+    "noImplicitReturns": true,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "strict": true,
+    "target": "ES2022",
+    "useUnknownInCatchVariables": false
+  },
+  "include": ["src", "tests", "../interpreter/src/gen/gen2e.ts", "../gen2e-interpreter/src/gen/tools/ensure-format.ts"]
+}
