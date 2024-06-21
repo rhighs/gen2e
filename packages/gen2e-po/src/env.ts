@@ -25,5 +25,5 @@ const parseParam = (f: string | undefined, def: string = ""): string => {
 
 export default {
   MODEL_DEBUG: parseFlag(process.env.GEN2EPO_MODEL_DBG),
-  OPENAI_MODEL: parseParam(process.env.GEN2EPO_MODEL, "gpt-3.5-turbo"),
+  OPENAI_MODEL: parseParam(process.env.GEN2EPO_MODEL, "gpt-4o"),
 } as Gen2EPOEnv;
