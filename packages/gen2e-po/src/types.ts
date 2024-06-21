@@ -1,4 +1,7 @@
 import { Gen2EPageObjectInfo } from "@rhighs/gen2e-interpreter";
+import { Gen2ELLMAgentBuilderOptions } from "@rhighs/gen2e-llm";
+
+export type Gen2EPOCodeGenOptions = Gen2ELLMAgentBuilderOptions;
 
 export type Gen2EPageObjectFileContents = {
   filename: string;
