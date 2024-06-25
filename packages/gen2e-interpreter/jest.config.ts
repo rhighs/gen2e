@@ -13,6 +13,8 @@ const config: Config = {
       extensionsToTreatAsEsm: ['.ts', '.tsx', '.jsx'],
       moduleNameMapper: {'^(\\.{1,2}/.*)\\.js$': '$1'},
       coverageProvider: "v8",
+      errorOnDeprecated: true,
+      verbose: true
 };
 
 export default config;

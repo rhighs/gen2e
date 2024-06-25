@@ -86,4 +86,4 @@ export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
     });
 
     return result;
-  })(source);
+  }, "typescript")(source);

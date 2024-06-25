@@ -39,22 +39,17 @@ test('example test', async () => {
 
   test("should replace gen.test(({ page, gen }) => { ... }) with native Playwright test expressions", () => {
     const sourceCode = `\
-test(
-    gen.test(async ({ page, gen }) => {
+test('example test', gen.test(async ({ page, gen }) => {
         await page.goto('https://example.com');
     })
-);
-    `;
+);`;
 
     const result = pwCompile(sourceCode, staticStore);
 
-    const expectedOutput = `
-test(
-    async ({ page }) => {
+    const expectedOutput = `\
+test('example test', async ({ page }) => {
         await page.goto('https://example.com');
-    }
-);
-    `;
+});`;
 
     expect(result.replace(/\s+/g, "")).toBe(expectedOutput.replace(/\s+/g, ""));
   });
