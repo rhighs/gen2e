@@ -58,6 +58,12 @@ what the task asking you to do:
     await gen("click the button with text 'Click Me' 10 times", { page, test });
     \`\`\`
 
+- If the task is wrapped in [<task_here>], square brackets you must not split the task into multiple gen calls, instead you forward the complete task phrase to a single gen() call
+   e.g. if you task looks like this: \"[Click the button with text "Click Me" and then check the page title is Gen2E]\" wrapped in [ ], just paste it in a gen call:
+    \`\`\`
+    await gen("Click the button with text \"Click Me\" and then check the page title is Gen2E", { page, test });
+    \`\`\`
+
 ==== EXAMPLES ====
 - Assertion on string value:
     \`\`\`

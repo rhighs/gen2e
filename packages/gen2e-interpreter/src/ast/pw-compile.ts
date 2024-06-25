@@ -1,44 +1,12 @@
-import { API, CommentBlock, FileInfo, JSCodeshift } from "jscodeshift";
+import { API, FileInfo, JSCodeshift } from "jscodeshift";
 import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
 import { makeTransformer } from "./compiler";
-import { StaticGenStep } from "@rhighs/gen2e";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
-
-type Defined<T> = T extends undefined ? never : T;
-const contextCommentBlock = (
-  j: JSCodeshift,
-  context: Defined<StaticGenStep["context"]>
-): CommentBlock => {
-  let comment = "\n";
-  if (context.testTitle) {
-    comment += `testTitle: "${context.testTitle}"\n`;
-  }
-  if (context.task) {
-    comment += `task: "${context.task}"\n`;
-  }
-  if (context.refs) {
-    comment += "refs:\n";
-    if (context.refs.pageUrl) {
-      comment += `    pageUrl: "${context.refs.pageUrl}"\n`;
-    }
-    if (context.refs.htmlPath) {
-      comment += `    htmlPath: "${context.refs.htmlPath}"\n`;
-    }
-    if (context.refs.screenshotPath) {
-      comment += `    screenshotPath: "${context.refs.screenshotPath}"\n`;
-    }
-  }
-  if (context.notes) {
-    comment += `notes: \`${context.notes}\`\n`;
-  }
-  return j.commentBlock(comment);
-};
 
 const transformGenCall = (
   j: JSCodeshift,
   root: any,
   store: StaticStore,
-  includeContext: boolean,
   logger?: Gen2ELogger
 ) => {
   let titleWasSet = false;
@@ -52,7 +20,6 @@ const transformGenCall = (
     const firstArg = testPath.node.arguments[0];
     const testTitle = firstArg.type === "Literal" ? firstArg.value : undefined;
 
-    console.log(testTitle);
     if (testTitle) {
       const expressions = j(testPath).find(j.AwaitExpression, {
         argument: {
@@ -65,7 +32,6 @@ const transformGenCall = (
             args[1].type === "ObjectExpression",
         },
       });
-      console.log(expressions);
 
       expressions.replaceWith((path: any) => {
         if (path.node.argument) {
@@ -127,16 +93,6 @@ const transformGenCall = (
                     []
                   )
                 );
-
-                // If we've got to include context, wrap each substituted call within a block statement.
-                // Context will give meaning/info to this group.
-                if (includeContext && code.context) {
-                  const block = j.blockStatement([
-                    j.expressionStatement(result),
-                  ]);
-                  block.comments = [contextCommentBlock(j, code.context)];
-                  return block;
-                }
 
                 return result;
               }
@@ -205,12 +161,11 @@ const transform = (
   fileInfo: FileInfo,
   api: API,
   store: StaticStore,
-  includeContext: boolean,
   logger?: Gen2ELogger
 ): string => {
   const j = api.jscodeshift;
   const root = j(fileInfo.source);
-  transformGenCall(j, root, store, includeContext, logger);
+  transformGenCall(j, root, store, logger);
   transformGenTest(j, root);
   return root.toSource();
 };
@@ -229,15 +184,13 @@ const transform = (
  *
  * @param {string} source - The source code to be compiled.
  * @param {StaticStore} store - The static code store used to fetch playwright expressions.
- * @param {boolean} includeContext - Include relevant context info on top of each instruction.
  * @returns {string} compile step output.
  */
 export const pwCompile = (
   source: string,
   store: StaticStore = FSStaticStore,
-  includeContext: boolean = false,
   logger?: Gen2ELogger
 ): string =>
   makeTransformer((fileInfo: FileInfo, api: API) =>
-    transform(fileInfo, api, store, includeContext, logger)
+    transform(fileInfo, api, store, logger)
   )(source);
