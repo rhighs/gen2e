@@ -12,6 +12,7 @@ import {
 
 import * as pjson from "../package.json";
 import { makeREPL } from "./repl";
+import { isNativeError } from "util/types";
 const logger = makeLogger("GEN2E-CLI");
 
 program
@@ -106,7 +107,7 @@ program
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
-    const result = await tasksInterpreter(
+    const interpreter = recordingInterpreter(
       {
         mode: imode,
         logger,
@@ -149,15 +150,20 @@ program
         logger.error(error);
         logger.error("Aborting...");
         process.exit(1);
-      })
-      .run(tasks);
+      });
 
-    const code = result.result;
+    await interpreter.start();
+    for (let task of tasks) {
+      await interpreter.update(task);
+    }
+
+    const result = await interpreter.finish();
+    const code = result.code;
     process.stdout.write(`${code}\n`);
 
-    if (result.usageStats) {
-      logger.info("interpreter usage stats report", result.usageStats);
-    }
+    // if (result.usageStats) {
+    //   logger.info("interpreter usage stats report", result.usageStats);
+    // }
 
     if (appendFile) {
       logger.info(`appending result to ${outFile}...`);
