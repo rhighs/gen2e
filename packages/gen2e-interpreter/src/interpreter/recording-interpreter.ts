@@ -415,7 +415,7 @@ export class RecordingInterpreter {
           gen2eCode = fakeTestSource;
 
           try {
-            code = pwCompile(fakeTestSource, this.currentStore, true);
+            code = pwCompile(fakeTestSource, this.currentStore);
           } catch (error) {
             this.logger.error(error);
           }
@@ -450,7 +450,7 @@ export class RecordingInterpreter {
 
     let compiledTestCode = "";
     try {
-      compiledTestCode = pwCompile(gen2eTestCode, this.currentStore, true);
+      compiledTestCode = pwCompile(gen2eTestCode, this.currentStore);
     } catch (error) {
       this.logger.error(error);
     }
