@@ -1,6 +1,6 @@
 import { API, CommentBlock, FileInfo, JSCodeshift } from "jscodeshift";
 import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
-import { Gen2ETransformFunction, makeTransformer } from "./compiler";
+import { makeTransformer } from "./compiler";
 import { StaticGenStep } from "@rhighs/gen2e";
 import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
@@ -43,109 +43,111 @@ const transformGenCall = (
 ) => {
   let titleWasSet = false;
 
-  root
-    .find(j.CallExpression, {
-      callee: { name: "test" },
-      arguments: [{ type: "Literal" }],
-    })
-    .forEach((testPath: any) => {
-      const firstArg = testPath.node.arguments[0];
-      const testTitle =
-        firstArg.type === "Literal" ? firstArg.value : undefined;
+  const testCalls = root.find(j.CallExpression, {
+    callee: { name: "test" },
+    arguments: [{ type: "Literal" }],
+  });
 
-      if (testTitle) {
-        j(testPath)
-          .find(j.AwaitExpression, {
-            argument: {
-              callee: { type: "Identifier", name: "gen" },
-              arguments: (args: any) =>
-                args.length === 2 &&
-                (args[0].type === "Literal" ||
-                  args[0].type === "StringLiteral" ||
-                  args[0].type === "TemplateLiteral") &&
-                args[1].type === "ObjectExpression",
-            },
-          })
-          .replaceWith((path: any) => {
-            if (path.node.argument) {
-              const genFirstArg =
-                path.node.argument.type === "CallExpression"
-                  ? path.node.argument.arguments[0]
-                  : undefined;
-              const genArg =
-                genFirstArg?.type === "TemplateLiteral"
-                  ? genFirstArg.quasis[0].value.raw
-                  : genFirstArg?.type === "Literal" ||
-                    genFirstArg?.type === "StringLiteral"
-                  ? genFirstArg.value
-                  : undefined;
+  testCalls.forEach((testPath: any) => {
+    const firstArg = testPath.node.arguments[0];
+    const testTitle = firstArg.type === "Literal" ? firstArg.value : undefined;
 
-              if (genArg) {
-                const ident = store.makeIdent(
-                  testTitle as string,
-                  genArg as string
-                );
-                const code = store.fetchStatic(ident);
+    console.log(testTitle);
+    if (testTitle) {
+      const expressions = j(testPath).find(j.AwaitExpression, {
+        argument: {
+          callee: { type: "Identifier", name: "gen" },
+          arguments: (args: any) =>
+            args.length === 2 &&
+            (args[0].type === "Literal" ||
+              args[0].type === "StringLiteral" ||
+              args[0].type === "TemplateLiteral") &&
+            args[1].type === "ObjectExpression",
+        },
+      });
+      console.log(expressions);
 
-                if (code) {
-                  // if no expression is found for replacement, skip it
-                  if (!code.expression) {
-                    const message = `got undefined or empty expression for ident`;
-                    if (logger) {
-                      logger.error(message, { ident });
-                    }
-                    return;
-                  }
+      expressions.replaceWith((path: any) => {
+        if (path.node.argument) {
+          const genFirstArg =
+            path.node.argument.type === "CallExpression"
+              ? path.node.argument.arguments[0]
+              : undefined;
+          const genArg =
+            genFirstArg?.type === "TemplateLiteral"
+              ? genFirstArg.quasis[0].value.raw
+              : genFirstArg?.type === "Literal" ||
+                genFirstArg?.type === "StringLiteral"
+              ? genFirstArg.value
+              : undefined;
 
-                  if (
-                    testPath.node.arguments[0].type === "Literal" &&
-                    !titleWasSet
-                  ) {
-                    testPath.node.arguments[0].value = `gen2e:compiled-output - ${
-                      testTitle as string
-                    }`;
-                    titleWasSet = true;
-                  }
+          if (genArg) {
+            const ident = store.makeIdent(
+              testTitle as string,
+              genArg as string
+            );
+            const code = store.fetchStatic(ident);
 
-                  const parsedInput = j(code.expression);
-                  const arrowFunction = parsedInput
-                    .find(j.ArrowFunctionExpression)
-                    .get().node;
-                  const body = arrowFunction.body;
-
-                  const internalArrowFunction = j.arrowFunctionExpression(
-                    [],
-                    body,
-                    true
-                  );
-                  internalArrowFunction.async = true;
-
-                  const result = j.awaitExpression(
-                    j.callExpression(
-                      j.parenthesizedExpression(internalArrowFunction),
-                      []
-                    )
-                  );
-
-                  // If we've got to include context, wrap each substituted call within a block statement.
-                  // Context will give meaning/info to this group.
-                  if (includeContext && code.context) {
-                    const block = j.blockStatement([
-                      j.expressionStatement(result),
-                    ]);
-                    block.comments = [contextCommentBlock(j, code.context)];
-                    return block;
-                  }
-
-                  return result;
+            if (code) {
+              // if no expression is found for replacement, skip it
+              if (!code.expression) {
+                const message = `got undefined or empty expression for ident`;
+                if (logger) {
+                  logger.error(message, { ident });
                 }
+                return;
+              }
+
+              if (
+                testPath.node.arguments[0].type === "Literal" &&
+                !titleWasSet
+              ) {
+                testPath.node.arguments[0].value = `gen2e:compiled-output - ${
+                  testTitle as string
+                }`;
+                titleWasSet = true;
+              }
+
+              const parsedInput = j(code.expression);
+              const paths = parsedInput.find(j.ArrowFunctionExpression);
+              if (paths.length > 0) {
+                const arrowFunction = paths.get().node;
+                const body = arrowFunction.body;
+
+                const internalArrowFunction = j.arrowFunctionExpression(
+                  [],
+                  body,
+                  true
+                );
+                internalArrowFunction.async = true;
+
+                const result = j.awaitExpression(
+                  j.callExpression(
+                    j.parenthesizedExpression(internalArrowFunction),
+                    []
+                  )
+                );
+
+                // If we've got to include context, wrap each substituted call within a block statement.
+                // Context will give meaning/info to this group.
+                if (includeContext && code.context) {
+                  const block = j.blockStatement([
+                    j.expressionStatement(result),
+                  ]);
+                  block.comments = [contextCommentBlock(j, code.context)];
+                  return block;
+                }
+
+                return result;
               }
             }
+          }
+        }
 
-            return null;
-          });
-      }
-    });
+        return null;
+      });
+    }
+  });
 };
 
 const transformGenTest = (j: JSCodeshift, root: any) => {

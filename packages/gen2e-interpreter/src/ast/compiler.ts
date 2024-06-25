@@ -14,6 +14,7 @@ export type Gen2ETransformer<R> = (
 export const makeTransformer =
   <R>(
     transformer: Gen2ETransformer<R>,
+    lang: "javascript" | "typescript" = "javascript",
     _logger?: Gen2ELogger
   ): Gen2ETransformFunction<R> =>
   (source: string): R => {
@@ -26,13 +27,15 @@ export const makeTransformer =
       logger.info("compiling source:\n", source);
     }
 
-    const parser = {
-      parse: (source: string) =>
-        babelParse(source, {
-          sourceType: "unambiguous",
-          plugins: ["typescript"],
-        }),
-    };
+    let j = jscodeshift;
+    if (lang === "typescript") {
+      j = j.withParser({
+        parse: (source: string) =>
+          babelParse(source, {
+            plugins: ["typescript"],
+          }),
+      });
+    }
 
     const out = transformer(
       {
@@ -40,8 +43,8 @@ export const makeTransformer =
         source: source,
       },
       {
-        j: jscodeshift.withParser(parser),
-        jscodeshift: jscodeshift.withParser(parser),
+        j,
+        jscodeshift: j,
         stats: () => {},
         report: () => {},
       },
