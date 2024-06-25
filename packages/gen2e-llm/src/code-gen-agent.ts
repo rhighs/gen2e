@@ -166,7 +166,7 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
       const runOpts: Gen2ELLMAgentRunnerInit = {
         taskPrompt,
         systemMessage,
-        tools,
+        tools: allTools,
       };
       if (task.options?.model) {
         runOpts.options = {
