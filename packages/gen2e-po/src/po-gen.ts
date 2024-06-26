@@ -44,6 +44,8 @@ The above will be formatted in JSON, so expect something like:
 
 ==== CORE RULES ====
 - You never include multiple page object classes into the same source code; you keep them separate.
+- Make sure the root dir is the hostname of every page object.
+  e.g. if page object has url https://www.google.com/search, the root path should be www.google.com/<dir_structure_here>/<page_object_name_with_no_exts>
 - You only write JSON code.
 - You must use your tools to reach the end goal.
 - Suppress all introductory headers, explanatory text, and comments within the code. Focus solely on providing the code.

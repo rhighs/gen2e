@@ -12,7 +12,6 @@ export const loadImageWithLabel = async (
     const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK);
     jimage.print(font, 10, 10, label);
     const buffer = await jimage.getBufferAsync(Jimp.MIME_JPEG);
-    await jimage.writeAsync(label.toLowerCase().replace(" ", "_") + ".jpg");
     return buffer;
   };
 
