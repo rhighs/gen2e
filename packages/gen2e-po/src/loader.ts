@@ -15,8 +15,8 @@ const findDumps = async (dir: string = "./dumps"): Promise<string[]> =>
 const parseDump = async (filePath: string): Promise<Gen2ERecordingDump> =>
   JSON.parse((await readFile(filePath)).toString());
 
-export const loadDumps = async () =>
-  findDumps(DUMPS_DATA_PATH).then((dumps) =>
+export const loadDumps = async (dir: string = DUMPS_DATA_PATH) =>
+  findDumps(dir).then((dumps) =>
     Promise.all(dumps.map((d) => parseDump(d)))
   );
 
