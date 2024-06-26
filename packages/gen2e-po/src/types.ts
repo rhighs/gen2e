@@ -10,6 +10,7 @@ export type Gen2EPageObjectFileContents = {
 };
 
 export type Gen2EPOCodeAPI = {
+  find: () => Promise<string[]>;
   list: () => Promise<Gen2EPageObjectFileContents[]>;
   rm: (filepath: string) => Promise<void>;
   touch: (filepath: string, source: string) => Promise<void>;

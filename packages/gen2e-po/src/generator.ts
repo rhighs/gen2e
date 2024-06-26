@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 const { readFile } = fs.promises;
 import {
   Gen2ELLMAgentModel,
@@ -17,6 +18,7 @@ export type Gen2EPOGeneratorOptions = {
   model?: Gen2ELLMAgentModel;
   codeGenOptions?: Gen2EPOCodeGenOptions;
   debug?: boolean;
+  staticDataDir?: string;
 };
 
 export class Gen2EPOGenerator {
@@ -24,6 +26,7 @@ export class Gen2EPOGenerator {
   agent: Gen2ELLMCodeGenAgent;
   options: Gen2EPOGeneratorOptions;
   logger: Gen2ELogger;
+  staticDataDir: string;
 
   /**
    * Creates an instance of Gen2EPOGenerator.
@@ -45,6 +48,7 @@ export class Gen2EPOGenerator {
       codeAPI,
       options.codeGenOptions
     );
+    this.staticDataDir = options.staticDataDir ?? ".";
   }
 
   /**
@@ -63,21 +67,25 @@ export class Gen2EPOGenerator {
   ): Promise<void> {
     const images: Buffer[] = [];
     if (from.context?.refs?.screenshotPath) {
-      images.push(
-        await loadImageWithLabel(
-          from.context?.refs?.screenshotPath,
-          "Starting page"
-        )
+      const sp = path.join(
+        this.staticDataDir,
+        from.context?.refs?.screenshotPath
       );
+      const image = await loadImageWithLabel(sp, "Starting page");
+      images.push(image);
     }
     if (to?.context?.refs?.screenshotPath) {
-      images.push(
-        await loadImageWithLabel(to.context.refs.screenshotPath, "Result page")
-      );
+      const sp = path.join(this.staticDataDir, to.context.refs.screenshotPath);
+      const image = await loadImageWithLabel(sp, "Result page");
+      images.push(image);
     }
 
     const fromHtml = from.context?.refs?.htmlPath
-      ? (await readFile(from.context?.refs?.htmlPath)).toString()
+      ? (
+          await readFile(
+            path.join(this.staticDataDir, from.context?.refs?.htmlPath)
+          )
+        ).toString()
       : "";
     const t: Gen2ELLMCodeGenAgentTask = {
       task: JSON.stringify({

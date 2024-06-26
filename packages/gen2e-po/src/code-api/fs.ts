@@ -83,6 +83,12 @@ ${scopedSource}`;
 };
 
 export const FSCodeAPI: Gen2EPOCodeAPI = {
+  find: (dir: string = process.cwd()): Promise<string[]> =>
+    readdir(dir, { recursive: true }).then((result) =>
+      result
+        .filter((path) => path.match(/.*gen2e-po\.ts/))
+        .map((p) => path.join(dir, p))
+    ),
   list: (): Promise<Gen2EPageObjectFileContents[]> => findPageObjects(),
   rm: (filepath: string): Promise<void> => rm(filepath),
   touch: (filepath: string, source: string): Promise<void> =>

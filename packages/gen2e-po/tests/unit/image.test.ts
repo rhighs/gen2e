@@ -1,6 +1,6 @@
 import { loadImageWithLabel } from "../../src/image";
-import fs from "fs";
 import Jimp from "jimp";
+import fs from "fs";
 
 jest.mock("fs", () => ({
   promises: {
@@ -11,71 +11,59 @@ jest.mock("fs", () => ({
 jest.mock("jimp", () => ({
   read: jest.fn(),
   loadFont: jest.fn(),
-  FONT_SANS_32_BLACK: "FONT_SANS_32_BLACK",
+  FONT_SANS_32_BLACK: "path/to/font",
   MIME_JPEG: "image/jpeg",
 }));
 
 describe("loadImageWithLabel", () => {
-  const mockedReadFile = fs.promises.readFile as jest.Mock;
-  const mockedJimpRead = Jimp.read as jest.Mock;
-  const mockedLoadFont = Jimp.loadFont as jest.Mock;
-  const mockJimpInstance = {
-    print: jest.fn().mockReturnThis(),
-    getBufferAsync: jest.fn(),
-    writeAsync: jest.fn(),
-  };
+  const mockedReadFile = fs.promises.readFile as jest.MockedFunction<
+    typeof fs.promises.readFile
+  >;
+  const mockedJimpRead = Jimp.read as jest.MockedFunction<typeof Jimp.read>;
+  const mockedJimpLoadFont = Jimp.loadFont as jest.MockedFunction<
+    typeof Jimp.loadFont
+  >;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+  it("should load an image, label it, and return a buffer", async () => {
+    const sampleImagePath = "path/to/sample.jpg";
+    const sampleLabel = "Sample Label";
+    const sampleImageBuffer = Buffer.from("sample image buffer");
 
-  it("should read the image file from the given path", async () => {
-    const mockBuffer = Buffer.from("image data");
-    mockedReadFile.mockResolvedValue(mockBuffer);
-    mockedJimpRead.mockResolvedValue(mockJimpInstance);
-    mockedLoadFont.mockResolvedValue("mockFont");
-    mockJimpInstance.getBufferAsync.mockResolvedValue(mockBuffer);
-    mockJimpInstance.writeAsync.mockResolvedValue(undefined);
+    mockedReadFile.mockResolvedValue(sampleImageBuffer);
 
-    const result = await loadImageWithLabel("test/path.jpg", "Test Label");
+    const mockJimpInstance = {
+      print: jest.fn().mockReturnThis(),
+      getBufferAsync: jest.fn().mockResolvedValue(sampleImageBuffer),
+    };
+    mockedJimpRead.mockResolvedValue(mockJimpInstance as any);
 
-    expect(mockedReadFile).toHaveBeenCalledWith("test/path.jpg");
-    expect(result).toBe(mockBuffer);
-  });
+    mockedJimpLoadFont.mockResolvedValue("mocked-font" as any);
 
-  it("should add label to the image", async () => {
-    const mockBuffer = Buffer.from("image data");
-    const label = "Test Label";
-    mockedReadFile.mockResolvedValue(mockBuffer);
-    mockedJimpRead.mockResolvedValue(mockJimpInstance);
-    mockedLoadFont.mockResolvedValue("mockFont");
-    mockJimpInstance.getBufferAsync.mockResolvedValue(mockBuffer);
-    mockJimpInstance.writeAsync.mockResolvedValue(undefined);
+    const result = await loadImageWithLabel(sampleImagePath, sampleLabel);
 
-    await loadImageWithLabel("test/path.jpg", label);
-
-    expect(mockedJimpRead).toHaveBeenCalledWith(mockBuffer);
-    expect(mockedLoadFont).toHaveBeenCalledWith(Jimp.FONT_SANS_32_BLACK);
+    expect(mockedReadFile).toHaveBeenCalledWith(sampleImagePath);
+    expect(mockedJimpRead).toHaveBeenCalledWith(sampleImageBuffer);
+    expect(mockedJimpLoadFont).toHaveBeenCalledWith(Jimp.FONT_SANS_32_BLACK);
     expect(mockJimpInstance.print).toHaveBeenCalledWith(
-      "mockFont",
+      "mocked-font",
       10,
       10,
-      label
+      sampleLabel
     );
+    expect(mockJimpInstance.getBufferAsync).toHaveBeenCalledWith(
+      Jimp.MIME_JPEG
+    );
+    expect(result).toBe(sampleImageBuffer);
   });
 
-  it("should write the labeled image to a new file", async () => {
-    const mockBuffer = Buffer.from("image data");
-    const label = "Test Label";
-    const expectedFileName = "test_label.jpg";
-    mockedReadFile.mockResolvedValue(mockBuffer);
-    mockedJimpRead.mockResolvedValue(mockJimpInstance);
-    mockedLoadFont.mockResolvedValue("mockFont");
-    mockJimpInstance.getBufferAsync.mockResolvedValue(mockBuffer);
-    mockJimpInstance.writeAsync.mockResolvedValue(undefined);
+  it("should throw an error if readFile fails", async () => {
+    const sampleImagePath = "path/to/sample.jpg";
+    const sampleLabel = "Sample Label";
 
-    await loadImageWithLabel("test/path.jpg", label);
+    mockedReadFile.mockRejectedValue(new Error("File not found"));
 
-    expect(mockJimpInstance.writeAsync).toHaveBeenCalledWith(expectedFileName);
+    await expect(
+      loadImageWithLabel(sampleImagePath, sampleLabel)
+    ).rejects.toThrow("File not found");
   });
 });

@@ -80,7 +80,7 @@ The above will be formatted in JSON, so expect something like:
   
 - Never miss import statements, make sure each type, function, variable is in scope and imported.
 - If the method is async consider wrapping the return type in a Promise e.g. \`Promise<return_type>\`
-- Every filename you generate for a page object must have the following format <kebab-case-class-name-without-page-suffix>, never include gen2e nor file extensions.
+- Every filename you generate must end with .gen2e-po.ts as extension.
 - You can even create directories by extending the filepaths as you like to make more sense of the page objects structure.
 - If there is no directory provided to you, make sure the root starts with the host name and then go on hierarchically.
 - Filepath and dirpaths must never start with "/" nor "./".
@@ -250,8 +250,8 @@ export const createPOCodeGenAgent = (
   codeAPI: Gen2EPOCodeAPI,
   options?: Gen2EPOCodeGenOptions,
   logger?: Gen2ELogger
-): Gen2ELLMCodeGenAgent => {
-  return createCodeGenAgent(
+): Gen2ELLMCodeGenAgent =>
+  createCodeGenAgent(
     SYSTEM_MESSAGE,
     defaultModel,
     options,
@@ -259,4 +259,3 @@ export const createPOCodeGenAgent = (
     makeTools(codeAPI),
     "json"
   );
-};
