@@ -32,6 +32,7 @@ export const makeTransformer =
       j = j.withParser({
         parse: (source: string) =>
           babelParse(source, {
+            sourceType: "module",
             plugins: ["typescript"],
           }),
       });

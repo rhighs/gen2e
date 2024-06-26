@@ -417,8 +417,8 @@ program
   .command("po-gen")
   .description("generate a page objects via test dumps")
   .argument("[dumppath]", "directory path containing test json dumps")
-  .action(async (options) => {
-    const dpath = options.dumppath;
+  .action(async (dumppath, _options) => {
+    const dpath = dumppath;
 
     const dumps = await loadDumps(dpath);
     const generator = new Gen2EPOGenerator({ debug: true });
