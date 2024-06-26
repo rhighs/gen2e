@@ -1,5 +1,4 @@
 import {
-  Gen2ELLMAgentBuilderOptions,
   Gen2ELLMAgentModel,
   Gen2ELLMAgentTool,
   Gen2ELLMCodeGenAgent,

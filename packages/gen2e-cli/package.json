@@ -16,6 +16,7 @@
     "@playwright/test": "^1.44.0",
     "@rhighs/gen2e-interpreter": "^1.1.7",
     "@rhighs/gen2e-logger": "^1.0.3",
+    "@rhighs/gen2e-po": "^1.0.2",
     "commander": "^12.0.0",
     "jscodeshift": "^0.15.2"
   },

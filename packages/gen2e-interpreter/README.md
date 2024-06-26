@@ -19,7 +19,7 @@ export OPENAI_API_KEY='sk-..."
 3. Try and form up a runnable script like the following:
 
 ```typescript
-import { tasksInterpreter } from '@rhighs/gen2e-interpreter';
+import { recordingInterpreter } from "@rhighs/gen2e-interpreter";
 
 // dummy function for the example's sake
 const options = initOptions();
@@ -31,24 +31,27 @@ const gen2eModel = options.gen2eModel;
 const pwModel = options.pwModel;
 const imode = options.imode;
 const showStats = options.stats ?? false;
-const apiKey = options.openaiApiKey ? String(options.openaiApiKey).trim() : undefined;
+const outFile = options.out;
+const visualDebugLevel = options.visualDebug ?? "medium";
+const appendFile = options.append;
+const maxRetries = options.maxRetries;
+const apiKey = options.openaiApiKey
+  ? String(options.openaiApiKey).trim()
+  : undefined;
+const screenshot = options.screenshot;
 
-const tasksSource = `
-go to google.com
-click on accept all
-assert the page title is "Google"
-type "funny cats" in the search bar
-press enter on the keyboard
-`
+const tasks = [
+  "go to google.com",
+  "click on accept all",
+  'assert the page title is "Google"',
+  'type "funny cats" in the search bar',
+  "press enter on the keyboard",
+];
 
-const tasks = tasksSource
-  .split("\n")
-  .map((line) => line.trim())
-  .filter((line) => line.length > 0);
-
-const result = await tasksInterpreter(
+const interpreter = recordingInterpreter(
   {
     mode: imode,
+    logger,
   },
   {
     model,
@@ -57,38 +60,47 @@ const result = await tasksInterpreter(
     debug: isDebug,
     openaiApiKey: apiKey,
     recordUsage: showStats,
+    policies: {
+      maxRetries,
+      screenshot,
+      visualDebugLevel,
+    },
   }
 )
   .on("start", () => {
     if (!isDebug) {
-      debug("Generating expressions...");
+      logger.debug("Generating expressions...");
     }
   })
   .on("ai-message", (_, message) => {
     if (isDebug) {
-      debug("ai message", message);
+      logger.debug("ai message", message);
     }
   })
   .on("task-success", (i, result: Gen2EExpression) => {
     if (!isDebug) {
       if (verbose) {
-        info(`task step "${result.task}" has generated code:\n${result.expression}`);
+        logger.info(
+          `task step "${result.task}" has generated code:\n${result.expression}`
+        );
       }
     }
   })
   .on("task-error", (_, error: Error | string) => {
-    err("Failed generating expression due to error:");
-    err(error);
-    err("Aborting...");
+    logger.error("Failed generating expression due to error:");
+    logger.error(error);
+    logger.error("Aborting...");
     process.exit(1);
-  })
-  .run(tasks);
+  });
 
-process.stdout.write(`${result.result}\n`);
-
-if (result.usageStats) {
-  info("interpreter usage stats report", result.usageStats);
+await interpreter.start();
+for (let task of tasks) {
+  await interpreter.update(task);
 }
+
+const result = await interpreter.finish();
+const code = result.code;
+process.stdout.write(`${code}\n`);
 ```
 
 ## What the Interpreter Does
@@ -119,10 +131,10 @@ import { Page } from '@playwright/test';
 import { StaticStore } from '@rhighs/gen2e';
 
 const gen2eTestSource = `
-test("a fake test", 
+test("a fake test",
   gen.test(async ({ page, gen }) => {
     await gen("goto google.com", { page, test });
-    await gen("click on accept all", { page, test }); 
+    await gen("click on accept all", { page, test });
     const pageTitle = await gen("get the page title", { page, test });
     expect(pageTitle).toBe("Google");
     await gen(
@@ -165,15 +177,15 @@ The interpreter can convert gen2e code into playwright code by working on it's A
 
 3. **Compile to playwright code**: finally, we use a codemod to perform code substitutions replacing call expressions to gen2e with call expressions to anonymous functions (containing the static code). Why anonymous? well these might contain one or more intructions or even use return statements, wrapping these in an executable block prevents parsing errors.
 
-  > - **Identifying test definitions**: scan the source code for test definitions that use gen2e syntax. This primary step mainly swaps `gen.test` test block with plain playwright arrow functions `({ page }) => {...}`.
-  >- **Fetch static expressions**: For each gen2e task, use the static store to fetch precompiled Playwright expressions. The static store maps task identifiers to their corresponding Playwright code snippets.
-  > - **Replace gen2e calls**: replace `gen('...')` calls with the corresponding Playwright expressions.
-  > - **Marking test titles**: To mark the compilation process add a tag `:compilation-output` to the test title.
+> - **Identifying test definitions**: scan the source code for test definitions that use gen2e syntax. This primary step mainly swaps `gen.test` test block with plain playwright arrow functions `({ page }) => {...}`.
+> - **Fetch static expressions**: For each gen2e task, use the static store to fetch precompiled Playwright expressions. The static store maps task identifiers to their corresponding Playwright code snippets.
+> - **Replace gen2e calls**: replace `gen('...')` calls with the corresponding Playwright expressions.
+> - **Marking test titles**: To mark the compilation process add a tag `:compilation-output` to the test title.
 
 The ending result will be a playwright test with no dependencies to the gen2e library.
 
-
 ## Environment variables
+
 ```ts
 # show debug logs for AST edits
 GEN2EI_DEBUG_AST=0

@@ -5,14 +5,11 @@ import path from "path";
 import readline from "readline";
 import { type Gen2EExpression, StaticGenStep } from "@rhighs/gen2e";
 import { makeLogger } from "@rhighs/gen2e-logger";
-import {
-  recordingInterpreter,
-  tasksInterpreter,
-} from "@rhighs/gen2e-interpreter";
+import { recordingInterpreter } from "@rhighs/gen2e-interpreter";
+import { Gen2EPOGenerator, loadDumps } from "@rhighs/gen2e-po";
 
 import * as pjson from "../package.json";
 import { makeREPL } from "./repl";
-import { isNativeError } from "util/types";
 const logger = makeLogger("GEN2E-CLI");
 
 program
@@ -414,6 +411,27 @@ ${peek.code}`;
     }).on("close", async () => {
       await interpreter.teardown();
     });
+  });
+
+program
+  .command("po-gen")
+  .description("generate a page objects via test dumps")
+  .argument("[dumppath]", "directory path containing test json dumps")
+  .action(async (options) => {
+    const dpath = options.dumppath;
+
+    const dumps = await loadDumps(dpath);
+    const generator = new Gen2EPOGenerator({ debug: true });
+
+    for (let dump of dumps) {
+      const blocks = dump.blocks.map((b) => b.blocks).flat();
+      for (let i = 0; i < blocks.length; i++) {
+        await generator.generate(
+          blocks[i],
+          i + 1 < blocks.length ? blocks[i + 1] : undefined
+        );
+      }
+    }
   });
 
 program
