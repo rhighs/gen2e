@@ -1,15 +1,15 @@
 {
   "name": "@rhighs/gen2e-po",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "gen2e based page object generation agents and utilities",
   "main": "dist/index.js",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
-    "@rhighs/gen2e": "^1.2.4",
-    "@rhighs/gen2e-interpreter": "^1.1.4",
-    "@rhighs/gen2e-llm": "^1.0.9",
+    "@rhighs/gen2e": "^1.2.5",
+    "@rhighs/gen2e-interpreter": "^1.1.5",
+    "@rhighs/gen2e-llm": "^1.0.10",
     "@rhighs/gen2e-logger": "^1.0.3",
     "jimp": "^0.22.12",
     "openai": "^4.17.3",

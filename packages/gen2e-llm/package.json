@@ -1,6 +1,6 @@
 {
   "name": "@rhighs/gen2e-llm",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "module used across gen2e containing LLM call primitives for various sources and models",
   "main": "dist/index.js",
   "publishConfig": {
