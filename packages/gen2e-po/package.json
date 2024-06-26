@@ -1,6 +1,6 @@
 {
   "name": "@rhighs/gen2e-po",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "gen2e based page object generation agents and utilities",
   "main": "dist/index.js",
   "publishConfig": {
@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@rhighs/gen2e": "^1.2.6",
-    "@rhighs/gen2e-interpreter": "^1.1.7",
+    "@rhighs/gen2e-interpreter": "^1.1.8",
     "@rhighs/gen2e-llm": "^1.0.11",
     "@rhighs/gen2e-logger": "^1.0.3",
     "jimp": "^0.22.12",
