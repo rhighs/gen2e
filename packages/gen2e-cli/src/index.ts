@@ -3,7 +3,11 @@ import { program } from "commander";
 import util from "util";
 import path from "path";
 import readline from "readline";
-import { type Gen2EExpression, StaticGenStep } from "@rhighs/gen2e";
+import {
+  type Gen2EExpression,
+  StaticGenStep,
+  staticStoreEnabled,
+} from "@rhighs/gen2e";
 import { makeLogger } from "@rhighs/gen2e-logger";
 import { recordingInterpreter } from "@rhighs/gen2e-interpreter";
 import { Gen2EPOGenerator, loadDumps } from "@rhighs/gen2e-po";
@@ -417,11 +421,15 @@ program
   .command("po-gen")
   .description("generate a page objects via test dumps")
   .argument("[dumppath]", "directory path containing test json dumps")
-  .action(async (dumppath, _options) => {
+  .option("-d, --root-dir <rootDir>")
+  .action(async (dumppath, options) => {
     const dpath = dumppath;
 
     const dumps = await loadDumps(dpath);
-    const generator = new Gen2EPOGenerator({ debug: true });
+    const generator = new Gen2EPOGenerator({
+      debug: true,
+      staticDataDir: options.rootDir,
+    });
 
     for (let dump of dumps) {
       const blocks = dump.blocks.map((b) => b.blocks).flat();
