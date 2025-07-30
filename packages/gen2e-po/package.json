@@ -27,7 +27,6 @@
     "typescript": "^5.1.3"
   },
   "scripts": {
-    "test-server": "tsx ./tests/bin/start-test-server.ts",
     "build": "tsc --project tsconfig.build.json",
     "ts-node": "ts-node",
     "format": "prettier --write ./src",

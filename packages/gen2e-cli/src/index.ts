@@ -3,11 +3,7 @@ import { program } from "commander";
 import util from "util";
 import path from "path";
 import readline from "readline";
-import {
-  type Gen2EExpression,
-  StaticGenStep,
-  staticStoreEnabled,
-} from "@rhighs/gen2e";
+import { type Gen2EExpression, StaticGenStep } from "@rhighs/gen2e";
 import { makeLogger } from "@rhighs/gen2e-logger";
 import { recordingInterpreter } from "@rhighs/gen2e-interpreter";
 import { Gen2EPOGenerator, loadDumps } from "@rhighs/gen2e-po";
