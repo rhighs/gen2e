@@ -3,13 +3,14 @@ import type { TestInfo as PlayrightTestInfo, PlaywrightTestArgs, TestType } from
 export type { Page };
 
 import type { Page } from "@playwright/test";
+import type { StaticStore } from "@rhighs/gen2e-core";
 import type {
   Gen2ELLMAgentHooks,
   Gen2ELLMAgentModel,
   Gen2ELLMCodeGenAgent,
 } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
-import type { StaticStore } from "./static/store/store";
+import type { DomRevision, WebSnapshotResult } from "./snapshot";
 
 export type Gen2EScreenshotUsagePolicy = "force" | "model" | "onfail" | "off";
 export type Gen2EVisualDebugLevel = "none" | "medium" | "high";
@@ -18,6 +19,17 @@ export type Gen2EGenPolicies = {
   screenshot?: Gen2EScreenshotUsagePolicy;
   visualDebugLevel?: Gen2EVisualDebugLevel;
   maxRetries?: number;
+};
+
+/**
+ * DOM-only-first ladder settings. The first attempt runs on `cheapModel`
+ * (falling back to the primary model) with `cheapScreenshot` (default
+ * "off", unless the configured policy is "force"); later attempts run on the
+ * primary model with the configured policy.
+ */
+export type Gen2ELadderOptions = {
+  cheapModel?: Gen2ELLMAgentModel;
+  cheapScreenshot?: Gen2EScreenshotUsagePolicy;
 };
 
 export type Gen2EGenOptions = {
@@ -32,6 +44,13 @@ export type Gen2EGenOptions = {
   baseURL?: string;
   policies?: Gen2EGenPolicies;
   saveContext?: boolean;
+  /**
+   * DOM-only-first cost ladder. `true` starts on the primary model with
+   * screenshots off and escalates to the configured policy after a failure;
+   * an object can name a cheaper model and a screenshot policy for the
+   * first attempt. Also enabled by `GEN2E_CHEAP_MODEL` or the config file.
+   */
+  ladder?: boolean | Gen2ELadderOptions;
   /**
    * Serve exclusively from the static store. A cache miss throws
    * `Gen2ECacheMissError`; no snapshot, generation or write happens.
@@ -63,29 +82,7 @@ export interface GenType extends GenFunction, Gen2EGenContext {
   test: GenTestFunction;
 }
 
-export type StaticGenStepRefs = {
-  screenshotPath?: string;
-  htmlPath?: string;
-  pageUrl: string;
-};
-
-export type StaticGenStep = {
-  expression: string;
-  context?: {
-    task?: string;
-    testTitle?: string;
-    notes?: string;
-    refs?: StaticGenStepRefs;
-  };
-  meta?: {
-    generatedAt: string;
-    model?: string;
-    promptVersion?: string;
-    pageUrl?: string;
-    domFingerprint?: string;
-    attempts?: number;
-  };
-};
+export type { StaticGenStep, StaticGenStepRefs } from "@rhighs/gen2e-core";
 
 export type Gen2EExpression = {
   task: string;
@@ -102,12 +99,24 @@ export type Gen2EEvalLoopInit = {
   page: Page;
   policies: Gen2EEvalLoopPolicies;
   evalCode: Gen2EPlaywriteCodeEvalFunc;
+  /**
+   * Optional snapshot captured by the caller, reused as the first capture so
+   * a step never pays for two captures.
+   */
+  snapshot?: WebSnapshotResult;
+  /**
+   * DOM revision observed right before the caller-provided snapshot was
+   * captured. When present it is used as the reuse baseline so mutations that
+   * happen while the caller captures are not folded into it.
+   */
+  snapshotRevision?: DomRevision;
 };
 
 export type Gen2EEvalLoopResult =
   | {
       type: "error";
       errors: Error[];
+      attempts?: number;
     }
   | {
       type: "success";
@@ -115,6 +124,7 @@ export type Gen2EEvalLoopResult =
         expression: string;
         evalResult: any;
       };
+      attempts?: number;
     };
 
 export type Gen2EEvalLoopOptions = {
@@ -122,6 +132,7 @@ export type Gen2EEvalLoopOptions = {
   debug?: boolean;
   visualInfoLevel?: "none" | "medium" | "high";
   saveScreenshots?: boolean;
+  ladder?: Gen2ELadderOptions;
 };
 
 export type Gen2ELLMCallHooks = Gen2ELLMAgentHooks;
@@ -169,6 +180,10 @@ export type Gen2EConfig = {
   policies?: Gen2EGenPolicies;
   /** Serve exclusively from the static store, never generating or writing. */
   replayOnly?: boolean;
+  /** Cheaper model used for the first ladder attempt when the ladder is on. */
+  cheapModel?: string;
+  /** Enable the DOM-only-first cost ladder by default. */
+  ladder?: boolean;
 };
 
 /**

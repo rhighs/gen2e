@@ -10,8 +10,10 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
+    "@rhighs/gen2e-core": "^1.0.0",
     "@rhighs/gen2e-llm": "^1.0.11",
     "@rhighs/gen2e-logger": "^1.0.3",
+    "@rhighs/gen2e-store": "^1.0.0",
     "sanitize-html": "^2.11.0"
   },
   "devDependencies": {

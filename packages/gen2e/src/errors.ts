@@ -1,9 +1,6 @@
-export abstract class Gen2EError extends Error {
-  public constructor(message?: string) {
-    super(message);
-    this.name = new.target.name;
-  }
-}
+import { Gen2EError } from "@rhighs/gen2e-core";
+
+export { Gen2ECacheMissError, Gen2EError, Gen2EStaleCacheError } from "@rhighs/gen2e-core";
 
 export class Gen2EGenError extends Gen2EError {
   public constructor(message?: string) {
@@ -26,18 +23,5 @@ export class LLMGenericError extends Gen2EError {
 export class LLMCodeError extends Gen2EError {
   public constructor(message?: string) {
     super(`LLM failed generaing a valid js expression got error ${message}`);
-  }
-}
-
-/**
- * Thrown in replay-only mode when no static cache entry matches the
- * generation request. Carries the identifier that was looked up.
- */
-export class Gen2ECacheMissError extends Gen2EError {
-  public readonly ident: string;
-
-  public constructor(ident: string) {
-    super(`replay-only mode: no static cache entry found for identifier ${ident}`);
-    this.ident = ident;
   }
 }

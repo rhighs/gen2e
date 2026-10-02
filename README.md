@@ -25,6 +25,7 @@ Made by Roberto Montalti · TypeScript · Node 20+ · `github.com/rhighs/gen2e`
   - [Model resolution rules](#model-resolution-rules)
 - [Configuration](#configuration)
 - [Static store](#static-store)
+- [Evaluation](#evaluation)
 - [CLI](#cli)
 - [Interpreter](#interpreter)
 - [Page objects](#page-objects)
@@ -57,6 +58,8 @@ Gen2E closes that loop inside Playwright:
 | Package | Description |
 |---|---|
 | [`@rhighs/gen2e`](./packages/gen2e) | The library: `gen`, `gen.test`, static stores, snapshots, evaluation loop. |
+| [`@rhighs/gen2e-core`](./packages/gen2e-core) | Store contracts, cache identity, errors, pricing and telemetry types shared across packages. No runtime dependencies. |
+| [`@rhighs/gen2e-store`](./packages/gen2e-store) | Static store implementations: file system (atomic writes, quarantine), in-memory, and CI cache bundle helpers. |
 | [`@rhighs/gen2e-llm`](./packages/gen2e-llm) | Model runners and code-gen agents: OpenAI-compatible endpoint support, tool validation, usage stats. |
 | [`@rhighs/gen2e-interpreter`](./packages/gen2e-interpreter) | Natural-language interpreter that compiles instruction lists into gen2e IL or Playwright code. |
 | [`@rhighs/gen2e-cli`](./packages/gen2e-cli) | `gen2e-cli generate`, `recorder`, `repl` and `po-gen` commands. |
@@ -297,6 +300,39 @@ gen.test(async ({ page, gen }) => { /* ... */ }, {
 ```
 
 Set `GEN2E_STATIC_PATH` to move the directory, `GEN2E_PRELOAD_ENABLED=1` to load steps into memory at startup, and `GEN2E_USE_STATIC_STORE=0` to disable caching.
+
+---
+
+## Evaluation
+
+The repo ships a nightly evaluation harness that measures generation quality against the fixture app in `packages/gen2e/tests/bin/start-test-server.ts`. The corpus is `packages/gen2e/tests/evals/corpus.json`: six tasks covering queries, actions, assertions and a multi-step flow.
+
+```bash
+# model mode: generates expressions with the pinned model
+export OPENAI_API_KEY="..."
+export GEN2E_EVAL_MODEL="gpt-4o-mini"   # required; OPENAI_BASE_URL is optional
+npm run eval
+
+# replay mode: no API key, no generation, replays an existing cache
+EVAL_STATIC_PATH=.static-eval/<runId> npm run eval:replay
+```
+
+Model mode writes each repetition to a run-scoped cache (`.static-eval/<runId>`, or `rep-<n>` subdirectories when `EVAL_RUNS > 1`) and a JSONL telemetry file, prints a table and writes `eval-report.json`. Metrics per task: pass@1 (first attempt), success within `k` attempts, attempts, retries, tool calls, prompt/completion/total tokens, cost when the model is priced, and wall-clock. The process exits non-zero when any task's pass@1 is below `EVAL_MIN_PASS` (default 0) or a task hard-errors.
+
+Replay mode never calls a model and never writes expressions. It serves the corpus from `EVAL_STATIC_PATH` (default `.static-eval/latest`), counts cache hits and misses, and quarantines entries whose cached expression fails at evaluation time — a quarantined run exits non-zero. An empty cache produces an all-misses report and exits 0, which is how the nightly replay step runs without an API key.
+
+`.github/workflows/nightly.yml` runs on a schedule and on demand: build, replay step always, model step only when the `OPENAI_API_KEY` secret is configured, then uploads `eval-report*.json`.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GEN2E_EVAL_MODEL` | — | Pinned model id. Required in model mode; replay must use the same id. |
+| `EVAL_RUNS` | `1` | Repetitions per task. |
+| `EVAL_MIN_PASS` | `0` | Minimum per-task pass@1 in model mode; below it the run fails. |
+| `EVAL_MAX_ATTEMPTS` | `3` | Attempts per generation (`k` in success-within-k). |
+| `EVAL_SCREENSHOT` | `off` | Screenshot policy for eval runs. |
+| `EVAL_STATIC_PATH` | run-scoped | Cache directory (model mode); cache to replay (replay mode). |
+| `EVAL_REPORT` | `eval-report.json` | Report path. |
+| `EVAL_TELEMETRY_PATH` | `<runDir>/telemetry.jsonl` | Telemetry JSONL path. |
 
 ---
 

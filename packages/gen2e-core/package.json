@@ -1,0 +1,23 @@
+{
+  "name": "@rhighs/gen2e-core",
+  "version": "1.0.0",
+  "description": "Store contracts, cache identity, errors, pricing and telemetry types shared across gen2e packages",
+  "main": "dist/index.js",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json"
+  },
+  "keywords": [
+    "gen2e",
+    "static-store",
+    "cache"
+  ],
+  "author": "Roberto Montalti",
+  "license": "MIT"
+}

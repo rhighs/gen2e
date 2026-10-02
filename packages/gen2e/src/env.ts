@@ -5,6 +5,16 @@ export type Gen2EEnv = {
   USE_STATIC_STORE: boolean;
   LOG_STEP: boolean;
   REPLAY_ONLY: boolean;
+  /**
+   * How a cache hit that fails with locator drift is handled: "regen" falls
+   * back to generation, "fail" surfaces `Gen2EStaleCacheError`.
+   */
+  STALE_CACHE: string;
+  /**
+   * Cheaper model for the first cost-ladder attempt. Setting it enables the
+   * ladder by default.
+   */
+  CHEAP_MODEL: string;
 };
 
 const parseFlag = (f: string | undefined, def: boolean = false): boolean => {
@@ -38,4 +48,6 @@ export default {
   LOG_STEP: parseFlag(process.env.GEN2E_LOG_STEP),
   USE_STATIC_STORE: parseFlag(process.env.GEN2E_USE_STATIC_STORE, true),
   REPLAY_ONLY: parseFlag(process.env.GEN2E_REPLAY_ONLY),
+  STALE_CACHE: parseParam(process.env.GEN2E_STALE_CACHE, "regen").trim().toLowerCase(),
+  CHEAP_MODEL: parseParam(process.env.GEN2E_CHEAP_MODEL),
 } as Gen2EEnv;

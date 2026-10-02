@@ -1,0 +1,65 @@
+name: Nightly evaluation
+
+on:
+  schedule:
+    # Every day at 03:17 UTC.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # Boolean string: secrets cannot be referenced from a step `if`
+      # expression, so the gate is computed here and the secret itself is only
+      # injected into the model step.
+      HAS_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      # include optional due to: npm ERR! Error: Cannot find module '@nx/nx-linux-x64-gnu' at CI installs
+      - name: Install
+        run: npm ci --include=optional
+
+      - name: Build
+        run: npm run build
+
+      - name: Install chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Replay eval (no API key needed)
+        env:
+          GEN2E_EVAL_MODEL: ${{ vars.GEN2E_EVAL_MODEL || 'gpt-4o-mini' }}
+          EVAL_STATIC_PATH: .static-eval/ci
+          EVAL_REPORT: eval-report.replay.json
+        run: npm run eval:replay
+
+      - name: Model eval
+        if: ${{ !cancelled() && env.HAS_OPENAI_API_KEY == 'true' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+          GEN2E_EVAL_MODEL: ${{ vars.GEN2E_EVAL_MODEL || 'gpt-4o-mini' }}
+          EVAL_RUNS: ${{ vars.EVAL_RUNS || '1' }}
+          EVAL_MIN_PASS: ${{ vars.EVAL_MIN_PASS || '0.5' }}
+          EVAL_STATIC_PATH: .static-eval/ci
+        run: npm run eval
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-report*.json
+          if-no-files-found: warn

@@ -81,6 +81,59 @@ describe("createCodeGenAgent model handling", () => {
     expect(result.type === "error" && result.errorMessage).toContain("boom");
   });
 
+  test("falls back to the next model on a retryable error", async () => {
+    mockRunnerRun
+      .mockResolvedValueOnce({ type: "error", reason: "429 rate limit exceeded" })
+      .mockResolvedValueOnce({ type: "success", result: "let y = 2;" });
+    const onUsage = jest.fn();
+    const agent = createCodeGenAgent("system", "model-a", {
+      openaiApiKey: "key",
+      promptVersion: "v1",
+      fallbackModels: ["model-b"],
+      retryBackoffMs: 0,
+    });
+
+    const result = await agent({ task: "generate code" }, { onUsage });
+
+    expect(result).toEqual({ type: "success", result: "let y = 2;" });
+    expect(mockRunnerRun).toHaveBeenCalledTimes(2);
+    expect(mockRunnerOptions.map((options) => options.model)).toEqual(["model-a", "model-b"]);
+    expect(onUsage).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "model-b", promptVersion: "v1" }),
+    );
+  });
+
+  test("does not fall back on a non-retryable error", async () => {
+    mockRunnerRun.mockResolvedValueOnce({ type: "error", reason: "invalid api key" });
+    const agent = createCodeGenAgent("system", "model-a", {
+      openaiApiKey: "key",
+      fallbackModels: ["model-b"],
+      retryBackoffMs: 0,
+    });
+
+    const result = await agent({ task: "generate code" });
+
+    expect(result.type).toBe("error");
+    expect(mockRunnerRun).toHaveBeenCalledTimes(1);
+    expect(mockRunnerOptions.map((options) => options.model)).toEqual(["model-a"]);
+  });
+
+  test("respects maxFallbacks", async () => {
+    mockRunnerRun.mockResolvedValue({ type: "error", reason: "service unavailable 503" });
+    const agent = createCodeGenAgent("system", "model-a", {
+      openaiApiKey: "key",
+      fallbackModels: ["model-b", "model-c", "model-d"],
+      maxFallbacks: 1,
+      retryBackoffMs: 0,
+    });
+
+    const result = await agent({ task: "generate code" });
+
+    expect(result.type).toBe("error");
+    expect(mockRunnerRun).toHaveBeenCalledTimes(2);
+    expect(mockRunnerOptions.map((options) => options.model)).toEqual(["model-a", "model-b"]);
+  });
+
   test("throws when no API key is available", () => {
     const previous = process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_API_KEY;

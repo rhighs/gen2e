@@ -138,11 +138,222 @@ export type WebSnapshotOptions = {
   pageOutlines?: boolean;
   pageDataTags?: boolean;
   debug?: boolean;
+  /**
+   * Upper bound for the network-idle wait. Defaults to 2000ms and can be
+   * overridden through `GEN2E_NETWORKIDLE_TIMEOUT_MS`.
+   */
+  networkIdleTimeoutMs?: number;
 };
 
 export type WebSnapshotResult = {
   dom: string;
   screenshot?: Buffer;
+};
+
+/**
+ * Node-side counters describing how much a page moved. Any increase between
+ * two reads means the DOM moved (navigation or mutation) and a previously
+ * captured snapshot can no longer be trusted.
+ */
+export type DomRevision = {
+  navigations: number;
+  mutations: number;
+};
+
+type PageRevisionState = {
+  navigations: number;
+};
+
+const DEFAULT_NETWORK_IDLE_TIMEOUT_MS = 2000;
+
+const resolveNetworkIdleTimeoutMs = (opts?: WebSnapshotOptions): number => {
+  if (
+    typeof opts?.networkIdleTimeoutMs === "number" &&
+    Number.isFinite(opts.networkIdleTimeoutMs) &&
+    opts.networkIdleTimeoutMs >= 0
+  ) {
+    return opts.networkIdleTimeoutMs;
+  }
+
+  const fromEnv = process.env.GEN2E_NETWORKIDLE_TIMEOUT_MS;
+  if (fromEnv !== undefined && fromEnv.trim() !== "") {
+    const parsed = Number.parseInt(fromEnv, 10);
+    if (!Number.isNaN(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+
+  return DEFAULT_NETWORK_IDLE_TIMEOUT_MS;
+};
+
+const isTimeoutError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const err = error as { name?: string; message?: string };
+  return err.name === "TimeoutError" || /timeout .*exceeded/i.test(err.message ?? "");
+};
+
+/**
+ * Module-level revision counters keyed by page. Kept off the page object so
+ * repeated installs stay idempotent.
+ */
+const pageRevisions = new WeakMap<object, PageRevisionState>();
+
+const MUTATION_COUNTER_INIT_SCRIPT = () => {
+  const w = window as unknown as {
+    __gen2eMutations?: number;
+    __gen2eMutationObserver?: MutationObserver;
+  };
+  if (typeof w.__gen2eMutations !== "number") {
+    w.__gen2eMutations = 0;
+  }
+  // The script is also run directly against already-open documents, where the
+  // init-script pass may have observed this document too; keep one observer.
+  if (w.__gen2eMutationObserver) {
+    return;
+  }
+  try {
+    const observer = new MutationObserver(() => {
+      w.__gen2eMutations = (w.__gen2eMutations ?? 0) + 1;
+    });
+    observer.observe(document, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
+    w.__gen2eMutationObserver = observer;
+  } catch (_err) {
+    // init scripts run again on every navigation; a failed observe is not fatal
+  }
+};
+
+type MutationCounterTarget = {
+  evaluate?: (script: () => void) => Promise<unknown>;
+};
+
+const installMutationCounterInDocument = async (
+  target: MutationCounterTarget | undefined,
+): Promise<void> => {
+  if (!target || typeof target.evaluate !== "function") {
+    return;
+  }
+
+  try {
+    await target.evaluate(MUTATION_COUNTER_INIT_SCRIPT);
+  } catch (_err) {
+    // cross-origin, detached or mock documents are not tracked
+  }
+};
+
+/**
+ * Runs the mutation counter against every document that is already open.
+ * `addInitScript` only evaluates on navigation or frame attach, so an install
+ * performed after the caller navigated would otherwise leave the current
+ * document without a MutationObserver.
+ */
+const installMutationCountersInOpenDocuments = (page: Page): Promise<void> => {
+  const targets: MutationCounterTarget[] = [];
+
+  try {
+    if (typeof (page as MutationCounterTarget | undefined)?.evaluate === "function") {
+      targets.push(page as MutationCounterTarget);
+    }
+  } catch (_err) {
+    // not a real page
+  }
+
+  try {
+    if (typeof page?.frames === "function") {
+      const frames = page.frames();
+      if (Array.isArray(frames)) {
+        for (const frame of frames) {
+          if (frame && typeof frame.evaluate === "function") {
+            targets.push(frame as MutationCounterTarget);
+          }
+        }
+      }
+    }
+  } catch (_err) {
+    // not a real page
+  }
+
+  return Promise.all(targets.map(installMutationCounterInDocument)).then(() => undefined);
+};
+
+/**
+ * Installs the DOM revision tracker for a page: a `framenavigated` listener
+ * for every frame and a page-side MutationObserver counting changes in
+ * `window.__gen2eMutations`. The observer is installed both for future
+ * navigations (init script) and for the documents that are already open, so an
+ * install that happens after `page.goto` still tracks the current document.
+ * Idempotent per page and tolerant of mocks that do not implement the
+ * Playwright page API. Resolves once the open documents have been instrumented.
+ */
+export const installDomRevisionTracker = async (page: Page): Promise<void> => {
+  try {
+    if (!page || typeof page.on !== "function" || pageRevisions.has(page)) {
+      return;
+    }
+
+    const state: PageRevisionState = { navigations: 0 };
+    pageRevisions.set(page, state);
+
+    page.on("framenavigated", () => {
+      state.navigations += 1;
+    });
+
+    if (typeof page.addInitScript === "function") {
+      try {
+        // Await the registration so a navigation that follows the install
+        // cannot race ahead of the init script.
+        await page.addInitScript(MUTATION_COUNTER_INIT_SCRIPT);
+      } catch (_err) {
+        // instrumentation must never fail the caller
+      }
+    }
+
+    await installMutationCountersInOpenDocuments(page);
+  } catch (_err) {
+    // instrumentation must never fail the caller
+  }
+};
+
+/**
+ * Reads the current DOM revision for a page. Mutations are summed across
+ * every frame; cross-origin or detached frames count as zero. Never throws:
+ * pages that are not real Playwright pages report zeros.
+ */
+export const getDomRevision = async (page: Page): Promise<DomRevision> => {
+  const navigations = pageRevisions.get(page as object)?.navigations ?? 0;
+  let mutations = 0;
+
+  try {
+    const frames = typeof page?.frames === "function" ? page.frames() : [];
+    if (Array.isArray(frames)) {
+      for (const frame of frames) {
+        if (!frame || typeof frame.evaluate !== "function") {
+          continue;
+        }
+        try {
+          const value = await frame.evaluate(() => {
+            const w = window as unknown as { __gen2eMutations?: number };
+            return w.__gen2eMutations ?? 0;
+          });
+          if (typeof value === "number" && Number.isFinite(value)) {
+            mutations += value;
+          }
+        } catch (_err) {
+          // cross-origin or detached frame: count as no mutations
+        }
+      }
+    }
+  } catch (_err) {
+    // not a real page, report zeros
+  }
+
+  return { navigations, mutations };
 };
 
 const resolveHTMLRoot = async (page: Page): Promise<string> => {
@@ -255,7 +466,19 @@ export const getSnapshot = async (
   opts?: WebSnapshotOptions,
 ): Promise<WebSnapshotResult> => {
   await page.waitForLoadState("domcontentloaded");
-  await page.waitForLoadState("networkidle");
+  const networkIdleTimeoutMs = resolveNetworkIdleTimeoutMs(opts);
+  try {
+    await page.waitForLoadState("networkidle", { timeout: networkIdleTimeoutMs });
+  } catch (error) {
+    if (!isTimeoutError(error)) {
+      throw error;
+    }
+    if (logger) {
+      logger.debug("network idle wait timed out, continuing with the current dom", {
+        timeoutMs: networkIdleTimeoutMs,
+      });
+    }
+  }
 
   const _tags = tags[opts?.stripLevel ?? "medium"];
   const _attrs = attributes[opts?.stripLevel ?? "medium"];

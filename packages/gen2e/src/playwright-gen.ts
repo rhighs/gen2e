@@ -104,6 +104,9 @@ export const createPlaywrightCodeGenAgent = (
       baseURL: options?.baseURL,
       debug: options?.debug,
       promptVersion: options?.promptVersion ?? GEN2E_PROMPT_VERSION,
+      fallbackModels: options?.fallbackModels,
+      maxFallbacks: options?.maxFallbacks,
+      retryBackoffMs: options?.retryBackoffMs,
     },
     logger,
   );

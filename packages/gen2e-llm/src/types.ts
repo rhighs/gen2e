@@ -71,6 +71,16 @@ export type Gen2ELLMAgentBuilderOptions = {
    * stats so callers can invalidate caches when the prompt changes.
    */
   promptVersion?: string;
+  /**
+   * Ordered list of model ids to try when the current model fails with a
+   * retryable error (rate limit, overload, timeout, 5xx). Every model is
+   * served by the same configured OpenAI-compatible endpoint.
+   */
+  fallbackModels?: Gen2ELLMAgentModel[];
+  /** Maximum number of fallback models to try. Defaults to 2. */
+  maxFallbacks?: number;
+  /** Base delay in ms before a fallback retry, doubled per retry. Defaults to 250. */
+  retryBackoffMs?: number;
 };
 
 export type Gen2ELLMCodeGenAgent = Gen2ELLMAgent<Gen2ELLMCodeGenAgentTask, string>;

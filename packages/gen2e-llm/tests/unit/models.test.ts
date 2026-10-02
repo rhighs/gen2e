@@ -1,4 +1,4 @@
-import { isModelSupported, modelId, modelSupportsImage } from "../../src";
+import { isModelSupported, isRetryableModelError, modelId, modelSupportsImage } from "../../src";
 
 describe("model helpers", () => {
   test("isModelSupported accepts any non-empty model id", () => {
@@ -21,5 +21,22 @@ describe("model helpers", () => {
     expect(modelSupportsImage("claude-sonnet-4.6")).toBe(true);
     expect(modelSupportsImage("gemini-3.8-flash")).toBe(true);
     expect(modelSupportsImage("deepseek-v4-pro")).toBe(false);
+  });
+
+  test("isRetryableModelError", () => {
+    expect(isRetryableModelError("429 Too Many Requests")).toBe(true);
+    expect(isRetryableModelError("rate limit exceeded")).toBe(true);
+    expect(isRetryableModelError("too many requests, slow down")).toBe(true);
+    expect(isRetryableModelError("service unavailable 503")).toBe(true);
+    expect(isRetryableModelError("internal server error 500")).toBe(true);
+    expect(isRetryableModelError("model overloaded")).toBe(true);
+    expect(isRetryableModelError("insufficient capacity")).toBe(true);
+    expect(isRetryableModelError("request timeout")).toBe(true);
+    expect(isRetryableModelError("connect ETIMEDOUT")).toBe(true);
+    expect(isRetryableModelError("read ECONNRESET")).toBe(true);
+
+    expect(isRetryableModelError("invalid api key")).toBe(false);
+    expect(isRetryableModelError("model does not supporting feeding images")).toBe(false);
+    expect(isRetryableModelError("")).toBe(false);
   });
 });

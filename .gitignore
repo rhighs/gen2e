@@ -132,6 +132,9 @@ dist
 # gen2e
 gen2e-dump_*
 .static
+.static-eval
+eval-report*.json
+test-results/
 test.*
 .DS_Store
 ./static/

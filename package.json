@@ -15,6 +15,8 @@
     "start": "ts-node ./packages/gen2e-cli/src/index.ts",
     "test": "lerna run test",
     "test:integration": "lerna run test:integration",
+    "eval": "tsx packages/gen2e/tests/evals/run.ts",
+    "eval:replay": "tsx packages/gen2e/tests/evals/run.ts --replay",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format --write .",

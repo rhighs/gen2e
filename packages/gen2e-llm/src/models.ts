@@ -46,3 +46,47 @@ export const modelSupportsImage = (model: Gen2ELLMAgentModel): boolean => {
   const id = modelId(model).toLowerCase();
   return VISION_HINTS.some((hint) => id.includes(hint));
 };
+
+/**
+ * Whether a model error reason is worth retrying on a different model:
+ * rate limiting, overload/capacity, timeouts and transient connection or
+ * server failures. Authentication, validation and shape errors are not.
+ */
+export const isRetryableModelError = (reason: string): boolean => {
+  if (typeof reason !== "string" || reason.trim() === "") {
+    return false;
+  }
+
+  const message = reason.toLowerCase();
+
+  if (
+    message.includes("429") ||
+    message.includes("rate limit") ||
+    message.includes("too many requests")
+  ) {
+    return true;
+  }
+
+  if (message.includes("overloaded") || message.includes("capacity")) {
+    return true;
+  }
+
+  if (
+    message.includes("timeout") ||
+    message.includes("etimedout") ||
+    message.includes("econnreset")
+  ) {
+    return true;
+  }
+
+  if (/\b5\d{2}\b/.test(message)) {
+    return true;
+  }
+
+  return (
+    message.includes("internal server error") ||
+    message.includes("bad gateway") ||
+    message.includes("service unavailable") ||
+    message.includes("gateway timeout")
+  );
+};

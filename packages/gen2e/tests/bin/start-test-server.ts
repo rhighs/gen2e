@@ -28,6 +28,23 @@ export const startServer = (port: number) => {
 </html>`),
   );
 
+  app.get("/iframe", (c) =>
+    c.html(`<html>
+  <body>
+    <h1>Iframe parent</h1>
+    <iframe id="child-frame" name="child-frame" src="/frame-child"></iframe>
+  </body>
+</html>`),
+  );
+
+  app.get("/frame-child", (c) =>
+    c.html(`<html>
+  <body>
+    <p id="frame-text">frame child</p>
+  </body>
+</html>`),
+  );
+
   return new Promise((resolve) => {
     const server = serve(
       {

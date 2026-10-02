@@ -206,6 +206,10 @@ GEN2E_USE_STATIC_STORE=1
 OPENAI_API_KEY=<your-api-key>
 ```
 
+## Evaluation
+
+The monorepo ships a nightly evaluation harness that runs this library against the fixture app in `tests/bin/start-test-server.ts`. From the repository root, `npm run eval` generates the corpus with the pinned `GEN2E_EVAL_MODEL`, and `npm run eval:replay` replays an existing cache without an API key. See the [root README](../../README.md#evaluation) for commands, metrics, quarantine behavior and the nightly workflow.
+
 ## Development
 
 From the monorepo root:

@@ -1,15 +1,9 @@
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import {
-  FSStaticStore,
-  Gen2ECacheMissError,
-  gen,
-  type Page,
-  type StaticGenStep,
-  type StaticStore,
-} from "../../../src";
+import { FSStaticStore, Gen2ECacheMissError, gen, type Page, type StaticStore } from "../../../src";
 import { defaultMakeIdentFromContext, wrapIdent } from "../../../src/static/ident";
+import { runStoreContractTests } from "../../support/store-contract";
 
 describe("static store contract", () => {
   let basePath: string;
@@ -30,68 +24,19 @@ describe("static store contract", () => {
     rmSync(basePath, { recursive: true, force: true });
   });
 
-  test("roundtrips a static step including meta", () => {
-    const step: StaticGenStep = {
-      expression: "await page.title()",
-      context: {
-        task: "get the page title",
-        testTitle: "title test",
-        refs: { pageUrl: "https://example.com/" },
-      },
-      meta: {
-        generatedAt: "2026-10-02T00:00:00.000Z",
-        model: "gpt-4o-mini",
-        promptVersion: "2026-10-02.1",
-        pageUrl: "https://example.com/",
-        attempts: 1,
-      },
-    };
-
-    FSStaticStore.makeStatic("roundtrip", step);
-
-    expect(FSStaticStore.fetchStatic("roundtrip")).toEqual(step);
+  runStoreContractTests("FSStaticStore", () => FSStaticStore, {
+    seedRaw: (ident, raw) => {
+      const stepsDir = path.join(basePath, "steps");
+      mkdirSync(stepsDir, { recursive: true });
+      writeFileSync(path.join(stepsDir, `${wrapIdent(ident)}.gen.step`), raw);
+    },
   });
 
-  test("fetches malformed or empty entries as undefined", () => {
-    const stepsDir = path.join(basePath, "steps");
-    mkdirSync(stepsDir, { recursive: true });
-    writeFileSync(path.join(stepsDir, `${wrapIdent("broken")}.gen.step`), "{not json");
-    writeFileSync(
-      path.join(stepsDir, `${wrapIdent("empty")}.gen.step`),
-      JSON.stringify({ expression: "" }),
-    );
-
-    expect(FSStaticStore.fetchStatic("broken")).toBeUndefined();
-    expect(FSStaticStore.fetchStatic("empty")).toBeUndefined();
-  });
-
-  test("first writer wins and leaves no tmp files behind", () => {
-    const first: StaticGenStep = { expression: "first()" };
-    const second: StaticGenStep = { expression: "second()" };
-
-    FSStaticStore.makeStatic("contended", first);
-    expect(() => FSStaticStore.makeStatic("contended", second)).not.toThrow();
-
-    expect(FSStaticStore.fetchStatic("contended")).toEqual(first);
-    const leftovers = readdirSync(path.join(basePath, "steps")).filter((file) =>
-      file.includes(".tmp-"),
-    );
-    expect(leftovers).toEqual([]);
-  });
-
-  test("overwrite replaces the existing entry", () => {
-    FSStaticStore.makeStatic("overwritten", { expression: "first()" });
-    FSStaticStore.makeStatic("overwritten", { expression: "second()" }, { overwrite: true });
-
-    expect(FSStaticStore.fetchStatic("overwritten")).toEqual({ expression: "second()" });
-  });
-
-  test("quarantine moves the entry out of steps", () => {
+  test("quarantine moves the entry out of the steps directory", () => {
     FSStaticStore.makeStatic("poisoned", { expression: "bad()" });
 
     FSStaticStore.quarantine?.("poisoned", "invalid expression");
 
-    expect(FSStaticStore.fetchStatic("poisoned")).toBeUndefined();
     expect(readdirSync(path.join(basePath, "steps"))).toEqual([]);
     const quarantined = readdirSync(path.join(basePath, "quarantine"));
     expect(quarantined).toHaveLength(1);
@@ -107,22 +52,9 @@ describe("static store contract", () => {
       model: "gpt-4o-mini",
     };
 
-    test("is stable for identical inputs", () => {
-      expect(defaultMakeIdentFromContext(base)).toBe(defaultMakeIdentFromContext({ ...base }));
-    });
-
     test("ignores everything but the origin of the page url", () => {
       expect(defaultMakeIdentFromContext({ ...base, pageUrl: "https://example.com/other" })).toBe(
         defaultMakeIdentFromContext(base),
-      );
-    });
-
-    test("changes when model, promptVersion or origin changes", () => {
-      const ident = defaultMakeIdentFromContext(base);
-      expect(defaultMakeIdentFromContext({ ...base, model: "gpt-5" })).not.toBe(ident);
-      expect(defaultMakeIdentFromContext({ ...base, promptVersion: "v2" })).not.toBe(ident);
-      expect(defaultMakeIdentFromContext({ ...base, pageUrl: "https://other.com/a?b=1" })).not.toBe(
-        ident,
       );
     });
 

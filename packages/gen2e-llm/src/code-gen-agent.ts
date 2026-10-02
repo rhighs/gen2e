@@ -1,6 +1,6 @@
 import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import { Gen2ELLMGenericError } from "./errors";
-import { isModelSupported, modelId } from "./models";
+import { isModelSupported, isRetryableModelError, modelId } from "./models";
 import { Gen2EOpenAIRunner } from "./runner/openai";
 import { sanitizeCodeOutput, validateJSCode, validateJSONString } from "./sanity";
 import { makeTool, makeTracedTool } from "./tools";
@@ -13,6 +13,7 @@ import type {
   Gen2ELLMAgentResult,
   Gen2ELLMAgentRunner,
   Gen2ELLMAgentRunnerInit,
+  Gen2ELLMAgentRunnerResult,
   Gen2ELLMAgentTool,
   Gen2ELLMAgentUsageStats,
   Gen2ELLMCodeGenAgent,
@@ -135,6 +136,24 @@ const buildRunner = (
   });
 };
 
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+/**
+ * Backoff before fallback attempt n: `retryBackoffMs * 2^n` plus up to
+ * `retryBackoffMs` of random jitter, capped at 2000ms.
+ */
+const fallbackDelayMs = (baseMs: number, attempt: number): number => {
+  if (!Number.isFinite(baseMs) || baseMs <= 0) {
+    return 0;
+  }
+  const exponential = baseMs * 2 ** attempt;
+  const jitter = Math.random() * baseMs;
+  return Math.min(2000, exponential + jitter);
+};
+
 export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
@@ -175,6 +194,26 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
   };
 
   const totalToolCalls = () => allTools.reduce((acc, tool) => acc + tool.callCount(), 0);
+
+  const retryBackoffMs = options?.retryBackoffMs ?? 250;
+  const maxFallbacks = Math.max(0, options?.maxFallbacks ?? 2);
+
+  /**
+   * Primary model plus deduplicated, validated fallback models, capped at
+   * `maxFallbacks`.
+   */
+  const fallbackChain = (primary: Gen2ELLMAgentModel): Gen2ELLMAgentModel[] => {
+    const seen = new Set([modelId(primary)]);
+    const candidates: Gen2ELLMAgentModel[] = [];
+    for (const candidate of options?.fallbackModels ?? []) {
+      if (!isModelSupported(candidate) || seen.has(modelId(candidate))) {
+        continue;
+      }
+      seen.add(modelId(candidate));
+      candidates.push(candidate);
+    }
+    return [primary, ...candidates.slice(0, maxFallbacks)];
+  };
 
   // Resolve the initial runner eagerly so misconfiguration surfaces when the
   // agent is created, not on the first generation request.
@@ -222,14 +261,49 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
         runOpts.images = task.images;
       }
 
-      const result = await entry.runner.run(runOpts, hooks);
-      if (result.type === "error") {
+      const chain = fallbackChain(entry.model);
+      let runnerResult: Gen2ELLMAgentRunnerResult | undefined;
+      let lastReason = "";
+
+      for (let i = 0; i < chain.length; ++i) {
+        if (i > 0) {
+          await sleep(fallbackDelayMs(retryBackoffMs, i - 1));
+          try {
+            entry = getRunner(chain[i]);
+          } catch (err) {
+            lastReason = `${err}`;
+            break;
+          }
+          if (isDebug) {
+            _logger.debug("falling back to model", {
+              model: modelId(entry.model),
+              fallbackAttempt: i,
+            });
+          }
+        }
+
+        const attempt = await entry.runner.run(runOpts, hooks);
+        if (attempt.type === "success") {
+          runnerResult = attempt;
+          break;
+        }
+
+        lastReason = attempt.reason;
+        if (!isRetryableModelError(attempt.reason)) {
+          return {
+            type: "error",
+            errorMessage: `llm runner failed with reason ${attempt.reason}`,
+          };
+        }
+      }
+
+      if (!runnerResult || runnerResult.type === "error") {
         return {
           type: "error",
-          errorMessage: `llm runner failed with reason ${result.reason}`,
+          errorMessage: `llm runner failed with reason ${lastReason}`,
         };
       }
-      expression = result.result;
+      expression = runnerResult.result;
 
       const usage = await entry.runner.getUsage();
       const usageStats: Gen2ELLMAgentUsageStats = {

@@ -56,6 +56,8 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
       };
     })(),
     replayOnly: unwrapAs("replayOnly", "boolean"),
+    cheapModel: unwrapAs("cheapModel"),
+    ladder: unwrapAs("ladder", "boolean"),
   };
 }
 

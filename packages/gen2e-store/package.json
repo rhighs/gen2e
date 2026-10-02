@@ -1,0 +1,33 @@
+{
+  "name": "@rhighs/gen2e-store",
+  "version": "1.0.0",
+  "description": "Static store implementations for gen2e: file system, in-memory and CI cache bundles",
+  "main": "dist/index.js",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "@rhighs/gen2e-core": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.19.43",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.4",
+    "ts-node": "^10.9.2",
+    "tsx": "^3.12.7",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "test": "jest",
+    "ts-node": "ts-node"
+  },
+  "keywords": [
+    "gen2e",
+    "static-store",
+    "cache"
+  ],
+  "author": "Roberto Montalti",
+  "license": "MIT"
+}

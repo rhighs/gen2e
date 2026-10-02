@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "query-header",
+      "title": "query: read the header text",
+      "kind": "query",
+      "url": "/",
+      "task": "get the header text",
+      "expect": { "type": "equals", "value": "Hello, Gen2E!" }
+    },
+    {
+      "id": "query-frame-text",
+      "title": "query: read text inside the child frame",
+      "kind": "query",
+      "url": "/iframe",
+      "task": "get the text of the paragraph inside the child frame",
+      "expect": { "type": "equals", "value": "frame child" }
+    },
+    {
+      "id": "action-type-search",
+      "title": "action: type in the search box",
+      "kind": "action",
+      "url": "/",
+      "task": "type \"gen2e\" in the search box",
+      "verify": { "locator": "[data-testid=\"search-input\"]", "inputValue": "gen2e" }
+    },
+    {
+      "id": "action-click-once",
+      "title": "action: click the button once",
+      "kind": "action",
+      "url": "/",
+      "task": "click the \"Click me\" button once",
+      "verify": { "locator": "[data-testid=\"current-count\"]", "text": "1" }
+    },
+    {
+      "id": "assertion-header-true",
+      "title": "assertion: header equals Hello, Gen2E!",
+      "kind": "assertion",
+      "url": "/",
+      "task": "is the header text equal to \"Hello, Gen2E!\"?",
+      "expect": { "type": "equals", "value": true }
+    },
+    {
+      "id": "multi-step-counter",
+      "title": "multi-step: click until the counter reaches 2 and read it",
+      "kind": "multi-step",
+      "url": "/",
+      "task": "click the \"Click me\" button until the counter value is equal to 2, then get the counter value",
+      "expect": { "type": "equals", "value": "2" }
+    }
+  ]
+}

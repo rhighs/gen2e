@@ -1,5 +1,6 @@
-import { FSStaticStore, type StaticStore } from "@rhighs/gen2e";
+import type { StaticStore } from "@rhighs/gen2e-core";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
+import { FSStaticStore } from "@rhighs/gen2e-store";
 import type { API, FileInfo, JSCodeshift } from "jscodeshift";
 import { makeTransformer } from "./compiler";
 

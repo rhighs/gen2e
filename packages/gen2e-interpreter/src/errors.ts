@@ -1,4 +1,4 @@
-import { Gen2EError } from "@rhighs/gen2e";
+import { Gen2EError } from "@rhighs/gen2e-core";
 
 export class Gen2EInterpreterError extends Gen2EError {
   public constructor(message?: string) {
