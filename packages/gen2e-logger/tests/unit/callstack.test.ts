@@ -1,4 +1,4 @@
-import { runtimeExecutionInfo, Gen2ELoggerRuntimeCallInfo } from "../../src";
+import { runtimeExecutionInfo } from "../../src";
 
 describe("String.prototype.strip", () => {
   it("should remove leading and trailing spaces by default", () => {

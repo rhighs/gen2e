@@ -1,2 +1,2 @@
-export * from "./interpreter";
 export * from "./ast";
+export * from "./interpreter";

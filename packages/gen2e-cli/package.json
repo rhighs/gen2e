@@ -21,19 +21,16 @@
     "jscodeshift": "^0.15.2"
   },
   "devDependencies": {
-    "@types/node": "^20.2.5",
-    "prettier": "^2.8.8",
+    "@types/node": "^20.19.43",
     "semantic-release": "^21.0.2",
     "ts-node": "^10.9.2",
     "tsx": "^3.12.7",
-    "typescript": "^5.1.3"
+    "typescript": "^5.9.3"
   },
   "scripts": {
     "start": "tsx ./src/index.ts",
     "build": "tsc --project tsconfig.build.json",
-    "ts-node": "ts-node",
-    "format": "prettier --write ./src",
-    "lint": "prettier --check ./src"
+    "ts-node": "ts-node"
   },
   "keywords": [
     "ai",

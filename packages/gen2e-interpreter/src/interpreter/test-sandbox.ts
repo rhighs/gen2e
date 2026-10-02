@@ -1,22 +1,25 @@
-import { APIRequestContext, BrowserContext } from "@playwright/test";
 import {
-  Gen2EGenOptions,
-  Gen2ELLMCallHooks,
-  Gen2EPlaywriteCodeEvalFunc,
+  type APIRequestContext,
+  type BrowserContext,
+  expect as nativeExpect,
+} from "@playwright/test";
+import {
+  type Gen2EGenOptions,
+  type Gen2ELLMCallHooks,
+  type Gen2EPlaywriteCodeEvalFunc,
+  type GenStepFunction,
+  type GenType,
   gen as genObject,
-  GenStepFunction,
-  GenType,
-  Page,
-  PlaywrightTestFunction,
-  TestFunction,
-  TestInfo,
+  type Page,
+  type PlaywrightTestFunction,
+  type StaticStore,
+  type TestFunction,
+  type TestInfo,
 } from "@rhighs/gen2e";
-import { Gen2ESandboxError } from "../errors";
-import { StaticStore } from "@rhighs/gen2e";
-import { expect as nativeExpect } from "@playwright/test";
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import { gen2eSanitize } from "../ast/gen2e-sanitize";
 import env from "../env";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import { Gen2ESandboxError } from "../errors";
 
 /**
  * rob:
@@ -48,7 +51,7 @@ export const sandboxEval = async (
   evalPwCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
     new Function("code", "page", "return Promise.resolve()")(code, page),
   gen: GenType = genObject,
-  _logger?: Gen2ELogger
+  _logger?: Gen2ELogger,
 ): Promise<any> => {
   const logger = makeLogger("GEN2E-INTEPRETER-SANDBOX");
   if (_logger) {
@@ -57,10 +60,8 @@ export const sandboxEval = async (
 
   const _gen_custom_eval =
     (__gen: GenStepFunction) =>
-    async (
-      ...args: Parameters<GenStepFunction>
-    ): ReturnType<GenStepFunction> => {
-      const [task, config, options, _] = args;
+    async (...args: Parameters<GenStepFunction>): ReturnType<GenStepFunction> => {
+      const [task, config, _options, _] = args;
       if (env.SANDBOX_DEBUG) {
         logger.debug("calling __gen() with args", args);
       }
@@ -82,16 +83,13 @@ export const sandboxEval = async (
             context: rest.context,
             request: rest.request,
           },
-          testInfo
+          testInfo,
         );
       },
-      { store, hooks: llmCallHooks, logger }
+      { store, hooks: llmCallHooks, logger },
     );
 
-  const _test = async (
-    testTitle: string,
-    testFunction: PlaywrightTestFunction
-  ): Promise<any> => {
+  const _test = async (testTitle: string, testFunction: PlaywrightTestFunction): Promise<any> => {
     return testFunction(
       {
         page,
@@ -100,14 +98,11 @@ export const sandboxEval = async (
       },
       {
         title: testTitle,
-      } as TestInfo
+      } as TestInfo,
     );
   };
 
-  _test.step = async (
-    stepTitle,
-    step: (...args: any[]) => Promise<any> | any
-  ) => {
+  _test.step = async (stepTitle, step: (...args: any[]) => Promise<any> | any) => {
     if (env.SANDBOX_DEBUG) {
       logger.debug('calling test step for task: "', stepTitle, '"');
     }

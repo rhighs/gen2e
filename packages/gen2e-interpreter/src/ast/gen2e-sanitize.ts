@@ -1,18 +1,11 @@
-import {
-  API,
-  MemberExpression,
-  AwaitExpression,
-  FileInfo,
-  CallExpression,
-} from "jscodeshift";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
+import type { API, AwaitExpression, CallExpression, FileInfo, MemberExpression } from "jscodeshift";
 import { makeTransformer } from "./compiler";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
 const isGenCall = (e: AwaitExpression | CallExpression): boolean => {
   if (e.type === "AwaitExpression" && e.argument?.type === "CallExpression") {
     const { callee } = e.argument;
-    const callNameMatches =
-      callee.type === "Identifier" && callee.name === "gen";
+    const callNameMatches = callee.type === "Identifier" && callee.name === "gen";
     const hasCorrectArgs =
       e.argument.arguments.length === 2 &&
       (e.argument.arguments[0].type === "Literal" ||
@@ -22,8 +15,7 @@ const isGenCall = (e: AwaitExpression | CallExpression): boolean => {
     return callNameMatches && hasCorrectArgs;
   } else if (e.type === "CallExpression") {
     const { callee } = e;
-    const callNameMatches =
-      callee.type === "Identifier" && callee.name === "gen";
+    const callNameMatches = callee.type === "Identifier" && callee.name === "gen";
     const hasCorrectArgs =
       e.arguments.length === 2 &&
       (e.arguments[0].type === "Literal" ||
@@ -35,22 +27,14 @@ const isGenCall = (e: AwaitExpression | CallExpression): boolean => {
   return false;
 };
 
-const resolveChainedMemberCall = (
-  e: MemberExpression
-): CallExpression | undefined => {
-  if (
-    e.object.type === "CallExpression" &&
-    e.object.callee.type === "MemberExpression"
-  ) {
+const resolveChainedMemberCall = (e: MemberExpression): CallExpression | undefined => {
+  if (e.object.type === "CallExpression" && e.object.callee.type === "MemberExpression") {
     return resolveChainedMemberCall(e.object.callee);
   }
   if (e.object.type === "CallExpression") {
     return e.object;
   }
-  if (
-    e.object.type === "AwaitExpression" &&
-    e.object.argument?.type === "CallExpression"
-  ) {
+  if (e.object.type === "AwaitExpression" && e.object.argument?.type === "CallExpression") {
     return e.object.argument;
   }
   return undefined;
@@ -87,7 +71,7 @@ const filterNode = (node: any): boolean => {
       isGenCall(maybeChainedV.arguments[0]))
   ) {
     throw new Error(
-      "Gen2ESanitize gen2e code error, cannot sanitize gen2e calls as argument to other call expressions"
+      "Gen2ESanitize gen2e code error, cannot sanitize gen2e calls as argument to other call expressions",
     );
   }
 
@@ -134,7 +118,7 @@ const sanitizeGenCalls = (root: any, j: any): void => {
 };
 
 export const gen2eSanitize = (source: string) =>
-  makeTransformer((fileInfo: FileInfo, api: API, logger?: Gen2ELogger) => {
+  makeTransformer((fileInfo: FileInfo, api: API, _logger?: Gen2ELogger) => {
     const { j } = api;
     const root = j(fileInfo.source);
     sanitizeGenCalls(root, j);

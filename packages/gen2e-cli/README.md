@@ -28,7 +28,7 @@ The default command interprets the tasks specified in a `.gen2e` file and output
 #### Usage
 
 ```sh
-gen2e-cli <file> [options]
+gen2e-cli generate <file> [options]
 ```
 
 #### Important options
@@ -36,7 +36,9 @@ gen2e-cli <file> [options]
 - `--imode <imode>`: Interpreter output mode, either `gen2e` IL or plain generated Playwright code.
 - `--debug`: Enables debug mode, showing debug logs and more.
 - `--openai-api-key <openaiApiKey>`: API key for OpenAI services.
-- `--model <model>`: Model to use for each task, set this to use this model for all tasks.
+- `--gateway-api-key <gatewayApiKey>`: API key for the Vercel AI Gateway (defaults to `AI_GATEWAY_API_KEY`).
+- `--base-url <baseURL>`: Base URL for OpenAI-compatible endpoints.
+- `--model <model>`: Model to use for each task, an OpenAI id or a `provider/model` gateway id.
 - `--gen2e-model <gen2eModel>`: Model to use for gen2e source code generation.
 - `--pw-model <pwModel>`: Model to use for Playwright source code generation.
 - `--stats`: Show interpreter stats report, number of tokens being used, and total LLM calls.
@@ -45,7 +47,13 @@ gen2e-cli <file> [options]
 #### Example
 
 ```sh
-gen2e-cli tasks.gen2e --imode playwright --openai-api-key YOUR_API_KEY --model gpt-3.5-turbo
+gen2e-cli generate tasks.gen2e --imode playwright --openai-api-key YOUR_API_KEY --model gpt-3.5-turbo
+```
+
+With a Vercel AI Gateway model instead of OpenAI:
+
+```sh
+gen2e-cli generate tasks.gen2e --imode playwright --model anthropic/claude-sonnet-4.6 --gateway-api-key "$AI_GATEWAY_API_KEY"
 ```
 
 ### REPL command
@@ -62,7 +70,9 @@ gen2e-cli repl [options]
 
 - `--debug`: Enables debug mode, showing debug logs and more.
 - `--openai-api-key <openaiApiKey>`: API key for OpenAI services.
-- `--model <model>`: OpenAI model to use for each task.
+- `--gateway-api-key <gatewayApiKey>`: API key for the Vercel AI Gateway (defaults to `AI_GATEWAY_API_KEY`).
+- `--base-url <baseURL>`: Base URL for OpenAI-compatible endpoints.
+- `--model <model>`: Model to use for each task, an OpenAI id or a `provider/model` gateway id.
 - `--browser <browser>`: Playwright browser to use (e.g., `chromium`, `firefox`).
 - `--headless`: Start browser in headless mode.
 - `--verbose`: Show more REPL activity logging.

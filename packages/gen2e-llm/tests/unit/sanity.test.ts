@@ -1,9 +1,5 @@
-import {
-  sanitizeCodeOutput,
-  validateJSCode,
-  validateJSONString,
-} from "../../src";
 import * as esprima from "esprima";
+import { sanitizeCodeOutput, validateJSCode, validateJSONString } from "../../src";
 
 describe("sanitizeCodeOutput", () => {
   it("should remove generic markdown code block tokens", () => {

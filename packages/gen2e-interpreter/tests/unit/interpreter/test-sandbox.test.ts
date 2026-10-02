@@ -1,11 +1,11 @@
-import {
-  Page,
-  StaticStore,
+import type {
   GenType,
-  TestFunction,
+  Page,
   PlaywrightTestFunction,
+  StaticStore,
+  TestFunction,
 } from "@rhighs/gen2e";
-import { sandboxEval, gen2eSanitize } from "../../../src";
+import { gen2eSanitize, sandboxEval } from "../../../src";
 
 jest.mock("../../../src/ast/gen2e-sanitize", () => ({
   gen2eSanitize: jest.fn().mockImplementation((source) => source),
@@ -24,10 +24,10 @@ describe("sandboxEval", () => {
         testFunction(
           {
             page,
-            gen: async (task, config, options, evalCode) => {
+            gen: async (task, config, _options, evalCode) => {
               const ident = staticStore.makeIdent(testInfo.title, task);
               const staticCode = staticStore.fetchStatic(ident);
-              if (staticCode && staticCode.expression) {
+              if (staticCode?.expression) {
                 console.debug(staticCode);
                 return evalCode!(staticCode.expression, page);
               }
@@ -41,7 +41,7 @@ describe("sandboxEval", () => {
             context,
             request,
           },
-          testInfo
+          testInfo,
         ),
   } as GenType;
 
@@ -75,8 +75,7 @@ describe("sandboxEval", () => {
     `;
 
     const ident = staticStore.makeIdent("gen test", "task 1");
-    const staticExpression =
-      "(async () => { await page.goto('https://example.com'); })";
+    const staticExpression = "(async () => { await page.goto('https://example.com'); })";
     staticStore.makeStatic(ident, { expression: staticExpression });
     const customEvalPwCode = jest.fn().mockResolvedValue(Promise.resolve());
 
@@ -87,7 +86,7 @@ describe("sandboxEval", () => {
       undefined,
       undefined,
       customEvalPwCode,
-      mockGen
+      mockGen,
     );
 
     expect(gen2eSanitize).toHaveBeenCalledWith(gen2eTestSource);
@@ -95,15 +94,7 @@ describe("sandboxEval", () => {
   });
 
   test("should handle empty gen2eTestSource", async () => {
-    await sandboxEval(
-      "",
-      mockPage,
-      staticStore,
-      undefined,
-      undefined,
-      undefined,
-      mockGen
-    );
+    await sandboxEval("", mockPage, staticStore, undefined, undefined, undefined, mockGen);
     expect(gen2eSanitize).toHaveBeenCalledWith("");
   });
 });

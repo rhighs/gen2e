@@ -1,4 +1,4 @@
-import logger, { Gen2ELogger, makeLogger } from "../src";
+import logger, { type Gen2ELogger, makeLogger } from "../src";
 
 const logStuff = (logger: Gen2ELogger) => {
   const obj = {
@@ -24,18 +24,13 @@ const logStuff = (logger: Gen2ELogger) => {
     },
   };
 
-  logger.debug(
-    "This is a debug message",
-    { key: "value" },
-    [1, 2, 3],
-    "additional info"
-  );
+  logger.debug("This is a debug message", { key: "value" }, [1, 2, 3], "additional info");
   logger.info("This is an info message", obj, [4, 5, 6], "extra details");
   logger.warn(
     "This is a warning message",
     { warning: "low memory" },
     ["warning1", "warning2"],
-    "check system resources"
+    "check system resources",
   );
   logger.error("This is an error message", new Error("Something went wrong"), {
     errorCode: 123,
@@ -43,7 +38,7 @@ const logStuff = (logger: Gen2ELogger) => {
 };
 
 const previewLog = makeLogger("LOG_PREVIEW", undefined, (s) =>
-  s.length > 77 ? s.slice(0, 77) + "..." : s
+  s.length > 77 ? `${s.slice(0, 77)}...` : s,
 );
 const tagEdit = makeLogger("ANOTHER LOGGER??");
 

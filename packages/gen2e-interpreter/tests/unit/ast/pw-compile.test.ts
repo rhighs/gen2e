@@ -1,5 +1,5 @@
+import type { StaticStore } from "@rhighs/gen2e";
 import { pwCompile } from "../../../src";
-import { StaticStore } from "@rhighs/gen2e";
 
 const inMemoryStatic: { [key: string]: string } = {};
 const staticStore: StaticStore = {

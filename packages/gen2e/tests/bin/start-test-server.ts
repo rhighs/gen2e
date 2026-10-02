@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { Hono } from "hono";
 
 export const startServer = (port: number) => {
   const app = new Hono();
@@ -25,7 +25,7 @@ export const startServer = (port: number) => {
       </script>
     </div>
   </body>
-</html>`)
+</html>`),
   );
 
   return new Promise((resolve) => {
@@ -41,7 +41,7 @@ export const startServer = (port: number) => {
           },
           port: info.port,
         });
-      }
+      },
     );
   });
 };

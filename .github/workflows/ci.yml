@@ -1,20 +1,25 @@
 name: Gen2E CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
-      - name: tests
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: "22.x"
+          cache: npm
 
       # include optional due to: npm ERR! Error: Cannot find module '@nx/nx-linux-x64-gnu' at CI installs
       - run: npm ci --include=optional
-      - run: npm run build
-      - run: npm test
+      - name: Format check
+        run: npm run format:check
+      - name: Lint
+        run: npm run check
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test

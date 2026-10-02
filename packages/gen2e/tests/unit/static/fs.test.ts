@@ -1,24 +1,13 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "fs";
-import { FSStaticStore, StaticGenStep } from "../../../src/";
-import path from "path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { FSStaticStore, StaticGenStep } from "../../../src";
 
+jest.mock("node:fs");
 jest.mock("tiktoken", () => ({
-  encode: jest.fn().mockReturnValue(["hashedident"]),
+  encode: jest.fn(),
+  encoding_for_model: jest.fn(() => ({ encode: () => [], free: jest.fn() })),
 }));
-
-jest.mock("fs");
 jest.mock("crypto", () => ({
   ...jest.requireActual("crypto"),
-  hash: jest.fn().mockReturnValue("hashedident"),
-}));
-
-jest.mock("fs");
-jest.mock("crypto", () => ({
   hash: jest.fn().mockReturnValue("hashedident"),
 }));
 
@@ -31,7 +20,8 @@ const mockWriteFileSync = writeFileSync as jest.MockedFunction<
   typeof writeFileSync
 >;
 
-const stepsDirPath = path.join(process.cwd(), ".static/steps");
+const stepsDirPath = ".static/steps";
+const stepFilePath = `${stepsDirPath}/hashedident.gen.step`;
 
 describe("FSStaticStore", () => {
   beforeEach(() => {
@@ -39,7 +29,7 @@ describe("FSStaticStore", () => {
   });
 
   test("should create steps directory if it does not exist", () => {
-    mockExistsSync.mockReturnValueOnce(false);
+    mockExistsSync.mockReturnValue(false);
     FSStaticStore.fetchStatic("testIdent");
     expect(mockMkdirSync).toHaveBeenCalledWith(stepsDirPath, {
       recursive: true,
@@ -47,45 +37,39 @@ describe("FSStaticStore", () => {
   });
 
   test("should fetch static step if exists", () => {
-    const ident = "testIdent";
     const expression = 'console.log("test");';
-    mockExistsSync.mockReturnValueOnce(true);
-    mockReadFileSync.mockReturnValueOnce(Buffer.from(expression));
-
-    const result = FSStaticStore.fetchStatic(ident);
-
-    expect(result).toEqual({
-      ident,
-      expression,
-    });
-    expect(mockReadFileSync).toHaveBeenCalledWith(
-      path.join(stepsDirPath, "hashedident.gen.step")
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValueOnce(
+      Buffer.from(JSON.stringify({ expression }))
     );
+
+    const result = FSStaticStore.fetchStatic("testIdent");
+
+    expect(result).toEqual({ expression });
+    expect(mockReadFileSync).toHaveBeenCalledWith(stepFilePath);
   });
 
   test("should return undefined if static step does not exist", () => {
-    const ident = "testIdent";
-    mockExistsSync.mockReturnValueOnce(true);
+    mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockImplementationOnce(() => {
       throw new Error("File not found");
     });
 
-    const result = FSStaticStore.fetchStatic(ident);
+    const result = FSStaticStore.fetchStatic("testIdent");
 
     expect(result).toBeUndefined();
   });
 
   test("should write static step", () => {
     const staticInfo: StaticGenStep = {
-      ident: "testIdent",
       expression: 'console.log("test");',
     };
 
-    FSStaticStore.makeStatic(staticInfo);
+    FSStaticStore.makeStatic("testIdent", staticInfo);
 
     expect(mockWriteFileSync).toHaveBeenCalledWith(
-      path.join(stepsDirPath, "hashedident.gen.step"),
-      staticInfo.expression,
+      stepFilePath,
+      JSON.stringify(staticInfo),
       { flag: "wx" }
     );
   });

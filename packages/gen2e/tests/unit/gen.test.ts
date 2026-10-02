@@ -1,22 +1,11 @@
-import {
-  StaticStore,
-  Page,
-  gen,
-  StaticGenStep,
-  Gen2EGenError,
-} from "../../src";
-import {
-  createPlaywrightCodeGenAgent,
-  generatePlaywrightCode,
-} from "../../src/playwright-gen";
-import { getSnapshot } from "../../src/snapshot";
+import type { APIRequestContext, BrowserContext } from "@playwright/test";
+import { Gen2EGenError, gen, type Page, type StaticGenStep, type StaticStore } from "../../src";
 import env from "../../src/env";
-import { APIRequestContext, BrowserContext } from "@playwright/test";
+import { createPlaywrightCodeGenAgent, generatePlaywrightCode } from "../../src/playwright-gen";
+import { getSnapshot } from "../../src/snapshot";
 
 jest.mock("../../src/snapshot", () => ({
-  getSnapshot: jest
-    .fn()
-    .mockReturnValue({ dom: "<html><!-- mock dom --></html>" }),
+  getSnapshot: jest.fn().mockReturnValue({ dom: "<html><!-- mock dom --></html>" }),
 }));
 
 jest.mock("../../src/playwright-gen", () => ({
@@ -31,23 +20,22 @@ jest.mock("../../src/env", () => ({
   USE_STATIC_STORE: true,
 }));
 
-const mockCreatePlaywrightCodeGenAgent =
-  createPlaywrightCodeGenAgent as jest.MockedFunction<
-    typeof createPlaywrightCodeGenAgent
-  >;
-const mockGeneratePlaywrightCode =
-  generatePlaywrightCode as jest.MockedFunction<typeof generatePlaywrightCode>;
+const mockCreatePlaywrightCodeGenAgent = createPlaywrightCodeGenAgent as jest.MockedFunction<
+  typeof createPlaywrightCodeGenAgent
+>;
+const mockGeneratePlaywrightCode = generatePlaywrightCode as jest.MockedFunction<
+  typeof generatePlaywrightCode
+>;
 const mockGetSnapshot = getSnapshot as jest.MockedFunction<typeof getSnapshot>;
 
 describe("gen function", () => {
-  const codeSample =
-    '(async () => {return async () => (await page.goto("https://example.com"));})';
+  const codeSample = '(async () => {return async () => (await page.goto("https://example.com"));})';
   const mockPage = {
-    url: () => "https://example.com"
+    url: () => "https://example.com",
   } as Page;
   const staticStore = {};
   const mockStaticStore: StaticStore = {
-    makeIdent: jest.fn((title, task) => task),
+    makeIdent: jest.fn((_title, task) => task),
     fetchStatic: (ident) => staticStore[ident],
     makeStatic: (ident: string, content: StaticGenStep): void => {
       staticStore[ident] = content.expression;
@@ -78,7 +66,7 @@ describe("gen function", () => {
         warn: expect.any(Function),
         debug: expect.any(Function),
         error: expect.any(Function),
-      }
+      },
     );
   });
 
@@ -86,13 +74,7 @@ describe("gen function", () => {
     const evalCode = jest.fn().mockResolvedValue(undefined);
     staticStore["task 1"] = codeSample;
 
-    await gen(
-      "task 1",
-      { page: mockPage },
-      {},
-      { store: mockStaticStore },
-      evalCode
-    );
+    await gen("task 1", { page: mockPage }, {}, { store: mockStaticStore }, evalCode);
 
     expect(evalCode).toHaveBeenCalledWith(codeSample, mockPage);
     delete staticStore["task 1"];
@@ -107,13 +89,7 @@ describe("gen function", () => {
 
     const evalCode = jest.fn().mockResolvedValue(undefined);
 
-    await gen(
-      "task 1",
-      { page: mockPage },
-      {},
-      { store: mockStaticStore },
-      evalCode
-    );
+    await gen("task 1", { page: mockPage }, {}, { store: mockStaticStore }, evalCode);
 
     expect(mockGeneratePlaywrightCode).toHaveBeenCalledWith(expect.any(Object));
     expect(evalCode).toHaveBeenCalledWith(codeSample, mockPage);
@@ -126,9 +102,9 @@ describe("gen function", () => {
       errorMessage,
     });
 
-    await expect(
-      gen("task 1", { page: mockPage }, {}, { store: mockStaticStore })
-    ).rejects.toThrow(Gen2EGenError);
+    await expect(gen("task 1", { page: mockPage }, {}, { store: mockStaticStore })).rejects.toThrow(
+      Gen2EGenError,
+    );
   });
 
   test("should handle errors during test step execution", async () => {
@@ -150,9 +126,9 @@ describe("gen function", () => {
           context: {} as unknown as BrowserContext,
           request: {} as unknown as APIRequestContext,
         },
-        // @ts-ignore
-        { title: "gen test" }
-      )
+        // @ts-expect-error
+        { title: "gen test" },
+      ),
     ).rejects.toThrow(Error);
   });
 });

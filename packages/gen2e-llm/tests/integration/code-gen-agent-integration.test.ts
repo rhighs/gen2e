@@ -1,12 +1,13 @@
 import {
   createCodeGenAgent,
-  Gen2ELLMAgentModel,
-  Gen2ELLMAgentResult,
-  Gen2ELLMCodeGenAgentTask,
-  Gen2ELLMGenericError,
+  type Gen2ELLMAgentModel,
+  type Gen2ELLMAgentResult,
+  type Gen2ELLMCodeGenAgentTask,
 } from "../../src";
 
-describe("createCodeGenAgent Integration Tests", () => {
+const describeIntegration = process.env.OPENAI_API_KEY ? describe : describe.skip;
+
+describeIntegration("createCodeGenAgent Integration Tests", () => {
   const systemMessage =
     "You are a code generator, expert in writing javascript code as per the task assigned. You must first validate your\
   code via the tools provided and then return that code as your final response. You only speak code so don't waste words into trying to explain what you're doing.";
@@ -32,14 +33,4 @@ describe("createCodeGenAgent Integration Tests", () => {
       result: expect.any(String),
     });
   }, 10000);
-
-  test("should throw error when no API key is provided", () => {
-    delete process.env.OPENAI_API_KEY;
-
-    expect(() => createCodeGenAgent(systemMessage, model)).toThrow(
-      new Gen2ELLMGenericError(
-        "openai model supplied but no openai api key was found"
-      )
-    );
-  });
 });

@@ -1,14 +1,12 @@
+import { createCodeGenAgent, type Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import { createGen2ECodeGenAgent, generateGen2ECode } from "../../../src";
-import { createCodeGenAgent, Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 
 jest.mock("@rhighs/gen2e-llm", () => ({
   createCodeGenAgent: jest.fn(),
 }));
 
 const mockAgent = jest.fn();
-const mockCreateCodeGenAgent = createCodeGenAgent as jest.MockedFunction<
-  typeof createCodeGenAgent
->;
+const mockCreateCodeGenAgent = createCodeGenAgent as jest.MockedFunction<typeof createCodeGenAgent>;
 
 describe("Gen2E Code Generation", () => {
   beforeEach(() => {
@@ -32,7 +30,7 @@ describe("Gen2E Code Generation", () => {
         openaiApiKey: options.openaiApiKey,
         debug: options.debug,
       },
-      undefined
+      undefined,
     );
     expect(agent).toBe(mockAgent);
   });
@@ -63,7 +61,7 @@ describe("Gen2E Code Generation", () => {
         codeContext: expect.any(String),
         options: { model: "gpt-3.5-turbo", debug: false },
       },
-      hooks
+      hooks,
     );
   });
 
@@ -93,7 +91,7 @@ describe("Gen2E Code Generation", () => {
         codeContext: expect.any(String),
         options: { model: "gpt-3.5-turbo", debug: false },
       },
-      hooks
+      hooks,
     );
   });
 });

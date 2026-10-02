@@ -1,21 +1,19 @@
-import { appendFileSync, readFileSync, writeFileSync } from "fs";
-import { program } from "commander";
-import util from "util";
-import path from "path";
-import readline from "readline";
-import { type Gen2EExpression, StaticGenStep } from "@rhighs/gen2e";
-import { makeLogger } from "@rhighs/gen2e-logger";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import readline from "node:readline";
+import util from "node:util";
+import type { Gen2EExpression, StaticGenStep } from "@rhighs/gen2e";
 import { recordingInterpreter } from "@rhighs/gen2e-interpreter";
+import { makeLogger } from "@rhighs/gen2e-logger";
 import { Gen2EPOGenerator, loadDumps } from "@rhighs/gen2e-po";
+import { program } from "commander";
 
 import * as pjson from "../package.json";
 import { makeREPL } from "./repl";
+
 const logger = makeLogger("GEN2E-CLI");
 
-program
-  .name(pjson["name"])
-  .description(pjson["description"])
-  .version(pjson["version"]);
+program.name(pjson.name).description(pjson.description).version(pjson.version);
 
 program
   .command("generate")
@@ -26,49 +24,45 @@ program
     "--imode <imode>",
     "interpreter output mode, either gen2e IL or plain generated playwright code",
     /^(gen2e|playwright)$/,
-    "gen2e"
+    "gen2e",
   )
   .option("--openai-api-key <openaiApiKey>", "api key for openai services")
   .option(
+    "--gateway-api-key <gatewayApiKey>",
+    "api key for the Vercel AI Gateway (defaults to AI_GATEWAY_API_KEY)",
+  )
+  .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
+  .option(
     "--model <model>",
-    "model to use for each task, set this to use this model for all tasks"
+    "model to use for each task, an OpenAI id or a provider/model gateway id",
   )
-  .option(
-    "--gen2e-model <gen2eModel>",
-    "model to use for gen2e source code generation"
-  )
-  .option(
-    "--pw-model <pwModel>",
-    "model to use for playwright source code generation"
-  )
+  .option("--gen2e-model <gen2eModel>", "model to use for gen2e source code generation")
+  .option("--pw-model <pwModel>", "model to use for playwright source code generation")
   .option(
     "-s, --stats",
     "show interpreter stats report, number of tokens being used and total llm calls",
-    false
+    false,
   )
   .option(
     "-o, --out <out>",
-    "optional output file for the generated code, overwrite any existing file"
+    "optional output file for the generated code, overwrite any existing file",
   )
-  .option(
-    "-a, --append <append>",
-    "optionally append generated code to an existing file"
-  )
+  .option("-a, --append <append>", "optionally append generated code to an existing file")
   .option(
     "-v, --verbose",
-    "show the generated expression at each step in stderr (has no effect with debug mode enabled)"
+    "show the generated expression at each step in stderr (has no effect with debug mode enabled)",
   )
   .option(
     "-sp, --screenshot <screenshot>",
     "screenshotting policy to use when inspecting web pages, only used for playwright mode",
     /^(force|onfail|model|off)$/,
-    "onfail"
+    "onfail",
   )
   .option(
     "-vd, --visual-debug <visualDebug>",
     "visual debug cue, determines quantity of visual info per page screenshot (no-outlines, outlines, outlines + tagnames)",
     /^(medium|high|none)$/,
-    "medium"
+    "medium",
   )
   .option(
     "-k, --max-retries <maxRetries>",
@@ -79,10 +73,10 @@ program
         return 3;
       }
       return v;
-    }
+    },
   )
   .action(async (file, options) => {
-    const verbose = options.verbose ? true : false;
+    const verbose = !!options.verbose;
     const isDebug = options.debug ? true : undefined;
     const model = options.model ? String(options.model).trim() : undefined;
     const gen2eModel = options.gen2eModel;
@@ -93,9 +87,9 @@ program
     const visualDebugLevel = options.visualDebug ?? "medium";
     const appendFile = options.append;
     const maxRetries = options.maxRetries;
-    const apiKey = options.openaiApiKey
-      ? String(options.openaiApiKey).trim()
-      : undefined;
+    const apiKey = options.openaiApiKey ? String(options.openaiApiKey).trim() : undefined;
+    const gatewayApiKey = options.gatewayApiKey ? String(options.gatewayApiKey).trim() : undefined;
+    const baseURL = options.baseUrl ? String(options.baseUrl).trim() : undefined;
     const tasksFile = readFileSync(file).toString();
     const screenshot = options.screenshot;
 
@@ -115,13 +109,15 @@ program
         gen2eModel: gen2eModel,
         debug: isDebug,
         openaiApiKey: apiKey,
+        gatewayApiKey,
+        baseURL,
         recordUsage: showStats,
         policies: {
           maxRetries,
           screenshot,
           visualDebugLevel,
         },
-      }
+      },
     )
       .on("start", () => {
         if (!isDebug) {
@@ -133,12 +129,10 @@ program
           logger.debug(`ai message`, message);
         }
       })
-      .on("task-success", (i, result: Gen2EExpression) => {
+      .on("task-success", (_i, result: Gen2EExpression) => {
         if (!isDebug) {
           if (verbose) {
-            logger.info(
-              `task step "${result.task}" has generated code:\n${result.expression}`
-            );
+            logger.info(`task step "${result.task}" has generated code:\n${result.expression}`);
           }
         }
       })
@@ -150,7 +144,7 @@ program
       });
 
     await interpreter.start();
-    for (let task of tasks) {
+    for (const task of tasks) {
       await interpreter.update(task);
     }
 
@@ -158,18 +152,18 @@ program
     const code = result.code;
     process.stdout.write(`${code}\n`);
 
-    // if (result.usageStats) {
-    //   logger.info("interpreter usage stats report", result.usageStats);
-    // }
+    if (showStats && result.usageStats) {
+      logger.info("interpreter usage stats report", result.usageStats);
+    }
 
     if (appendFile) {
-      logger.info(`appending result to ${outFile}...`);
+      logger.info(`appending result to ${appendFile}...`);
       appendFileSync(appendFile, code);
-      logger.info(`done appending result to ${outFile}`);
+      logger.info(`done appending result to ${appendFile}`);
     } else if (outFile) {
       logger.info(`writing result to ${outFile}...`);
       writeFileSync(outFile, code, {
-        flag: "wx",
+        flag: "w",
       });
       logger.info(`done writing result to ${outFile}`);
     }
@@ -183,49 +177,45 @@ program
     "--imode <imode>",
     "interpreter output mode, either gen2e IL or plain generated playwright code",
     /^(gen2e|playwright)$/,
-    "gen2e"
+    "gen2e",
   )
   .option("--openai-api-key <openaiApiKey>", "api key for openai services")
   .option(
+    "--gateway-api-key <gatewayApiKey>",
+    "api key for the Vercel AI Gateway (defaults to AI_GATEWAY_API_KEY)",
+  )
+  .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
+  .option(
     "--model <model>",
-    "model to use for each task, set this to use this model for all tasks"
+    "model to use for each task, an OpenAI id or a provider/model gateway id",
   )
-  .option(
-    "--gen2e-model <gen2eModel>",
-    "model to use for gen2e source code generation"
-  )
-  .option(
-    "--pw-model <pwModel>",
-    "model to use for playwright source code generation"
-  )
+  .option("--gen2e-model <gen2eModel>", "model to use for gen2e source code generation")
+  .option("--pw-model <pwModel>", "model to use for playwright source code generation")
   .option(
     "-s, --stats",
     "show interpreter stats report, number of tokens being used and total llm calls",
-    false
+    false,
   )
   .option(
     "-o, --out <out>",
-    "optional output file for the generated code, overwrite any existing file"
+    "optional output file for the generated code, overwrite any existing file",
   )
-  .option(
-    "-a, --append <append>",
-    "optionally append generated code to an existing file"
-  )
+  .option("-a, --append <append>", "optionally append generated code to an existing file")
   .option(
     "-v, --verbose",
-    "show the generated expression at each step in stderr (has no effect with debug mode enabled)"
+    "show the generated expression at each step in stderr (has no effect with debug mode enabled)",
   )
   .option(
     "-sp, --screenshot <screenshot>",
     "screenshotting policy to use when inspecting web pages, only used for playwright mode",
     /^(force|onfail|model|off)$/,
-    "onfail"
+    "onfail",
   )
   .option(
     "-vd, --visual-debug <visualDebug>",
     "visual debug cue, determines quantity of visual info per page screenshot (no-outlines, outlines, outlines + tagnames)",
     /^(medium|high|none)$/,
-    "medium"
+    "medium",
   )
   .option(
     "-k, --max-retries <maxRetries>",
@@ -236,10 +226,10 @@ program
         return 3;
       }
       return v;
-    }
+    },
   )
   .action(async (options) => {
-    const verbose = options.verbose ? true : false;
+    const verbose = !!options.verbose;
     const isDebug = options.debug ? true : undefined;
     const model = options.model ? String(options.model).trim() : undefined;
     const gen2eModel = options.gen2eModel;
@@ -248,9 +238,9 @@ program
     const showStats = options.stats ?? false;
     const visualDebugLevel = options.visualDebug ?? "medium";
     const maxRetries = options.maxRetries;
-    const apiKey = options.openaiApiKey
-      ? String(options.openaiApiKey).trim()
-      : undefined;
+    const apiKey = options.openaiApiKey ? String(options.openaiApiKey).trim() : undefined;
+    const gatewayApiKey = options.gatewayApiKey ? String(options.gatewayApiKey).trim() : undefined;
+    const baseURL = options.baseUrl ? String(options.baseUrl).trim() : undefined;
     const screenshot = options.screenshot;
 
     const outFile = options.out;
@@ -267,13 +257,15 @@ program
         gen2eModel: gen2eModel,
         debug: isDebug,
         openaiApiKey: apiKey,
+        gatewayApiKey,
+        baseURL,
         recordUsage: showStats,
         policies: {
           maxRetries,
           screenshot,
           visualDebugLevel,
         },
-      }
+      },
     )
       .on("start", () => {
         if (!isDebug) {
@@ -285,12 +277,10 @@ program
           logger.debug(`ai message`, message);
         }
       })
-      .on("task-success", (i, result: Gen2EExpression) => {
+      .on("task-success", (_i, result: Gen2EExpression) => {
         if (!isDebug) {
           if (verbose) {
-            logger.info(
-              `task step "${result.task}" has generated code:\n${result.expression}`
-            );
+            logger.info(`task step "${result.task}" has generated code:\n${result.expression}`);
           }
         }
       })
@@ -350,8 +340,12 @@ ${peek.code}`;
             {
               const result = await interpreter.finish();
               const out = formatCodeOutput(result);
-              process.stdout.write(out + "\n");
+              process.stdout.write(`${out}\n`);
               rl.setPrompt(makePrompt("idle"));
+
+              if (showStats && result.usageStats) {
+                logger.info("interpreter usage stats report", result.usageStats);
+              }
 
               if (appendFile) {
                 logger.info(`appending result to ${appendFile}...`);
@@ -360,7 +354,7 @@ ${peek.code}`;
               } else if (outFile) {
                 logger.info(`writing result to ${outFile}...`);
                 writeFileSync(outFile, result.code, {
-                  flag: "wx",
+                  flag: "w",
                 });
                 logger.info(`done writing result to ${outFile}`);
               }
@@ -370,16 +364,13 @@ ${peek.code}`;
             {
               const peek = interpreter.peek();
               const out = formatCodeOutput(peek);
-              process.stdout.write(out + "\n");
+              process.stdout.write(`${out}\n`);
             }
             break;
           case "/dump":
             {
               const dump = interpreter.dump();
-              const filepath = path.join(
-                process.cwd(),
-                `gen2e-dump_${dump.testId}.json`
-              );
+              const filepath = path.join(process.cwd(), `gen2e-dump_${dump.testId}.json`);
               writeFileSync(filepath, JSON.stringify(dump, null, 4));
               process.stdout.write(`test info dumped at ${filepath}\n`);
             }
@@ -387,7 +378,7 @@ ${peek.code}`;
           default:
             {
               const interm = await interpreter.update(input);
-              process.stdout.write(interm.result + "\n");
+              process.stdout.write(`${interm.result}\n`);
             }
             break;
         }
@@ -396,9 +387,7 @@ ${peek.code}`;
           await interpreter.start();
           rl.setPrompt(makePrompt("recording"));
         } else {
-          process.stdout.write(
-            `\n        Recorder is not recording, use command / start\n`
-          );
+          process.stdout.write(`\n        Recorder is not recording, use command / start\n`);
           printHelp();
         }
       }
@@ -418,6 +407,12 @@ program
   .description("generate a page objects via test dumps")
   .argument("[dumppath]", "directory path containing test json dumps")
   .option("-d, --root-dir <rootDir>")
+  .option("--model <model>", "model used to generate page objects")
+  .option(
+    "--gateway-api-key <gatewayApiKey>",
+    "api key for the Vercel AI Gateway (defaults to AI_GATEWAY_API_KEY)",
+  )
+  .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
   .action(async (dumppath, options) => {
     const dpath = dumppath;
 
@@ -425,15 +420,17 @@ program
     const generator = new Gen2EPOGenerator({
       debug: true,
       staticDataDir: options.rootDir,
+      model: options.model,
+      codeGenOptions: {
+        gatewayApiKey: options.gatewayApiKey,
+        baseURL: options.baseUrl,
+      },
     });
 
-    for (let dump of dumps) {
-      const blocks = dump.blocks.map((b) => b.blocks).flat();
+    for (const dump of dumps) {
+      const blocks = dump.blocks.flatMap((b) => b.blocks);
       for (let i = 0; i < blocks.length; i++) {
-        await generator.generate(
-          blocks[i],
-          i + 1 < blocks.length ? blocks[i + 1] : undefined
-        );
+        await generator.generate(blocks[i], i + 1 < blocks.length ? blocks[i + 1] : undefined);
       }
     }
   });
@@ -443,21 +440,25 @@ program
   .description("Simple repl mode with no test generation")
   .option("-d, --debug", "enabled debug mode, shows debug logs and more")
   .option("--openai-api-key <openaiApiKey>", "api key for openai services")
-  .option("--model <model>", "openai model to use for each task")
   .option(
-    "--browser <browser>",
-    "playwright browser to use (chromium, firefox)",
-    "chromium"
+    "--gateway-api-key <gatewayApiKey>",
+    "api key for the Vercel AI Gateway (defaults to AI_GATEWAY_API_KEY)",
   )
+  .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
+  .option(
+    "--model <model>",
+    "model to use for each task, an OpenAI id or a provider/model gateway id",
+  )
+  .option("--browser <browser>", "playwright browser to use (chromium, firefox)", "chromium")
   .option("--headless", "start browser in headless mode")
   .option("-v, --verbose", "show more REPL activity logging")
   .action(async (options) => {
-    const verbose = options.verbose ? true : false;
+    const verbose = !!options.verbose;
     const isDebug = options.debug ? true : undefined;
     const model = options.model ? String(options.model).trim() : undefined;
-    const apiKey = options.openaiApiKey
-      ? String(options.openaiApiKey).trim()
-      : undefined;
+    const apiKey = options.openaiApiKey ? String(options.openaiApiKey).trim() : undefined;
+    const gatewayApiKey = options.gatewayApiKey ? String(options.gatewayApiKey).trim() : undefined;
+    const baseURL = options.baseUrl ? String(options.baseUrl).trim() : undefined;
 
     const REPL = makeREPL({
       browserOptions: {
@@ -467,6 +468,8 @@ program
       debug: isDebug,
       model,
       openaiApiKey: apiKey,
+      gatewayApiKey,
+      baseURL,
       verbose,
     });
 

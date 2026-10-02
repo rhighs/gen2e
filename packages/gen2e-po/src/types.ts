@@ -1,5 +1,5 @@
-import { Gen2EPageObjectInfo } from "@rhighs/gen2e-interpreter";
-import { Gen2ELLMAgentBuilderOptions } from "@rhighs/gen2e-llm";
+import type { Gen2EPageObjectInfo } from "@rhighs/gen2e-interpreter";
+import type { Gen2ELLMAgentBuilderOptions } from "@rhighs/gen2e-llm";
 
 export type Gen2EPOCodeGenOptions = Gen2ELLMAgentBuilderOptions;
 

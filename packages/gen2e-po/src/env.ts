@@ -4,16 +4,20 @@ export type Gen2EPOEnv = {
 };
 
 const parseFlag = (f: string | undefined, def: boolean = false): boolean => {
-  if (!f) {
+  if (f === undefined || f.trim() === "") {
     return def;
   }
 
-  const result = parseInt(f);
-  if (!Number.isNaN(result) || result !== 0) {
+  const value = f.trim().toLowerCase();
+  if (["0", "false", "off", "no"].includes(value)) {
+    return false;
+  }
+  if (["1", "true", "on", "yes"].includes(value)) {
     return true;
   }
 
-  return false;
+  const result = parseInt(value, 10);
+  return Number.isNaN(result) ? true : result !== 0;
 };
 
 const parseParam = (f: string | undefined, def: string = ""): string => {

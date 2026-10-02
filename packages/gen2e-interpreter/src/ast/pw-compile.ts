@@ -1,14 +1,9 @@
-import { API, FileInfo, JSCodeshift } from "jscodeshift";
-import { StaticStore, FSStaticStore } from "@rhighs/gen2e";
+import { FSStaticStore, type StaticStore } from "@rhighs/gen2e";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
+import type { API, FileInfo, JSCodeshift } from "jscodeshift";
 import { makeTransformer } from "./compiler";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
-const transformGenCall = (
-  j: JSCodeshift,
-  root: any,
-  store: StaticStore,
-  logger?: Gen2ELogger
-) => {
+const transformGenCall = (j: JSCodeshift, root: any, store: StaticStore, logger?: Gen2ELogger) => {
   let titleWasSet = false;
 
   const testCalls = root.find(j.CallExpression, {
@@ -42,16 +37,12 @@ const transformGenCall = (
           const genArg =
             genFirstArg?.type === "TemplateLiteral"
               ? genFirstArg.quasis[0].value.raw
-              : genFirstArg?.type === "Literal" ||
-                genFirstArg?.type === "StringLiteral"
-              ? genFirstArg.value
-              : undefined;
+              : genFirstArg?.type === "Literal" || genFirstArg?.type === "StringLiteral"
+                ? genFirstArg.value
+                : undefined;
 
           if (genArg) {
-            const ident = store.makeIdent(
-              testTitle as string,
-              genArg as string
-            );
+            const ident = store.makeIdent(testTitle as string, genArg as string);
             const code = store.fetchStatic(ident);
 
             if (code) {
@@ -64,13 +55,8 @@ const transformGenCall = (
                 return;
               }
 
-              if (
-                testPath.node.arguments[0].type === "Literal" &&
-                !titleWasSet
-              ) {
-                testPath.node.arguments[0].value = `gen2e:compiled-output - ${
-                  testTitle as string
-                }`;
+              if (testPath.node.arguments[0].type === "Literal" && !titleWasSet) {
+                testPath.node.arguments[0].value = `gen2e:compiled-output - ${testTitle as string}`;
                 titleWasSet = true;
               }
 
@@ -80,18 +66,11 @@ const transformGenCall = (
                 const arrowFunction = paths.get().node;
                 const body = arrowFunction.body;
 
-                const internalArrowFunction = j.arrowFunctionExpression(
-                  [],
-                  body,
-                  true
-                );
+                const internalArrowFunction = j.arrowFunctionExpression([], body, true);
                 internalArrowFunction.async = true;
 
                 const result = j.awaitExpression(
-                  j.callExpression(
-                    j.parenthesizedExpression(internalArrowFunction),
-                    []
-                  )
+                  j.callExpression(j.parenthesizedExpression(internalArrowFunction), []),
                 );
 
                 return result;
@@ -133,7 +112,7 @@ const transformGenTest = (j: JSCodeshift, root: any) => {
             (prop: any) =>
               prop.type === "Property" &&
               prop.key.type === "Identifier" &&
-              prop.key.name === "page"
+              prop.key.name === "page",
           )
         ) {
           const newParams = j.objectPattern(
@@ -141,14 +120,10 @@ const transformGenTest = (j: JSCodeshift, root: any) => {
               (prop: any) =>
                 prop.type === "Property" &&
                 prop.key.type === "Identifier" &&
-                prop.key.name === "page"
-            )
+                prop.key.name === "page",
+            ),
           );
-          const result = j.arrowFunctionExpression(
-            [newParams],
-            arrowFunction.body,
-            true
-          );
+          const result = j.arrowFunctionExpression([newParams], arrowFunction.body, true);
           result.async = true;
           return result;
         }
@@ -161,7 +136,7 @@ const transform = (
   fileInfo: FileInfo,
   api: API,
   store: StaticStore,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
 ): string => {
   const j = api.jscodeshift;
   const root = j(fileInfo.source);
@@ -189,8 +164,8 @@ const transform = (
 export const pwCompile = (
   source: string,
   store: StaticStore = FSStaticStore,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
 ): string =>
-  makeTransformer((fileInfo: FileInfo, api: API) =>
-    transform(fileInfo, api, store, logger)
-  )(source);
+  makeTransformer((fileInfo: FileInfo, api: API) => transform(fileInfo, api, store, logger))(
+    source,
+  );

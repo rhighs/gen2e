@@ -1,18 +1,20 @@
-import { Gen2ELLMCallHooks, Page } from "@rhighs/gen2e";
-import { Gen2EIncrementalStateError, Gen2EInterpreterError } from "../errors";
-import { Gen2EBrowser } from "./browser";
-import { StaticStore } from "@rhighs/gen2e";
-import env from "../env";
-import { pwCompile } from "../ast/pw-compile";
-import { sandboxEval } from "./test-sandbox";
-import { createGen2ECodeGenAgent, generateGen2ECode } from "./gen2e-gen";
+import { hash } from "node:crypto";
+import type { Gen2ELLMCallHooks, Page, StaticStore } from "@rhighs/gen2e";
 import {
-  Gen2ELLMAgentModel,
-  Gen2ELLMCodeGenAgent,
+  type Gen2ELLMAgentModel,
+  type Gen2ELLMCodeGenAgent,
   isModelSupported,
 } from "@rhighs/gen2e-llm";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
-import {
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import { pwCompile } from "../ast/pw-compile";
+import env from "../env";
+import { Gen2EIncrementalStateError, Gen2EInterpreterError } from "../errors";
+import { Gen2EBrowser } from "./browser";
+import { createGen2ECodeGenAgent, generateGen2ECode } from "./gen2e-gen";
+import { type Gen2EInterpreterInMemStatic, inMemStore } from "./store";
+import { formatBlock, generateFakeTestCode } from "./test-code";
+import { sandboxEval } from "./test-sandbox";
+import type {
   Gen2ECodeBlock,
   Gen2EInterpreterConfig,
   Gen2EInterpreterEvent,
@@ -26,18 +28,13 @@ import {
   Gen2ERecordingResult,
   Gen2ERecordingStep,
 } from "./types";
-import { Gen2EInterpreterInMemStatic, inMemStore } from "./store";
-import { formatBlock, generateFakeTestCode } from "./test-code";
-import { hash } from "crypto";
 
 export type Gen2EInterpreterSandboxEvalResult =
   | { type: "success"; result: any }
   | { type: "error"; reason: string };
 
 export class RecordingInterpreter {
-  private events:
-    | Record<Gen2EInterpreterEvent, Gen2EInterpreterEventCallback>
-    | {} = {};
+  private events: Record<Gen2EInterpreterEvent, Gen2EInterpreterEventCallback> | {} = {};
   private options: Gen2EInterpreterOptions = {};
   private agent: Gen2ELLMCodeGenAgent;
   private mode: Gen2EInterpreterMode = "gen2e";
@@ -47,7 +44,7 @@ export class RecordingInterpreter {
   private recordModelsUsage: boolean;
   private usageStats?: Gen2EInterpreterUsageStats;
 
-  private fallbackModel: string = env.OPENAI_MODEL;
+  private fallbackModel: Gen2ELLMAgentModel = env.OPENAI_MODEL;
   private llmCallHooks: Gen2ELLMCallHooks;
   private config: Gen2EInterpreterConfig;
 
@@ -62,10 +59,7 @@ export class RecordingInterpreter {
 
   private tasks: string[] = [];
 
-  constructor(
-    config: Gen2EInterpreterConfig,
-    options: Gen2EInterpreterOptions
-  ) {
+  constructor(config: Gen2EInterpreterConfig, options: Gen2EInterpreterOptions) {
     this.options = options;
     this.config = config;
     if (config.mode) {
@@ -75,7 +69,7 @@ export class RecordingInterpreter {
       this.logger.config(config.logger);
     }
 
-    this.runTimestamp = (+new Date()).toString();
+    this.runTimestamp = Date.now().toString();
     const [getMem, staticStore] = inMemStore(this.runTimestamp);
     this.currentStore = staticStore;
     this.getStaticMem = getMem;
@@ -100,8 +94,7 @@ export class RecordingInterpreter {
     if (this.recordModelsUsage && this.usageStats) {
       callHooks.onUsage = (usage) => {
         if (this.usageStats) {
-          const { completionTokens, totalTokens, promptTokens, model, task } =
-            usage;
+          const { completionTokens, totalTokens, promptTokens, model, task } = usage;
           const { usageStats } = this;
 
           usageStats.completionTokens += completionTokens;
@@ -109,9 +102,7 @@ export class RecordingInterpreter {
           usageStats.promptTokens += promptTokens;
           usageStats.totalCalls += 1;
 
-          const i = usageStats.perModel.findIndex(
-            ({ model: m }) => m === model
-          );
+          const i = usageStats.perModel.findIndex(({ model: m }) => m === model);
           if (i !== -1) {
             const modelStats = usageStats.perModel[i];
             const updatedStats = {
@@ -136,24 +127,29 @@ export class RecordingInterpreter {
     }
 
     this.llmCallHooks = callHooks;
-    if (options.model?.length && isModelSupported(options.model ?? "")) {
+    if (options.model !== undefined && isModelSupported(options.model)) {
       this.fallbackModel = options.model;
     }
 
-    const gen2eModel = (this.options.gen2eModel ??
-      this.fallbackModel) as Gen2ELLMAgentModel;
+    const gen2eModel = this.options.gen2eModel ?? this.fallbackModel;
     if (!isModelSupported(gen2eModel)) {
       throw new Gen2EInterpreterError(
-        `failed calling gen2e expr generation, model ${gen2eModel} not suppoerted`
+        `failed calling gen2e expr generation, model ${String(gen2eModel)} not suppoerted`,
       );
     }
-    this.agent = createGen2ECodeGenAgent(gen2eModel, undefined, this.logger);
+    this.agent = createGen2ECodeGenAgent(
+      gen2eModel,
+      {
+        openaiApiKey: this.options.openaiApiKey,
+        gatewayApiKey: this.options.gatewayApiKey ?? env.GATEWAY_API_KEY,
+        baseURL: this.options.baseURL ?? env.BASE_URL,
+        debug: this.options.debug,
+      },
+      this.logger,
+    );
   }
 
-  on(
-    event: Gen2EInterpreterEvent,
-    callback: Gen2EInterpreterEventCallback
-  ): RecordingInterpreter {
+  on(event: Gen2EInterpreterEvent, callback: Gen2EInterpreterEventCallback): RecordingInterpreter {
     this.events[event] = callback;
     return this;
   }
@@ -164,10 +160,7 @@ export class RecordingInterpreter {
     }
   }
 
-  private async gen2e(
-    task: string,
-    codeContext?: string
-  ): Promise<string | undefined> {
+  private async gen2e(task: string, codeContext?: string): Promise<string | undefined> {
     try {
       const result = await generateGen2ECode({
         agent: this.agent,
@@ -197,9 +190,7 @@ export class RecordingInterpreter {
 
   async start(): Promise<void> {
     if (this.state !== "idle") {
-      throw new Gen2EIncrementalStateError(
-        "cannot start while running, you must call done()"
-      );
+      throw new Gen2EIncrementalStateError("cannot start while running, you must call done()");
     }
 
     this.gen2eExpressions = [];
@@ -216,9 +207,7 @@ export class RecordingInterpreter {
 
   async update(task: string): Promise<Gen2ERecordingStep> {
     if (this.state !== "running") {
-      throw new Gen2EIncrementalStateError(
-        "cannot update while idle, you must call start() first"
-      );
+      throw new Gen2EIncrementalStateError("cannot update while idle, you must call start() first");
     }
 
     task = task.trim();
@@ -245,20 +234,17 @@ export class RecordingInterpreter {
   private async handlePlaywrightMode(task: string): Promise<string> {
     if (!this.browser) {
       throw new Gen2EInterpreterError(
-        "a browser instance must be initialized to perform gen2e evaluations"
+        "a browser instance must be initialized to perform gen2e evaluations",
       );
     }
 
     if (!this.browser.page) {
       throw new Gen2EInterpreterError(
-        "a browser page instance must be initialized to perform gen2e evaluations"
+        "a browser page instance must be initialized to perform gen2e evaluations",
       );
     }
 
-    const result = await this.gen2e(
-      task,
-      this.gen2eExpressions.map(([_, e]) => e).join("\n")
-    );
+    const result = await this.gen2e(task, this.gen2eExpressions.map(([_, e]) => e).join("\n"));
     if (!result) {
       this.handleError("gen2e gen gave empty result", result);
       return "";
@@ -273,11 +259,7 @@ export class RecordingInterpreter {
       this.logger.debug("executing sandbox for expr", { result });
     }
 
-    const seResult = await this.executeSandboxEval(
-      fakeTestSource,
-      page,
-      localStore
-    );
+    const seResult = await this.executeSandboxEval(fakeTestSource, page, localStore);
 
     const mem = getMem();
     if (this.options.debug) {
@@ -287,9 +269,9 @@ export class RecordingInterpreter {
 
     if (seResult.type === "success" && Object.keys(mem).length > 0) {
       let code = "";
-      for (let [k, v] of Object.entries(mem)) {
+      for (const [k, v] of Object.entries(mem)) {
         this.currentStore.makeStatic(k, v);
-        code += v.expression + "\n";
+        code += `${v.expression}\n`;
       }
 
       if (this.options.debug) {
@@ -310,10 +292,7 @@ export class RecordingInterpreter {
   }
 
   private async handleGen2EMode(task: string): Promise<string> {
-    const result = await this.gen2e(
-      task,
-      this.gen2eExpressions.map(([_, e]) => e).join("\n")
-    );
+    const result = await this.gen2e(task, this.gen2eExpressions.map(([_, e]) => e).join("\n"));
     if (!result) {
       this.handleError("gen2e gen gave empty result", result);
       return "";
@@ -333,7 +312,7 @@ export class RecordingInterpreter {
   private async executeSandboxEval(
     fakeTestSource: string,
     page: Page,
-    localStore: StaticStore
+    localStore: StaticStore,
   ): Promise<Gen2EInterpreterSandboxEvalResult> {
     try {
       const result: any = await sandboxEval(
@@ -344,6 +323,8 @@ export class RecordingInterpreter {
         {
           model: this.options.playwrightModel ?? this.fallbackModel,
           openaiApiKey: this.options.openaiApiKey,
+          gatewayApiKey: this.options.gatewayApiKey ?? env.GATEWAY_API_KEY,
+          baseURL: this.options.baseURL ?? env.BASE_URL,
           debug: this.options.debug,
           policies: this.options.policies,
           saveContext: true,
@@ -351,12 +332,12 @@ export class RecordingInterpreter {
         (code: string, page: Page) => {
           const evalFunc = new Function(
             "page",
-            `return (async () => { const result = await ${code}(); return result })()`
+            `return (async () => { const result = await ${code}(); return result })()`,
           );
           return evalFunc(page);
         },
         undefined,
-        this.logger
+        this.logger,
       );
 
       return {
@@ -378,9 +359,7 @@ export class RecordingInterpreter {
 
   async finish(): Promise<Gen2ERecordingResult> {
     if (this.state !== "running") {
-      throw new Gen2EIncrementalStateError(
-        "cannot finish while idle, you must call start() first"
-      );
+      throw new Gen2EIncrementalStateError("cannot finish while idle, you must call start() first");
     }
 
     const { code, tasks, gen2eCode } = this.peek();
@@ -398,6 +377,7 @@ export class RecordingInterpreter {
       code,
       tasks,
       gen2eCode,
+      usageStats: this.usageStats,
     };
   }
 
@@ -410,7 +390,7 @@ export class RecordingInterpreter {
           const fakeTestSource = generateFakeTestCode(
             this.testTitle,
             this.gen2eExpressions.map(formatBlock).join("\n"),
-            false
+            false,
           );
           gen2eCode = fakeTestSource;
 
@@ -426,7 +406,7 @@ export class RecordingInterpreter {
           gen2eCode = generateFakeTestCode(
             this.testTitle,
             this.gen2eExpressions.map(formatBlock).join("\n"),
-            false
+            false,
           );
         }
         break;
@@ -445,7 +425,7 @@ export class RecordingInterpreter {
     const gen2eTestCode = generateFakeTestCode(
       this.testTitle,
       this.gen2eExpressions.map(formatBlock).join("\n"),
-      false
+      false,
     );
 
     let compiledTestCode = "";
@@ -456,7 +436,7 @@ export class RecordingInterpreter {
     }
 
     return {
-      testId: hash("md5", "Gen2E recorder generated test " + this.runTimestamp),
+      testId: hash("md5", `Gen2E recorder generated test ${this.runTimestamp}`),
       blocks: this.gen2eExecsMem.map(
         ([task, mem]): Gen2ECodeBlock => ({
           task,
@@ -464,9 +444,9 @@ export class RecordingInterpreter {
             ([_subTask, data]): Gen2EPlaywrightBlock => ({
               body: data.expression,
               context: data.context,
-            })
+            }),
           ),
-        })
+        }),
       ),
       gen2eTestCode,
       compiledTestCode,
@@ -486,5 +466,5 @@ export class RecordingInterpreter {
 
 export const recordingInterpreter = (
   config: Gen2EInterpreterConfig,
-  options: Gen2EInterpreterOptions
+  options: Gen2EInterpreterOptions,
 ): RecordingInterpreter => new RecordingInterpreter(config, options);

@@ -1,33 +1,18 @@
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import OpenAI from "openai";
-import {
+import type { TiktokenModel } from "tiktoken";
+import { modelSupportsImage } from "../models";
+import type {
   Gen2ELLMAgentHooks,
-  Gen2ELLMAgentOpenAIModel,
   Gen2ELLMAgentRunner,
   Gen2ELLMAgentRunnerInit,
   Gen2ELLMAgentRunnerResult,
 } from "../types";
 import { fitsContext, maxCharactersApprox } from "./openai-token";
-import { TiktokenModel } from "tiktoken";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
-
-export const modelSupportsImage = (
-  model: Gen2ELLMAgentOpenAIModel
-): boolean => {
-  switch (model) {
-    case "gpt-4-turbo":
-    case "gpt-4-turbo-2024-04-09":
-    case "gpt-4-vision-preview":
-    case "gpt-4o":
-    case "gpt-4o-2024-05-13":
-      return true;
-    default:
-      return false;
-  }
-};
 
 export type Gen2EOpenAIRunnerOptions = {
   apiKey: string;
-  model: Gen2ELLMAgentOpenAIModel;
+  model: string;
   debug?: boolean;
   openai?: OpenAI;
   logger?: Gen2ELogger;
@@ -36,7 +21,7 @@ export type Gen2EOpenAIRunnerOptions = {
 
 export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
   private openai: OpenAI;
-  private model: Gen2ELLMAgentOpenAIModel;
+  private model: string;
   private debug: boolean;
   private logger: Gen2ELogger;
   private usage: {
@@ -45,14 +30,7 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
     totalTokens: number;
   };
 
-  constructor({
-    apiKey,
-    model,
-    debug = false,
-    openai,
-    logger,
-    baseURL,
-  }: Gen2EOpenAIRunnerOptions) {
+  constructor({ apiKey, model, debug = false, openai, logger, baseURL }: Gen2EOpenAIRunnerOptions) {
     this.openai = openai ?? new OpenAI({ apiKey, baseURL });
     this.model = model;
     this.debug = debug;
@@ -65,59 +43,38 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
 
   async run(
     { taskPrompt, systemMessage, images, tools = [] }: Gen2ELLMAgentRunnerInit,
-    hooks?: Gen2ELLMAgentHooks
+    hooks?: Gen2ELLMAgentHooks,
   ): Promise<Gen2ELLMAgentRunnerResult> {
-    if (images && !modelSupportsImage(this.model)) {
+    if (images?.length && !modelSupportsImage(this.model)) {
       return {
         type: "error",
         reason: "model does not supporting feeding images",
       };
     }
 
-    const makePromptImage = (
-      image: Buffer
-    ): {
-      type: "image_url";
-      image_url: {
-        url: string;
-      };
-    } => {
+    const imageUrls = (images ?? []).map((image) => {
       const imageb64 = image.toString("base64");
       if (this.debug) {
-        this.logger.debug(
-          `runner sending jpeg image ${imageb64.substring(0, 32)}...`
-        );
+        this.logger.debug(`runner sending jpeg image ${imageb64.substring(0, 32)}...`);
       }
+      return `data:image/jpeg;base64,${imageb64}`;
+    });
 
-      return {
+    const task = this.adjustContext(taskPrompt, systemMessage);
+
+    const content: OpenAI.Chat.ChatCompletionContentPart[] = [{ type: "text", text: task }];
+    for (const url of imageUrls) {
+      content.push({
         type: "image_url",
         image_url: {
-          url: `data:image/jpeg;base64,${imageb64}`,
+          url,
         },
-      };
-    };
-
-    const content: OpenAI.Chat.ChatCompletionContentPart[] = [
-      { type: "text", text: taskPrompt },
-    ];
-
-    if (images) {
-      const promptImages = images.map((image) => makePromptImage(image));
-      content.concat(promptImages);
-
-      // FIXME: this is really wrong as images might still make the prompt exceed the context window limits.
-      taskPrompt = this.adjustContext(
-        taskPrompt,
-        systemMessage,
-        promptImages.map((i) => i.image_url.url).join("")
-      );
-    } else {
-      taskPrompt = this.adjustContext(taskPrompt, systemMessage);
+      });
     }
 
     if (this.debug) {
       this.logger.debug("openai runner started using context", {
-        taskPrompt,
+        taskPrompt: task,
         systemMessage,
       });
     }
@@ -162,39 +119,40 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
           error: err,
         });
       }
-      return { type: "error", reason: `got error ${err.toString()}` };
+      const reason = err instanceof Error ? err.message : String(err);
+      return { type: "error", reason: `got error ${reason}` };
     }
   }
 
-  private adjustContext(
-    task: string,
-    systemMessage: string,
-    image?: string
-  ): string {
-    const context = task + systemMessage + (image ?? "");
+  /**
+   * Trims the task when task + system message exceed the model context window.
+   * Image payloads are deliberately not counted here: base64 length grossly
+   * overestimates vision token cost, and providers report a clear error when
+   * an image is genuinely too large.
+   */
+  private adjustContext(task: string, systemMessage: string): string {
+    const context = task + systemMessage;
     if (!fitsContext(this.model as TiktokenModel, context)) {
       const max = maxCharactersApprox(this.model as TiktokenModel);
       const mustCut = context.length - max;
-      const taskPrompt = context.slice(0, task.length - mustCut);
+      const taskPrompt = task.slice(0, Math.max(0, task.length - mustCut));
       if (this.debug) {
-        this.logger.debug(
-          `context for task ${taskPrompt.slice(0, 32)}... got cut`
-        );
+        this.logger.debug(`context for task ${taskPrompt.slice(0, 32)}... got cut`);
       }
       return taskPrompt;
     }
-    return context;
+    return task;
   }
 
   private updateUsage(usage: { [key: string]: number }) {
     this.usage = {
-      completionTokens: usage["completion_tokens"],
-      promptTokens: usage["prompt_tokens"],
-      totalTokens: usage["total_tokens"],
+      completionTokens: usage.completion_tokens,
+      promptTokens: usage.prompt_tokens,
+      totalTokens: usage.total_tokens,
     };
   }
 
-  async setModel(model: Gen2ELLMAgentOpenAIModel) {
+  async setModel(model: string) {
     this.model = model;
   }
 

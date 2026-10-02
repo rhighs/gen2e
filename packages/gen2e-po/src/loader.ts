@@ -1,15 +1,14 @@
-import { Gen2ERecordingDump } from "@rhighs/gen2e-interpreter";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
+import type { Gen2ERecordingDump } from "@rhighs/gen2e-interpreter";
+
 const { readFile, readdir } = fs.promises;
 
 const DUMPS_DATA_PATH: string = path.join(process.cwd(), "dumps");
 
 const findDumps = async (dir: string = "./dumps"): Promise<string[]> =>
   await readdir(dir, { recursive: true }).then((result) =>
-    result
-      .filter((path) => path.match(/gen2e-dump_.*\.json/))
-      .map((p) => path.join(dir, p))
+    result.filter((path) => path.match(/gen2e-dump_.*\.json/)).map((p) => path.join(dir, p)),
   );
 
 const parseDump = async (filePath: string): Promise<Gen2ERecordingDump> =>
@@ -20,7 +19,5 @@ export const loadDumps = async (dir: string = DUMPS_DATA_PATH) =>
 
 export const pageObjectsDir = async (dir: string): Promise<string[]> =>
   await readdir(dir, { recursive: true }).then((result) =>
-    result
-      .filter((path) => path.match(/.*gen2e-po\.ts/))
-      .map((p) => path.join(dir, p))
+    result.filter((path) => path.match(/.*gen2e-po\.ts/)).map((p) => path.join(dir, p)),
   );

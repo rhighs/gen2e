@@ -1,7 +1,8 @@
-import { existsSync } from "fs";
-import { Gen2EConfig, Gen2EGenPolicies } from "./types";
-import { join } from "path";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import type { Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
+import type { Gen2EConfig, Gen2EGenPolicies } from "./types";
 
 const configPath = (configname = "gen2e.config") =>
   ["ts", "js", "cjs", "mjs"]
@@ -27,21 +28,28 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
 
   const unwrapAs = (
     prop: string,
-    typename:
-      | "boolean"
-      | "string"
-      | "undefined"
-      | "object"
-      | "function"
-      | "number" = "string",
-    obj: object = exportedConfig
-  ) =>
-    obj ? (typeof obj[prop] === typename ? obj[prop] : undefined) : undefined;
+    typename: "boolean" | "string" | "undefined" | "object" | "function" | "number" = "string",
+    obj: object = exportedConfig,
+  ) => (obj ? (typeof obj[prop] === typename ? obj[prop] : undefined) : undefined);
+
+  // A model can be a plain string or an AI SDK language model instance.
+  const unwrapModel = (): Gen2ELLMAgentModel | undefined => {
+    const model = exportedConfig ? (exportedConfig as { model?: unknown }).model : undefined;
+    if (typeof model === "string") {
+      return model;
+    }
+    if (model !== null && typeof model === "object" && "modelId" in model && "provider" in model) {
+      return model as Gen2ELLMAgentModel;
+    }
+    return undefined;
+  };
 
   return {
     debug: unwrapAs("debug", "boolean"),
     openaiApiKey: unwrapAs("openaiApiKey"),
-    model: unwrapAs("model"),
+    gatewayApiKey: unwrapAs("gatewayApiKey"),
+    baseURL: unwrapAs("baseURL"),
+    model: unwrapModel(),
     staticStorePath: unwrapAs("staticStorePath"),
     policies: ((): Gen2EGenPolicies => {
       const obj = unwrapAs("policies", "object");

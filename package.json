@@ -1,16 +1,26 @@
 {
   "name": "gen2e",
   "version": "1.0.0",
-  "description": "gen2e monorepo, including examples and docs",
+  "description": "gen2e monorepo: LLM powered Playwright code generation",
+  "private": true,
   "workspaces": [
     "packages/*"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "lerna run build",
     "publish": "lerna run build && lerna publish",
     "start": "ts-node ./packages/gen2e-cli/src/index.ts",
     "test": "lerna run test",
-    "format": "lerna run format",
+    "test:integration": "lerna run test:integration",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
     "cloc": "find packages \\( -iname \\*.ts -o -iname \\*.js \\) -not -path \"*/node_modules/*\" -not -path \"*/out/*\" -not -path \"*/dist/*\" -not -path \"*.test.ts\" -not -path \"*.spec.ts\" | xargs wc -l"
   },
   "optionalDependencies": {
@@ -19,11 +29,18 @@
     "@nx/nx-linux-x64-gnu": "18.0.4",
     "@nx/nx-win32-x64-msvc": "18.0.4"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "ai",
+    "playwright",
+    "e2e",
+    "testing",
+    "llm",
+    "vercel-ai-sdk"
+  ],
+  "author": "Roberto Montalti",
+  "license": "MIT",
   "devDependencies": {
-    "electron": "^30.0.6",
+    "@biomejs/biome": "2.5.15",
     "lerna": "^8.1.3"
   }
 }

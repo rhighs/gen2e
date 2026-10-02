@@ -30,9 +30,7 @@ test('example test',
     expect(await gen('task 1', { page, test })).toBe(true);
   })
 );`;
-    expect(() => gen2eSanitize(sourceWithInvalidCall)).toThrow(
-      expect.any(Error)
-    );
+    expect(() => gen2eSanitize(sourceWithInvalidCall)).toThrow(expect.any(Error));
   });
 
   test("should handle empty source code", () => {

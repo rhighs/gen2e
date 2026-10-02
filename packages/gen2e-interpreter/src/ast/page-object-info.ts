@@ -1,7 +1,7 @@
-import { API, FileInfo } from "jscodeshift";
-import { makeTransformer } from "./compiler";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 import { namedTypes as n } from "ast-types";
+import type { API, FileInfo } from "jscodeshift";
+import { makeTransformer } from "./compiler";
 
 export type Gen2EPageObjectInfo = {
   className: string;
@@ -26,7 +26,7 @@ export type Gen2EPageObjectInfo = {
  * @returns {Gen2EPageObjectInfo[]} List of page object info tags values found.
  */
 export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
-  makeTransformer((fileInfo: FileInfo, api: API, logger?: Gen2ELogger) => {
+  makeTransformer((fileInfo: FileInfo, api: API, _logger?: Gen2ELogger) => {
     const j = api.jscodeshift;
     const root = j(fileInfo.source);
     const result: Gen2EPageObjectInfo[] = [];
@@ -56,14 +56,9 @@ export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
           }
         }
 
-        if (
-          member.type === "MethodDefinition" &&
-          member.key.type === "Identifier"
-        ) {
+        if (member.type === "MethodDefinition" && member.key.type === "Identifier") {
           const methodName = member.key.name;
-          const params = member.value.params.map((param) =>
-            j(param).toSource()
-          );
+          const params = member.value.params.map((param) => j(param).toSource());
           const returnType = member.value.returnType
             ? j(member.value.returnType).toSource()
             : "void";

@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { Gen2ELLMAgentTool } from "../types";
+import type { Gen2ELLMAgentTool } from "../types";
 
 export const makeFormatTool = (
-  validator: (args: { code: string }) => { success: boolean; reason?: string }
+  validator: (args: { code: string }) => { success: boolean; reason?: string },
 ): Gen2ELLMAgentTool<{ code: string }> => ({
   function: (args: { code: string }): Promise<any> | any => {
     return validator(args);
@@ -18,8 +18,7 @@ export const makeFormatTool = (
     properties: {
       code: {
         type: "string",
-        description:
-          "Code you have generated and are about to give to the user",
+        description: "Code you have generated and are about to give to the user",
       },
     },
   },

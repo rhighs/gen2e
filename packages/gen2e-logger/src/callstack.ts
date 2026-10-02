@@ -1,4 +1,4 @@
-import { Gen2ELoggerRuntimeCallInfo } from "./types";
+import type { Gen2ELoggerRuntimeCallInfo } from "./types";
 
 declare global {
   interface String {
@@ -28,7 +28,7 @@ const isWindows = (): boolean => process.platform === "win32";
  */
 export const runtimeExecutionInfo = (
   depth: number = 3,
-  readStack: () => string | undefined = () => new Error().stack
+  readStack: () => string | undefined = () => new Error().stack,
 ): Gen2ELoggerRuntimeCallInfo => {
   const regex = /\((.*):(\d+):(\d+)\)$/;
   const result = {
@@ -42,7 +42,7 @@ export const runtimeExecutionInfo = (
   const stack = readStack();
   if (stack) {
     const win = isWindows();
-    let stackLine = stack.split("\n")[depth];
+    const stackLine = stack.split("\n")[depth];
     const match = regex.exec(stackLine);
     if (match?.length) {
       const file = match[1].split(win ? "\\" : "/").pop();
@@ -51,20 +51,17 @@ export const runtimeExecutionInfo = (
         _line = "",
         _col = "";
       if (win) {
-        const [vol, path, line, col] = filepathLC
-          .strip(")")
-          .strip("(")
-          .split(":");
-        filepath = vol + ":" + path;
+        const [vol, path, line, col] = filepathLC.strip(")").strip("(").split(":");
+        filepath = `${vol}:${path}`;
         _line = line;
         _col = col;
       } else {
         [filepath, _line, _col] = filepathLC.strip(")").strip("(").split(":");
       }
       const [funcName] = stackLine.trim().replace("at ", "").split(" ");
-      let line = parseInt(_line);
+      let line = parseInt(_line, 10);
       if (isNaN(line)) line = 0;
-      let col = parseInt(_col);
+      let col = parseInt(_col, 10);
       if (isNaN(col)) col = 0;
       result.funcName = funcName;
       result.filepath = filepath;

@@ -1,27 +1,33 @@
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import { createGateway, gateway, type LanguageModel } from "ai";
+import { Gen2ELLMGenericError } from "./errors";
 import {
-  sanitizeCodeOutput,
-  validateJSCode,
-  validateJSONString,
-} from "./sanity";
+  isGatewayModel,
+  isModelSupported,
+  isOpenAIModel,
+  isProviderModel,
+  modelId,
+  modelKey,
+} from "./models";
+import { Gen2EOpenAIRunner } from "./runner/openai";
+import { Gen2EVercelRunner } from "./runner/vercel";
+import { sanitizeCodeOutput, validateJSCode, validateJSONString } from "./sanity";
 import { makeTool, makeTracedTool } from "./tools";
 import { makeFormatTool } from "./tools/ensure-format";
 import {
-  Gen2ELLMAgent,
-  Gen2ELLMAgentBuilder,
-  Gen2ELLMAgentBuilderOptions,
-  Gen2ELLMAgentModel,
-  Gen2ELLMAgentResult,
-  Gen2ELLMCodeGenAgentTask,
-  Gen2ELLMAgentUsageStats,
-  Gen2ELLMAgentRunner,
-  Gen2ELLMAgentOpenAIModel,
-  Gen2ELLMCodeGenAgent,
-  Gen2ELLMAgentRunnerInit,
-  Gen2ELLMAgentTool,
+  type Gen2ELLMAgent,
+  type Gen2ELLMAgentBuilder,
+  type Gen2ELLMAgentBuilderOptions,
+  type Gen2ELLMAgentModel,
+  Gen2ELLMAgentOpenAIModels,
+  type Gen2ELLMAgentResult,
+  type Gen2ELLMAgentRunner,
+  type Gen2ELLMAgentRunnerInit,
+  type Gen2ELLMAgentTool,
+  type Gen2ELLMAgentUsageStats,
+  type Gen2ELLMCodeGenAgent,
+  type Gen2ELLMCodeGenAgentTask,
 } from "./types";
-import { Gen2ELLMGenericError } from "./errors";
-import { Gen2EOpenAIRunner } from "./runner/openai";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 const createCodeGenTools = (lang: string) => {
   const tools = [
@@ -43,7 +49,7 @@ const createCodeGenTools = (lang: string) => {
         return {
           success: true,
         };
-      })
+      }),
     ),
   ];
 
@@ -52,16 +58,18 @@ const createCodeGenTools = (lang: string) => {
       makeTracedTool(
         makeTool(({ code }) => {
           return validateJSCode(code);
-        })
-      )
+        }),
+      ),
     );
   }
 
   if (lang === "json") {
-    makeTracedTool(
-      makeTool(({ code }) => {
-        return validateJSONString(code);
-      })
+    tools.push(
+      makeTracedTool(
+        makeTool(({ code }) => {
+          return validateJSONString(code);
+        }),
+      ),
     );
   }
 
@@ -72,7 +80,7 @@ const makePrompt = (
   message: string,
   codeContext: string | undefined,
   attempts: string | undefined,
-  errors: string | undefined
+  errors: string | undefined,
 ) =>
   `\
 This is your task: ${message}
@@ -111,13 +119,69 @@ Never give back the full context, only the new part.`
 
 const defaultAgentLogger = makeLogger("GEN2E-LLM");
 
+/**
+ * Resolve a `provider/model` gateway id against the Vercel AI Gateway. When an
+ * explicit key is given a dedicated provider is created, otherwise the default
+ * provider reads AI_GATEWAY_API_KEY from the environment.
+ */
+const resolveGatewayModel = (id: string, options?: Gen2ELLMAgentBuilderOptions): LanguageModel => {
+  const provider = options?.gatewayApiKey
+    ? createGateway({ apiKey: options.gatewayApiKey })
+    : gateway;
+  return provider(id);
+};
+
+const buildRunner = (
+  model: Gen2ELLMAgentModel,
+  options: Gen2ELLMAgentBuilderOptions | undefined,
+  logger: Gen2ELogger,
+  debug: boolean,
+): Gen2ELLMAgentRunner => {
+  const runnerOptions = {
+    debug,
+    logger,
+    maxSteps: options?.maxSteps,
+    temperature: options?.temperature,
+  };
+
+  if (isProviderModel(model)) {
+    return new Gen2EVercelRunner({
+      model: model as LanguageModel,
+      ...runnerOptions,
+    });
+  }
+
+  if (typeof model === "string" && isGatewayModel(model)) {
+    return new Gen2EVercelRunner({
+      model: resolveGatewayModel(model, options),
+      ...runnerOptions,
+    });
+  }
+
+  if (typeof model === "string" && (isOpenAIModel(model) || model in Gen2ELLMAgentOpenAIModels)) {
+    const apiKey = options?.openaiApiKey ?? process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Gen2ELLMGenericError("openai model supplied but no openai api key was found");
+    }
+    return new Gen2EOpenAIRunner({
+      apiKey,
+      model,
+      debug,
+      logger,
+      baseURL: options?.baseURL,
+    });
+  }
+
+  throw new Gen2ELLMGenericError(`unsupported model type ${String(model)}`);
+};
+
 export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
   options?: Gen2ELLMAgentBuilderOptions,
   logger?: Gen2ELogger,
   tools?: Gen2ELLMAgentTool<{ code?: string; [key: string]: any }>[],
-  defaultLang: string = "javascript"
+  defaultLang: string = "javascript",
 ): Gen2ELLMAgent<Gen2ELLMCodeGenAgentTask, string> => {
   const isDebug = options?.debug ?? false;
   const _logger = defaultAgentLogger;
@@ -131,34 +195,51 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
     allTools = [...allTools, ...tools.map((tool) => makeTracedTool(tool))];
   }
 
-  let runner: Gen2ELLMAgentRunner;
-  if (model.startsWith("gpt")) {
-    model = model as Gen2ELLMAgentOpenAIModel;
-    let apiKey = options?.openaiApiKey;
-    if (!apiKey) {
-      apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Gen2ELLMGenericError(
-          "openai model supplied but no openai api key was found"
-        );
-      }
-    }
-    runner = new Gen2EOpenAIRunner({
-      apiKey,
-      model,
-      debug: isDebug,
-      logger: _logger,
-    });
-  } else {
-    throw new Gen2ELLMGenericError(`unsupported model type ${model}`);
+  if (!isModelSupported(model)) {
+    throw new Gen2ELLMGenericError(`unsupported model type ${String(model)}`);
   }
 
+  const runners = new Map<string, { runner: Gen2ELLMAgentRunner; model: Gen2ELLMAgentModel }>();
+  const getRunner = (override?: Gen2ELLMAgentModel) => {
+    const target = override ?? model;
+    const key = modelKey(target);
+    let entry = runners.get(key);
+    if (!entry) {
+      entry = {
+        runner: buildRunner(target, options, _logger, isDebug),
+        model: target,
+      };
+      runners.set(key, entry);
+    }
+    return entry;
+  };
+
+  const totalToolCalls = () => allTools.reduce((acc, tool) => acc + tool.callCount(), 0);
+
+  // Resolve the initial runner eagerly so misconfiguration surfaces when the
+  // agent is created, not on the first generation request.
+  getRunner();
+
   return async (task, hooks): Promise<Gen2ELLMAgentResult<string>> => {
+    let entry: {
+      runner: Gen2ELLMAgentRunner;
+      model: Gen2ELLMAgentModel;
+    };
+    try {
+      entry = getRunner(task.options?.model);
+    } catch (err) {
+      return {
+        type: "error",
+        errorMessage: `LLM call error ${err}`,
+      };
+    }
+
+    const toolCallsBefore = totalToolCalls();
     const taskPrompt = makePrompt(
       task.task,
       task.codeContext,
       task.previousAttempts,
-      task.previousErrors
+      task.previousErrors,
     );
 
     let expression = "";
@@ -175,13 +256,13 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
       }
 
       if (task.images) {
-        if (options?.debug) {
-          _logger.debug("using runner with image on model", model);
+        if (isDebug) {
+          _logger.debug("using runner with image on model", modelId(entry.model));
         }
         runOpts.images = task.images;
       }
 
-      const result = await runner.run(runOpts, hooks);
+      const result = await entry.runner.run(runOpts, hooks);
       if (result.type === "error") {
         return {
           type: "error",
@@ -190,15 +271,13 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
       }
       expression = result.result;
 
-      const usage = await runner.getUsage();
+      const usage = await entry.runner.getUsage();
       const usageStats: Gen2ELLMAgentUsageStats = {
-        model,
+        model: modelId(entry.model),
         task: {
           prompt: taskPrompt,
           output: expression ?? "",
-          noToolCalls: allTools
-            .map((tool) => tool.callCount())
-            .reduce((acc, v) => acc + v, 0),
+          noToolCalls: totalToolCalls() - toolCallsBefore,
         },
         completionTokens: usage.completionTokens,
         promptTokens: usage.promptTokens,

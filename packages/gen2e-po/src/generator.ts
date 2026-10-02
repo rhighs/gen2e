@@ -1,18 +1,20 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
+
 const { readFile } = fs.promises;
-import {
+
+import type { Gen2EPlaywrightBlock } from "@rhighs/gen2e-interpreter";
+import type {
   Gen2ELLMAgentModel,
   Gen2ELLMCodeGenAgent,
   Gen2ELLMCodeGenAgentTask,
 } from "@rhighs/gen2e-llm";
-import { Gen2EPOCodeAPI, Gen2EPOCodeGenOptions } from "./types";
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import { FSCodeAPI } from "./code-api";
-import { createPOCodeGenAgent } from "./po-gen";
-import { Gen2EPlaywrightBlock } from "@rhighs/gen2e-interpreter";
 import { loadImageWithLabel } from "./image";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import { pageObjectsDir } from "./loader";
+import { createPOCodeGenAgent } from "./po-gen";
+import type { Gen2EPOCodeAPI, Gen2EPOCodeGenOptions } from "./types";
 
 export type Gen2EPOGeneratorOptions = {
   model?: Gen2ELLMAgentModel;
@@ -38,16 +40,12 @@ export class Gen2EPOGenerator {
   constructor(
     options: Gen2EPOGeneratorOptions = {},
     codeAPI: Gen2EPOCodeAPI = FSCodeAPI,
-    logger?: Gen2ELogger
+    logger?: Gen2ELogger,
   ) {
     this.options = options;
     this.codeAPI = codeAPI;
     this.logger = logger ?? makeLogger("GEN2EPO-GENERATOR");
-    this.agent = createPOCodeGenAgent(
-      options.model,
-      codeAPI,
-      options.codeGenOptions
-    );
+    this.agent = createPOCodeGenAgent(options.model, codeAPI, options.codeGenOptions);
     this.staticDataDir = options.staticDataDir ?? ".";
   }
 
@@ -61,16 +59,10 @@ export class Gen2EPOGenerator {
    * @param {Gen2EPlaywrightBlock} [to] - The target Playwright block containing context and references (optional).
    * @returns {Promise<void>} - A promise that resolves when the page objects have been generated.
    */
-  async generate(
-    from: Gen2EPlaywrightBlock,
-    to?: Gen2EPlaywrightBlock
-  ): Promise<void> {
+  async generate(from: Gen2EPlaywrightBlock, to?: Gen2EPlaywrightBlock): Promise<void> {
     const images: Buffer[] = [];
     if (from.context?.refs?.screenshotPath) {
-      const sp = path.join(
-        this.staticDataDir,
-        from.context?.refs?.screenshotPath
-      );
+      const sp = path.join(this.staticDataDir, from.context?.refs?.screenshotPath);
       const image = await loadImageWithLabel(sp, "Starting page");
       images.push(image);
     }
@@ -81,11 +73,7 @@ export class Gen2EPOGenerator {
     }
 
     const fromHtml = from.context?.refs?.htmlPath
-      ? (
-          await readFile(
-            path.join(this.staticDataDir, from.context?.refs?.htmlPath)
-          )
-        ).toString()
+      ? (await readFile(path.join(this.staticDataDir, from.context?.refs?.htmlPath))).toString()
       : "";
     const t: Gen2ELLMCodeGenAgentTask = {
       task: JSON.stringify({
@@ -106,20 +94,14 @@ export class Gen2EPOGenerator {
     const result = await this.agent(
       {
         ...t,
-        options: {
-          model: "gpt-4o",
-        },
       },
       {
         onMessage: (message) => {
           if (message.role === "tool") {
-            this.logger.info(
-              "page object generator agent - tool message >>> ",
-              message
-            );
+            this.logger.info("page object generator agent - tool message >>> ", message);
           }
         },
-      }
+      },
     );
 
     if (this.options.debug) {

@@ -1,22 +1,22 @@
-import { Page } from "@playwright/test";
 import readline from "node:readline";
-
-import {
-  generateGen2ECode,
-  Gen2EBrowser,
-  Gen2EBrowserOptions,
-  evalGen2EExpression,
-  createGen2ECodeGenAgent,
-} from "@rhighs/gen2e-interpreter";
+import type { Page } from "@playwright/test";
 import { gen, stepLoggingEnabled } from "@rhighs/gen2e";
+import {
+  createGen2ECodeGenAgent,
+  evalGen2EExpression,
+  Gen2EBrowser,
+  type Gen2EBrowserOptions,
+  generateGen2ECode,
+} from "@rhighs/gen2e-interpreter";
+
 stepLoggingEnabled(true);
 
 import {
-  Gen2ELLMAgentModel,
-  Gen2ELLMCodeGenAgent,
+  type Gen2ELLMAgentModel,
+  type Gen2ELLMCodeGenAgent,
   isModelSupported,
 } from "@rhighs/gen2e-llm";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 type InterpeterREPLOptions = {
   browserOptions?: Gen2EBrowserOptions;
@@ -24,6 +24,8 @@ type InterpeterREPLOptions = {
   debug?: boolean;
   model?: string;
   openaiApiKey?: string;
+  gatewayApiKey?: string;
+  baseURL?: string;
   logger?: Gen2ELogger;
 };
 
@@ -44,6 +46,8 @@ class InterpreterREPL {
     const opts = {
       debug: options.debug,
       openaiApiKey: options.openaiApiKey,
+      gatewayApiKey: options.gatewayApiKey,
+      baseURL: options.baseURL,
     };
 
     if (options.logger) {
@@ -55,9 +59,7 @@ class InterpreterREPL {
     } else if (!model) {
       this.agent = createGen2ECodeGenAgent(undefined, opts, this.logger);
     } else {
-      throw new Error(
-        `failed starting repl instance, model ${model} not supported`
-      );
+      throw new Error(`failed starting repl instance, model ${model} not supported`);
     }
 
     this.verbose = options.verbose ?? false;
@@ -108,7 +110,7 @@ class InterpreterREPL {
       const result = await generateGen2ECode({
         agent: this.agent,
         task: `${input}
-NOTE: code that depends on anything besides \`page\` and '\test\' and \'gen\' should be commented out`,
+NOTE: code that depends on anything besides \`page\` and '\test' and 'gen' should be commented out`,
       });
 
       if (result.type === "success") {

@@ -1,10 +1,9 @@
-import sanitize, { AllowedAttribute } from "sanitize-html";
-
-import { Page } from "./types";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import fs from "node:fs";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
+import sanitize, { type AllowedAttribute } from "sanitize-html";
+import type { Page } from "./types";
 
 const tags: { [key: string]: false | string[] } = {
   none: false,
@@ -102,11 +101,8 @@ const attributes: {
 const sanitizeHtml = (
   subject: string,
   allowedTags: false | string[] | undefined,
-  allowedAttributes:
-    | false
-    | Record<string, sanitize.AllowedAttribute[]>
-    | undefined,
-  logger?: Gen2ELogger
+  allowedAttributes: false | Record<string, sanitize.AllowedAttribute[]> | undefined,
+  logger?: Gen2ELogger,
 ) => {
   if (logger) {
     logger.debug("sanitizing html, preserving data ", {
@@ -154,11 +150,7 @@ const resolveHTMLRoot = async (page: Page): Promise<string> => {
     const x = window.innerWidth / 2;
     const y = window.innerHeight / 2;
     let element = document.elementFromPoint(x, y);
-    while (
-      element &&
-      element.parentElement &&
-      element.parentElement.tagName.toLowerCase() !== "body"
-    )
+    while (element?.parentElement && element.parentElement.tagName.toLowerCase() !== "body")
       element = element.parentElement;
     return element;
   });
@@ -168,10 +160,7 @@ const resolveHTMLRoot = async (page: Page): Promise<string> => {
   return element.outerHTML;
 };
 
-const resolvePageContent = async (
-  page: Page,
-  logger?: Gen2ELogger
-): Promise<string> => {
+const resolvePageContent = async (page: Page, logger?: Gen2ELogger): Promise<string> => {
   let mainPageContent = await page.content();
   if (mainPageContent.includes("<body")) {
     const contextRoot = await resolveHTMLRoot(page);
@@ -182,7 +171,7 @@ const resolvePageContent = async (
 
   const frames = page.frames();
   const framesContent: string[] = [];
-  for (let f of frames) {
+  for (const f of frames) {
     try {
       const frameContent = await f.content();
       framesContent.push(frameContent);
@@ -207,15 +196,12 @@ const outlinePage = async (page: Page): Promise<void> => {
   `,
   };
 
-  for (let p of [...frames, page]) {
+  for (const p of [...frames, page]) {
     await p.addStyleTag(outline);
   }
 };
 
-const debugPageElementsTag = async (
-  page: Page,
-  tags: string[]
-): Promise<void> => {
+const debugPageElementsTag = async (page: Page, tags: string[]): Promise<void> => {
   const frames = page.frames();
   const metaTagName = {
     content: `
@@ -247,7 +233,7 @@ const debugPageElementsTag = async (
 `,
   };
 
-  for (let p of [...frames, page]) {
+  for (const p of [...frames, page]) {
     await p.addStyleTag(metaTagName);
     await p.evaluate(
       (tags) =>
@@ -258,7 +244,7 @@ const debugPageElementsTag = async (
             }
           }
         }),
-      tags
+      tags,
     );
   }
 };
@@ -266,25 +252,17 @@ const debugPageElementsTag = async (
 export const getSnapshot = async (
   page: Page,
   logger?: Gen2ELogger,
-  opts?: WebSnapshotOptions
+  opts?: WebSnapshotOptions,
 ): Promise<WebSnapshotResult> => {
-  // rob: prevent snapshotting the wrong page
-  {
-    await page.waitForLoadState("domcontentloaded");
-    await page.waitForLoadState("networkidle");
-  }
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForLoadState("networkidle");
 
   const _tags = tags[opts?.stripLevel ?? "medium"];
   const _attrs = attributes[opts?.stripLevel ?? "medium"];
 
   const pageContent = await resolvePageContent(page, logger);
   const strippedPageContent = pageContent.replace(/[\t\r\n]/g, "");
-  const content = sanitizeHtml(
-    strippedPageContent,
-    _tags,
-    _attrs,
-    logger
-  ).replace(/[\t\r\n]/g, "");
+  const content = sanitizeHtml(strippedPageContent, _tags, _attrs, logger).replace(/[\t\r\n]/g, "");
   if (logger) {
     logger.debug("captured snapshot", content);
   }
@@ -317,7 +295,7 @@ export const getSnapshot = async (
 
     if (opts.saveScreenShot) {
       const url = new URL(page.url());
-      const filename = `${+new Date()}.jpeg`;
+      const filename = `${Date.now()}.jpeg`;
       const dir = path.join(os.tmpdir(), `gen2e-snapshots`, url.hostname);
       fs.mkdirSync(dir, {
         recursive: true,
@@ -332,9 +310,7 @@ export const getSnapshot = async (
     }
 
     if ((!buffer || buffer.length === 0) && opts.debug) {
-      logger?.debug(
-        "snapshot could not get any screenshot data, got empty or undefined buffer"
-      );
+      logger?.debug("snapshot could not get any screenshot data, got empty or undefined buffer");
     }
 
     result.screenshot = buffer;

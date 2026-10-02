@@ -1,8 +1,7 @@
-import { Gen2ELoggerArgsFmt, makeLogger } from "../../src";
-import { Gen2ELoggerRuntimeCallInfo } from "../../src";
+import { type Gen2ELoggerArgsFmt, type Gen2ELoggerRuntimeCallInfo, makeLogger } from "../../src";
 
 jest.mock("../../src/callstack", () => ({
-  runtimeExecutionInfo: (depth: number): Gen2ELoggerRuntimeCallInfo => ({
+  runtimeExecutionInfo: (_depth: number): Gen2ELoggerRuntimeCallInfo => ({
     funcName: "testFunc",
     filepath: "/path/to/file.ts",
     file: "file.ts",
@@ -29,59 +28,43 @@ describe("Gen2E std logger", () => {
   it("should log debug messages correctly", () => {
     logger.debug("Debug message");
     expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "\x1b[94m[GEN2E-DEBUG]\x1b[0m file.ts:10:15 Debug message"
-      )
+      expect.stringContaining("\x1b[94m[GEN2E-DEBUG]\x1b[0m file.ts:10:15 Debug message"),
     );
   });
 
   it("should log info messages correctly", () => {
     logger.info("Info message");
     expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "\x1b[32m[GEN2E-INFO]\x1b[0m file.ts:10:15 Info message"
-      )
+      expect.stringContaining("\x1b[32m[GEN2E-INFO]\x1b[0m file.ts:10:15 Info message"),
     );
   });
 
   it("should log warn messages correctly", () => {
     logger.warn("Warn message");
     expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "\x1b[33m[GEN2E-WARN]\x1b[0m file.ts:10:15 Warn message"
-      )
+      expect.stringContaining("\x1b[33m[GEN2E-WARN]\x1b[0m file.ts:10:15 Warn message"),
     );
   });
 
   it("should log error messages correctly", () => {
     logger.error("Error message");
     expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "\x1b[31m[GEN2E-ERROR]\x1b[0m file.ts:10:15 Error message"
-      )
+      expect.stringContaining("\x1b[31m[GEN2E-ERROR]\x1b[0m file.ts:10:15 Error message"),
     );
   });
 
   it("should use the correct color codes", () => {
     logger.debug("Debug message");
-    expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining("\x1b[94m[GEN2E-DEBUG]\x1b[0m")
-    );
+    expect(mockSink).toHaveBeenCalledWith(expect.stringContaining("\x1b[94m[GEN2E-DEBUG]\x1b[0m"));
 
     logger.info("Info message");
-    expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining("\x1b[32m[GEN2E-INFO]\x1b[0m")
-    );
+    expect(mockSink).toHaveBeenCalledWith(expect.stringContaining("\x1b[32m[GEN2E-INFO]\x1b[0m"));
 
     logger.warn("Warn message");
-    expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining("\x1b[33m[GEN2E-WARN]\x1b[0m")
-    );
+    expect(mockSink).toHaveBeenCalledWith(expect.stringContaining("\x1b[33m[GEN2E-WARN]\x1b[0m"));
 
     logger.error("Error message");
-    expect(mockSink).toHaveBeenCalledWith(
-      expect.stringContaining("\x1b[31m[GEN2E-ERROR]\x1b[0m")
-    );
+    expect(mockSink).toHaveBeenCalledWith(expect.stringContaining("\x1b[31m[GEN2E-ERROR]\x1b[0m"));
   });
 });
 
@@ -114,7 +97,7 @@ describe("Gen2E std logger args fmt", () => {
         line: 10,
         col: 15,
       },
-      "Debug message"
+      "Debug message",
     );
     expect(mockSink).toHaveBeenCalledWith("");
   });
@@ -131,7 +114,7 @@ describe("Gen2E std logger args fmt", () => {
         line: 10,
         col: 15,
       },
-      "Info message"
+      "Info message",
     );
     expect(mockSink).toHaveBeenCalledWith("");
   });
@@ -148,7 +131,7 @@ describe("Gen2E std logger args fmt", () => {
         line: 10,
         col: 15,
       },
-      "Warn message"
+      "Warn message",
     );
     expect(mockSink).toHaveBeenCalledWith("");
   });
@@ -165,7 +148,7 @@ describe("Gen2E std logger args fmt", () => {
         line: 10,
         col: 15,
       },
-      "Error message"
+      "Error message",
     );
     expect(mockSink).toHaveBeenCalledWith("");
   });
@@ -174,12 +157,8 @@ describe("Gen2E std logger args fmt", () => {
 describe("Gen2E logger config", () => {
   const mockSink1 = jest.fn();
   const mockSink2 = jest.fn();
-  const mockSerializer1: Gen2ELoggerArgsFmt = jest.fn(
-    () => "Serialized message 1"
-  );
-  const mockSerializer2: Gen2ELoggerArgsFmt = jest.fn(
-    () => "Serialized message 2"
-  );
+  const mockSerializer1: Gen2ELoggerArgsFmt = jest.fn(() => "Serialized message 1");
+  const mockSerializer2: Gen2ELoggerArgsFmt = jest.fn(() => "Serialized message 2");
 
   const sinks1 = {
     debug: mockSink1,
@@ -209,7 +188,7 @@ describe("Gen2E logger config", () => {
       "GEN2E-DEBUG",
       "blue",
       expect.any(Object),
-      "Debug message"
+      "Debug message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -218,7 +197,7 @@ describe("Gen2E logger config", () => {
       "GEN2E-INFO",
       "green",
       expect.any(Object),
-      "Info message"
+      "Info message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -227,7 +206,7 @@ describe("Gen2E logger config", () => {
       "GEN2E-WARN",
       "yellow",
       expect.any(Object),
-      "Warn message"
+      "Warn message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -236,7 +215,7 @@ describe("Gen2E logger config", () => {
       "GEN2E-ERROR",
       "red",
       expect.any(Object),
-      "Error message"
+      "Error message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
   });
@@ -251,7 +230,7 @@ describe("Gen2E logger config", () => {
       "GEN2E-DEBUG",
       "blue",
       expect.any(Object),
-      "Debug message"
+      "Debug message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -260,7 +239,7 @@ describe("Gen2E logger config", () => {
       "GEN2E-INFO",
       "green",
       expect.any(Object),
-      "Info message"
+      "Info message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -269,7 +248,7 @@ describe("Gen2E logger config", () => {
       "GEN2E-WARN",
       "yellow",
       expect.any(Object),
-      "Warn message"
+      "Warn message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -278,7 +257,7 @@ describe("Gen2E logger config", () => {
       "GEN2E-ERROR",
       "red",
       expect.any(Object),
-      "Error message"
+      "Error message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
   });
@@ -293,7 +272,7 @@ describe("Gen2E logger config", () => {
       "GEN2E_ALT-DEBUG",
       "blue",
       expect.any(Object),
-      "Debug message"
+      "Debug message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -302,7 +281,7 @@ describe("Gen2E logger config", () => {
       "GEN2E_ALT-INFO",
       "green",
       expect.any(Object),
-      "Info message"
+      "Info message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -311,7 +290,7 @@ describe("Gen2E logger config", () => {
       "GEN2E_ALT-WARN",
       "yellow",
       expect.any(Object),
-      "Warn message"
+      "Warn message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
 
@@ -320,7 +299,7 @@ describe("Gen2E logger config", () => {
       "GEN2E_ALT-ERROR",
       "red",
       expect.any(Object),
-      "Error message"
+      "Error message",
     );
     expect(mockSink2).toHaveBeenCalledWith("Serialized message 2");
   });
@@ -335,7 +314,7 @@ describe("Gen2E logger config", () => {
       "GEN2E_ALT-DEBUG",
       "blue",
       expect.any(Object),
-      "Debug message"
+      "Debug message",
     );
 
     logger2.info("Info message");
@@ -343,7 +322,7 @@ describe("Gen2E logger config", () => {
       "GEN2E_ALT-INFO",
       "green",
       expect.any(Object),
-      "Info message"
+      "Info message",
     );
 
     logger2.warn("Warn message");
@@ -351,7 +330,7 @@ describe("Gen2E logger config", () => {
       "GEN2E_ALT-WARN",
       "yellow",
       expect.any(Object),
-      "Warn message"
+      "Warn message",
     );
 
     logger2.error("Error message");
@@ -359,7 +338,7 @@ describe("Gen2E logger config", () => {
       "GEN2E_ALT-ERROR",
       "red",
       expect.any(Object),
-      "Error message"
+      "Error message",
     );
   });
 });

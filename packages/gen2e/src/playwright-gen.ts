@@ -1,12 +1,12 @@
 import {
-  Gen2ELLMAgentBuilderOptions,
-  Gen2ELLMAgentHooks,
-  Gen2ELLMAgentModel,
-  Gen2ELLMCodeGenAgent,
   createCodeGenAgent,
+  type Gen2ELLMAgentBuilderOptions,
+  type Gen2ELLMAgentHooks,
+  type Gen2ELLMAgentModel,
+  type Gen2ELLMCodeGenAgent,
 } from "@rhighs/gen2e-llm";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 import env from "./env";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
 const systemMessage = `
 ==== DESCRIPTION ====
@@ -88,16 +88,20 @@ export type Gen2EPlaywrightCodeGenOptions = Gen2ELLMAgentBuilderOptions;
 export const createPlaywrightCodeGenAgent = (
   defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
   options?: Gen2EPlaywrightCodeGenOptions,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
 ) =>
   createCodeGenAgent(
     systemMessage,
     defaultModel,
     {
       openaiApiKey: options?.openaiApiKey,
+      gatewayApiKey: options?.gatewayApiKey,
+      baseURL: options?.baseURL,
+      maxSteps: options?.maxSteps,
+      temperature: options?.temperature,
       debug: options?.debug,
     },
-    logger
+    logger,
   );
 
 export type Gen2EPlaywrightTask = {
@@ -141,7 +145,7 @@ export const generatePlaywrightCode = async ({
       previousAttempts: task.previousAttempts,
       previousErrors: task.previousErrors,
     },
-    hooks
+    hooks,
   );
 
   if (result.type === "error") {

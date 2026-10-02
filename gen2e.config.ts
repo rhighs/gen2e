@@ -1,8 +1,10 @@
-import { Gen2EConfig } from '@rhighs/gen2e'
+import type { Gen2EConfig } from "@rhighs/gen2e";
+
 export default {
-    model: 'gpt-3.5-turbo',
-    policies: {
-        screenshot: 'off',
-        maxRetries: 2
-    }
-} as Gen2EConfig;
+  // OpenAI id, `provider/model` gateway id, or an AI SDK language model instance
+  model: "gpt-4o-mini",
+  policies: {
+    screenshot: "off",
+    maxRetries: 2,
+  },
+} satisfies Gen2EConfig;

@@ -10,10 +10,17 @@ Implementations for NL interpreters generating gen2e code or playwright code. Wi
 npm install @rhighs/gen2e-interpreter -D
 ```
 
-2. This package relies on talking with OpenAI (https://openai.com/). You must export the API token as an enviroment variable or add it to your `.env` file:
+2. Point the interpreter at a model. OpenAI directly:
 
 ```bash
-export OPENAI_API_KEY='sk-..."
+export OPENAI_API_KEY="sk-..."
+```
+
+or any provider through the Vercel AI Gateway:
+
+```bash
+export AI_GATEWAY_API_KEY="..."
+export GEN2EI_MODEL="openai/gpt-5.4"
 ```
 
 3. Try and form up a runnable script like the following:
@@ -126,7 +133,7 @@ The `sandboxEval` function executes a given fake E2E test source code in a sandb
 #### Getting an idea of sandbox usage
 
 ```typescript
-import { sandboxEval } from '@righs/gen2e-interpreter';
+import { sandboxEval } from '@rhighs/gen2e-interpreter';
 import { Page } from '@playwright/test';
 import { StaticStore } from '@rhighs/gen2e';
 
@@ -146,17 +153,19 @@ test("a fake test",
 `;
 
 const page: Page;
-const inMemStatic = {};
+const inMemStatic: Record<string, StaticGenStep> = {};
 const store: StaticStore = {
-  makeStatic: (testTitle: string, task: string) => `${testTitle} - ${task}`
+  makeIdent: (testTitle: string, task: string) => `${testTitle}::${task}`,
   fetchStatic: (ident: string) => inMemStatic[ident],
-  makeStatic: (content: StaticGenStep) => (inMemStatic[content.ident] = content.expression),
+  makeStatic: (ident: string, content: StaticGenStep) => {
+    inMemStatic[ident] = content;
+  },
 };
 
 ;(async () => {
   await sandboxEval(gen2eTestSource, page, store, undefined, {
-    model: 'gpt-3.5-turbo',
-    openaiApiKey: 'your-api-key-here',
+    model: 'openai/gpt-5.4',
+    gatewayApiKey: process.env.AI_GATEWAY_API_KEY,
   }, (code, page) => {
     const evalFunc = new Function('page', `return (async () => { const result = await ${code}(); return result })()`);
     return evalFunc(page);
@@ -190,11 +199,19 @@ The ending result will be a playwright test with no dependencies to the gen2e li
 # show debug logs for AST edits
 GEN2EI_DEBUG_AST=0
 
-# sets the default model used by the interpreter, with a fallback to "gpt-3.5-turbo" if not specified
-GEN2EI_MODEL="gpt-4o"
+# sets the default model used by the interpreter, with a fallback to "gpt-4o-mini" if not specified
+# accepts OpenAI ids and provider/model Vercel AI Gateway ids
+GEN2EI_MODEL="openai/gpt-5.4"
+
+# base URL for OpenAI-compatible endpoints
+GEN2EI_BASE_URL=
 
 # show debug logs for the custom agents
 GEN2EI_MODEL_DBG=0
 
+# show debug logs for sandbox execution
+GEN2EI_SANDBOX_DBG=0
+
 OPENAI_API_KEY=<your-api-key>
+AI_GATEWAY_API_KEY=<your-gateway-key>
 ```

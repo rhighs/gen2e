@@ -1,5 +1,5 @@
+import type { Page } from "@rhighs/gen2e";
 import { evalGen2EExpression } from "../../../src";
-import { Page } from "@rhighs/gen2e";
 
 describe("evalGen2EExpression", () => {
   const mockGen = jest.fn();
@@ -20,8 +20,7 @@ describe("evalGen2EExpression", () => {
   });
 
   test("should handle evaluation errors gracefully", async () => {
-    const genExpr =
-      "await gen('task', { page }); throw new Error('Test error');";
+    const genExpr = "await gen('task', { page }); throw new Error('Test error');";
     const mockGenImplementation = async () => Promise.resolve();
     mockGen.mockImplementation(mockGenImplementation);
 

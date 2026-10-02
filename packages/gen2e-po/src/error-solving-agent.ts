@@ -1,14 +1,14 @@
-import z from "zod";
 import {
-  Gen2ELLMAgentBuilderOptions,
-  Gen2ELLMAgentModel,
-  Gen2ELLMAgentTool,
-  Gen2ELLMCodeGenAgent,
   createCodeGenAgent,
+  type Gen2ELLMAgentBuilderOptions,
+  type Gen2ELLMAgentModel,
+  type Gen2ELLMAgentTool,
+  type Gen2ELLMCodeGenAgent,
 } from "@rhighs/gen2e-llm";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
+import z from "zod";
 import env from "./env";
-import { TypescriptDiagnostic, getDiagnostics } from "./ts-compile";
+import { getDiagnostics, type TypescriptDiagnostic } from "./ts-compile";
 
 export type Gen2EErrorSolvingCodeAPI = {
   list: () => Promise<string[]>;
@@ -61,7 +61,7 @@ Your first task is always a JSON object containing:
 
 function makeTools(
   codeAPI: Gen2EErrorSolvingCodeAPI,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
 ): Gen2ELLMAgentTool<{
   [key: string]: any;
 }>[] {
@@ -88,7 +88,7 @@ function makeTools(
       type: "object",
       properties: {},
     },
-    parse: (args: string) => {
+    parse: (_args: string) => {
       return {};
     },
   };
@@ -157,7 +157,7 @@ export const createErrorSolverAgent = (
   defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
   codeAPI: Gen2EErrorSolvingCodeAPI,
   options?: Gen2ELLMAgentBuilderOptions,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
 ): Gen2ELLMCodeGenAgent =>
   createCodeGenAgent(
     SYSTEM_MESSAGE,
@@ -165,5 +165,5 @@ export const createErrorSolverAgent = (
     options,
     logger,
     makeTools(codeAPI, logger),
-    "json"
+    "json",
   );

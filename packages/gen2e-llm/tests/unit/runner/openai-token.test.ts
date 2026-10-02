@@ -1,9 +1,8 @@
-import { TiktokenModel, encoding_for_model } from "tiktoken";
+import { encoding_for_model, type TiktokenModel } from "tiktoken";
 import {
   _MARGIN,
-  tokenLimits,
-  countTokens,
   countTokenApprox,
+  countTokens,
   fitsContext,
   maxCharactersApprox,
 } from "../../../src/runner";
@@ -44,9 +43,7 @@ describe("Token Utility Functions", () => {
   test("fitsContext should return true if text fits within context window", () => {
     const text = "A".repeat(50);
 
-    const mockedLimit = jest
-      .fn()
-      .mockReturnValue({ context: 100, maxOut: 100 });
+    const mockedLimit = jest.fn().mockReturnValue({ context: 100, maxOut: 100 });
     const result = fitsContext(mockModel, text, mockedLimit);
 
     expect(result).toBe(true);
@@ -54,13 +51,9 @@ describe("Token Utility Functions", () => {
 
   test("maxCharactersApprox should return approximate max characters", () => {
     const mockTokenLimits = { context: 100 };
-    const mockedLimit = jest
-      .fn()
-      .mockReturnValue({ context: 100, maxOut: 100 });
+    const mockedLimit = jest.fn().mockReturnValue({ context: 100, maxOut: 100 });
     const maxChars = maxCharactersApprox(mockModel, mockedLimit);
-    const expectedMaxChars = Math.floor(
-      (mockTokenLimits.context - _MARGIN) * Math.E
-    );
+    const expectedMaxChars = Math.floor((mockTokenLimits.context - _MARGIN) * Math.E);
 
     expect(Math.floor(maxChars)).toBe(expectedMaxChars);
   });

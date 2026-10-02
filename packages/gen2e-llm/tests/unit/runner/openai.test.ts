@@ -1,45 +1,66 @@
 import {
-  Gen2EOpenAIRunner,
-  Gen2EOpenAIRunnerOptions,
-  Gen2ELLMAgentRunnerInit,
   fitsContext,
+  type Gen2ELLMAgentRunnerInit,
+  Gen2EOpenAIRunner,
+  type Gen2EOpenAIRunnerOptions,
   maxCharactersApprox,
-  Gen2ELLMAgentOpenAIModel,
 } from "../../../src";
-import { debug } from "../../../src/log";
+
+const mockDebug = jest.fn();
+
+jest.mock("@rhighs/gen2e-logger", () => ({
+  makeLogger: () => ({
+    config: jest.fn(),
+    fmt: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: (...args: unknown[]) => mockDebug(...args),
+  }),
+}));
 
 jest.mock("../../../src/runner/openai-token");
-jest.mock("../../../src/log");
 
-describe("Gen2EOpenAIRunner", () => {
-  const apiKey = "test-api-key";
-  const model = "test-model" as Gen2ELLMAgentOpenAIModel;
-  let mockOpenAI: any;
-  let runner: Gen2EOpenAIRunner;
+const makeOpenAIMock = () => {
+  const runnerMock = {
+    on: jest.fn().mockReturnThis(),
+    finalContent: jest.fn().mockResolvedValue("final result"),
+    totalUsage: jest.fn().mockResolvedValue({
+      completion_tokens: 10,
+      prompt_tokens: 5,
+      total_tokens: 15,
+    }),
+  };
 
-  beforeEach(() => {
-    mockOpenAI = {
+  return {
+    runnerMock,
+    client: {
       beta: {
         chat: {
           completions: {
-            runTools: jest.fn().mockReturnValue({
-              finalContent: jest.fn().mockResolvedValue("final result"),
-              totalUsage: jest.fn().mockResolvedValue({
-                completion_tokens: 10,
-                prompt_tokens: 5,
-                total_tokens: 15,
-              }),
-            }),
+            runTools: jest.fn().mockReturnValue(runnerMock),
           },
         },
       },
-    };
+    },
+  };
+};
+
+describe("Gen2EOpenAIRunner", () => {
+  const apiKey = "test-api-key";
+  let client: ReturnType<typeof makeOpenAIMock>["client"];
+  let runner: Gen2EOpenAIRunner;
+
+  beforeEach(() => {
+    (fitsContext as jest.Mock).mockReturnValue(true);
+    (maxCharactersApprox as jest.Mock).mockReturnValue(100);
+    client = makeOpenAIMock().client;
 
     const options: Gen2EOpenAIRunnerOptions = {
       apiKey,
-      model,
+      model: "test-model",
       debug: true,
-      openai: mockOpenAI,
+      openai: client as unknown as Gen2EOpenAIRunnerOptions["openai"],
     };
     runner = new Gen2EOpenAIRunner(options);
   });
@@ -62,11 +83,19 @@ describe("Gen2EOpenAIRunner", () => {
       tools: [],
     };
 
-    await runner.run(init);
+    const result = await runner.run(init);
 
     expect(fitsContext).toHaveBeenCalled();
     expect(maxCharactersApprox).toHaveBeenCalled();
-    expect(debug).toHaveBeenCalled();
+    expect(mockDebug).toHaveBeenCalled();
+    expect(result.type).toBe("success");
+
+    // The system message must not leak into the user content.
+    const messages = client.beta.chat.completions.runTools.mock.calls[0][0].messages as Array<{
+      role: string;
+      content: unknown;
+    }>;
+    expect(String(messages[1].content)).not.toContain("System message");
   });
 
   test("should run tools and return success result", async () => {
@@ -86,15 +115,46 @@ describe("Gen2EOpenAIRunner", () => {
     });
   });
 
-  test("should return error result on failure", async () => {
-    mockOpenAI.beta.chat.completions.runTools.mockReturnValueOnce({
-      finalContent: jest.fn().mockRejectedValue(new Error("test error")),
-      totalUsage: jest.fn().mockResolvedValue({
-        completion_tokens: 10,
-        prompt_tokens: 5,
-        total_tokens: 15,
-      }),
+  test("should attach images to the user content for vision models", async () => {
+    const visionRunner = new Gen2EOpenAIRunner({
+      apiKey,
+      model: "gpt-4o",
+      openai: client as unknown as Gen2EOpenAIRunnerOptions["openai"],
     });
+
+    await visionRunner.run({
+      taskPrompt: "task",
+      systemMessage: "system",
+      images: [Buffer.from("fake-image")],
+      tools: [],
+    });
+
+    const messages = client.beta.chat.completions.runTools.mock.calls[0][0].messages as Array<{
+      content: Array<{ type: string }>;
+    }>;
+    expect(messages[1].content).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "image_url" })]),
+    );
+  });
+
+  test("should reject images for models without vision support", async () => {
+    const result = await runner.run({
+      taskPrompt: "task",
+      systemMessage: "system",
+      images: [Buffer.from("fake-image")],
+      tools: [],
+    });
+
+    expect(result).toEqual({
+      type: "error",
+      reason: "model does not supporting feeding images",
+    });
+  });
+
+  test("should return error result on failure", async () => {
+    const failing = makeOpenAIMock();
+    failing.runnerMock.finalContent.mockRejectedValueOnce(new Error("test error"));
+    client.beta.chat.completions.runTools.mockReturnValueOnce(failing.runnerMock);
 
     const init: Gen2ELLMAgentRunnerInit = {
       taskPrompt: "task",
@@ -106,7 +166,7 @@ describe("Gen2EOpenAIRunner", () => {
 
     expect(result).toEqual({
       type: "error",
-      reason: "got error Error: test error",
+      reason: "got error test error",
     });
   });
 
@@ -117,7 +177,7 @@ describe("Gen2EOpenAIRunner", () => {
       total_tokens: 15,
     };
 
-    (runner as any).updateUsage(usage);
+    (runner as unknown as { updateUsage: (u: unknown) => void }).updateUsage(usage);
 
     expect(await runner.getUsage()).toEqual({
       completionTokens: 10,

@@ -1,12 +1,12 @@
 import {
-  Gen2ELLMAgentBuilderOptions,
-  Gen2ELLMAgentHooks,
-  Gen2ELLMAgentModel,
-  Gen2ELLMCodeGenAgent,
   createCodeGenAgent,
+  type Gen2ELLMAgentBuilderOptions,
+  type Gen2ELLMAgentHooks,
+  type Gen2ELLMAgentModel,
+  type Gen2ELLMCodeGenAgent,
 } from "@rhighs/gen2e-llm";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 import env from "../env";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
 
 const systemMessage = `
 ==== DESCRIPTION ====
@@ -54,15 +54,15 @@ what the task asking you to do:
     \`\`\`
 
 - If you're asked to do the same thing multiple times, you must not loop over it but you can just ask gen to do the specific thing multiple times.
-   e.g. if asked: \"Click the button with text "Click Me" ten times\":
+   e.g. if asked: "Click the button with text "Click Me" ten times":
     \`\`\`
     await gen("click the button with text 'Click Me' 10 times", { page, test });
     \`\`\`
 
 - If the task is wrapped in [<task_here>], square brackets you must not split the task into multiple gen calls, instead you forward the complete task phrase to a single gen() call
-   e.g. if you task looks like this: \"[Click the button with text "Click Me" and then check the page title is Gen2E]\" wrapped in [ ], just paste it in a gen call:
+   e.g. if you task looks like this: "[Click the button with text "Click Me" and then check the page title is Gen2E]" wrapped in [ ], just paste it in a gen call:
     \`\`\`
-    await gen("Click the button with text \"Click Me\" and then check the page title is Gen2E", { page, test });
+    await gen("Click the button with text "Click Me" and then check the page title is Gen2E", { page, test });
     \`\`\`
 
 ==== EXAMPLES ====
@@ -108,16 +108,20 @@ export type Gen2EGen2ECodeGenOptions = Gen2ELLMAgentBuilderOptions;
 export const createGen2ECodeGenAgent = (
   defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
   options?: Gen2EGen2ECodeGenOptions,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
 ) =>
   createCodeGenAgent(
     systemMessage,
     defaultModel,
     {
       openaiApiKey: options?.openaiApiKey,
+      gatewayApiKey: options?.gatewayApiKey,
+      baseURL: options?.baseURL,
+      maxSteps: options?.maxSteps,
+      temperature: options?.temperature,
       debug: options?.debug,
     },
-    logger
+    logger,
   );
 
 export type Gen2EGen2ECodeGenInit = {
@@ -158,7 +162,7 @@ export const generateGen2ECode = async ({
       codeContext: codeContext,
       options: options ?? undefined,
     },
-    hooks
+    hooks,
   );
 
   if (result.type === "error") {

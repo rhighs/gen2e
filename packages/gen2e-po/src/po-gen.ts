@@ -1,17 +1,13 @@
 import {
-  Gen2ELLMAgentModel,
-  Gen2ELLMAgentTool,
-  Gen2ELLMCodeGenAgent,
   createCodeGenAgent,
+  type Gen2ELLMAgentModel,
+  type Gen2ELLMAgentTool,
+  type Gen2ELLMCodeGenAgent,
 } from "@rhighs/gen2e-llm";
-import env from "./env";
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 import z from "zod";
-import {
-  Gen2EPOCodeAPI,
-  Gen2EPOCodeGenOptions,
-  Gen2EPageObjectFileContents,
-} from "./types";
+import env from "./env";
+import type { Gen2EPageObjectFileContents, Gen2EPOCodeAPI, Gen2EPOCodeGenOptions } from "./types";
 
 const SYSTEM_MESSAGE = `\
 ==== DESCRIPTION ====
@@ -91,7 +87,7 @@ The above will be formatted in JSON, so expect something like:
 
 function makeTools(
   api: Gen2EPOCodeAPI,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
 ): Gen2ELLMAgentTool<{
   code?: string;
   [key: string]: any;
@@ -103,9 +99,7 @@ function makeTools(
 This function returns the list of page objects without the one you have deleted. You can delete multiple page objects at time.`,
     function: async (params: any): Promise<string> => {
       logger.debug("deleting page objects", params.pageObjects);
-      await Promise.all(
-        params.pageObjects.map(({ filepath }) => api.rm(filepath))
-      );
+      await Promise.all(params.pageObjects.map(({ filepath }) => api.rm(filepath)));
       pageObjects = await api.list();
       const result = pageObjects.map(({ filename, objects, ..._rest }) => ({
         filename,
@@ -117,16 +111,31 @@ This function returns the list of page objects without the one you have deleted.
     parameters: {
       type: "object",
       properties: {
-        filepath: {
-          type: "string",
-          description: "filepath for the new page object",
+        pageObjects: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              filepath: {
+                type: "string",
+                description: "filepath of the page object to delete",
+              },
+            },
+            required: ["filepath"],
+          },
+          description: "page objects to delete by filepath",
         },
       },
+      required: ["pageObjects"],
     },
     parse: (args: string) =>
       z
         .object({
-          filepath: z.string(),
+          pageObjects: z.array(
+            z.object({
+              filepath: z.string(),
+            }),
+          ),
         })
         .parse(JSON.parse(args)),
   };
@@ -138,13 +147,10 @@ once understood use the create_page_objects to edit the relevant page object.`,
     function: (params: any): string => {
       const { name } = params;
       const pageObject = pageObjects.find(
-        (p) => p.objects.find((o) => o.className === name) !== undefined
+        (p) => p.objects.find((o) => o.className === name) !== undefined,
       );
 
-      return (
-        pageObject?.source ??
-        "ERROR: no such page object found, you must create it."
-      );
+      return pageObject?.source ?? "ERROR: no such page object found, you must create it.";
     },
     name: "page_object_selection",
     parameters: {
@@ -181,7 +187,7 @@ Each page object is represented as a JSON object containing the class name, URL,
       type: "object",
       properties: {},
     },
-    parse: (args: string) => {
+    parse: (_args: string) => {
       return {};
     },
   };
@@ -194,7 +200,7 @@ make sure to use the import path correctly to create the other class file, impor
     function: async (params: any): Promise<boolean> => {
       const { pageObjects } = params;
       logger.debug("creating page objects:", pageObjects);
-      for (let { filepath, source } of pageObjects) {
+      for (const { filepath, source } of pageObjects) {
         const nexports = source
           .split("\n")
           .filter((line: string) => line.includes("export ")).length;
@@ -227,7 +233,7 @@ make sure to use the import path correctly to create the other class file, impor
           },
         },
       },
-      required: ["objects"],
+      required: ["pageObjects"],
     },
     parse: (args: string) =>
       z
@@ -236,7 +242,7 @@ make sure to use the import path correctly to create the other class file, impor
             z.object({
               filepath: z.string(),
               source: z.string(),
-            })
+            }),
           ),
         })
         .parse(JSON.parse(args)),
@@ -249,13 +255,6 @@ export const createPOCodeGenAgent = (
   defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
   codeAPI: Gen2EPOCodeAPI,
   options?: Gen2EPOCodeGenOptions,
-  logger?: Gen2ELogger
+  logger?: Gen2ELogger,
 ): Gen2ELLMCodeGenAgent =>
-  createCodeGenAgent(
-    SYSTEM_MESSAGE,
-    defaultModel,
-    options,
-    logger,
-    makeTools(codeAPI),
-    "json"
-  );
+  createCodeGenAgent(SYSTEM_MESSAGE, defaultModel, options, logger, makeTools(codeAPI), "json");

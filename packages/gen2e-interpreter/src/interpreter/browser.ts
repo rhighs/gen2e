@@ -1,13 +1,13 @@
 import {
-  Browser,
-  BrowserContext,
-  BrowserType,
-  Page,
+  type Browser,
+  type BrowserContext,
+  type BrowserType,
   chromium,
   firefox,
+  type Page,
 } from "@playwright/test";
 
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
 
 export type Gen2EBrowserOptions = {
   browser?: "chromium" | "firefox";
@@ -36,7 +36,7 @@ export class Gen2EBrowser {
   }
 
   async startup() {
-    let b: BrowserType | undefined = undefined;
+    let b: BrowserType | undefined;
     const browser = this.options.browser ?? "chromium";
     if (this.options.verbose) {
       this.logger.info(`Starting browser ${browser}...`);

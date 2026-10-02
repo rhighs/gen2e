@@ -1,21 +1,17 @@
-import { Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
-import jscodeshift, { API, FileInfo } from "jscodeshift";
 import { parse as babelParse } from "@babel/parser";
+import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import jscodeshift, { type API, type FileInfo } from "jscodeshift";
 
 const DEBUG_AST_UTILS = !!process.env.GEN2EI_DEBUG_AST;
 
 export type Gen2ETransformFunction<R> = (source: string) => R;
-export type Gen2ETransformer<R> = (
-  fileInfo: FileInfo,
-  api: API,
-  logger?: Gen2ELogger
-) => R;
+export type Gen2ETransformer<R> = (fileInfo: FileInfo, api: API, logger?: Gen2ELogger) => R;
 
 export const makeTransformer =
   <R>(
     transformer: Gen2ETransformer<R>,
     lang: "javascript" | "typescript" = "javascript",
-    _logger?: Gen2ELogger
+    _logger?: Gen2ELogger,
   ): Gen2ETransformFunction<R> =>
   (source: string): R => {
     const logger = makeLogger("GEN2E-AST-TRANSFORMER");
@@ -49,7 +45,7 @@ export const makeTransformer =
         stats: () => {},
         report: () => {},
       },
-      logger
+      logger,
     );
 
     if (DEBUG_AST_UTILS) {

@@ -1,4 +1,4 @@
-import { TiktokenModel, encoding_for_model } from "tiktoken";
+import { encoding_for_model, type TiktokenModel } from "tiktoken";
 
 export type TokenLimitInfo = {
   context: number;
@@ -238,8 +238,8 @@ export const tokenLimits = (model: TiktokenModel): TokenLimitInfo => {
   }
 
   return {
-    context: 4096,
-    maxOut: 4096,
+    context: 128_000,
+    maxOut: 16_384,
   };
 };
 
@@ -283,7 +283,7 @@ export const countTokenApprox = (text: string): number => {
 export const fitsContext = (
   model: TiktokenModel,
   text: string,
-  getTokenLimit: (model: TiktokenModel) => TokenLimitInfo = tokenLimits
+  getTokenLimit: (model: TiktokenModel) => TokenLimitInfo = tokenLimits,
 ): boolean => {
   return maxCharactersApprox(model, getTokenLimit) > text.length;
 };
@@ -296,7 +296,7 @@ export const fitsContext = (
  */
 export const maxCharactersApprox = (
   model: TiktokenModel,
-  getTokenLimit: (model: TiktokenModel) => TokenLimitInfo = tokenLimits
+  getTokenLimit: (model: TiktokenModel) => TokenLimitInfo = tokenLimits,
 ): number => {
   const max = getTokenLimit(model).context;
   return (max - _MARGIN) * Math.E;

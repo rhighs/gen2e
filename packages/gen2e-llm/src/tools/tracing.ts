@@ -1,7 +1,7 @@
-import { Gen2ELLMAgentTool, Gen2LLMAgentTracedTool } from "../types";
+import type { Gen2ELLMAgentTool, Gen2LLMAgentTracedTool } from "../types";
 
 export const makeTracedTool = <T extends object>(
-  toolFunction: Gen2ELLMAgentTool<T>
+  toolFunction: Gen2ELLMAgentTool<T>,
 ): Gen2LLMAgentTracedTool<T> => {
   let _callCount = 0;
   return {

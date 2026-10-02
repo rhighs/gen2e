@@ -1,22 +1,23 @@
-import { Gen2EGenPolicies } from "@rhighs/gen2e";
-import { Gen2EBrowserOptions } from "./browser";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
-import { Gen2EInterpreterInMemStatic } from "./store";
+import type { Gen2EGenPolicies } from "@rhighs/gen2e";
+import type { Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
+import type { Gen2EBrowserOptions } from "./browser";
+import type { Gen2EInterpreterInMemStatic } from "./store";
 
-export type Gen2EInterpreterEvent =
-  | "start"
-  | "end"
-  | "task-success"
-  | "task-error"
-  | "ai-message";
+export type Gen2EInterpreterEvent = "start" | "end" | "task-success" | "task-error" | "ai-message";
 export type Gen2EInterpreterEventCallback = (...args: any[]) => void;
 
 export type Gen2EInterpreterOptions = {
   debug?: boolean;
-  model?: string;
-  gen2eModel?: string;
-  playwrightModel?: string;
+  /** Model used for every generation unless a more specific one is set. */
+  model?: Gen2ELLMAgentModel;
+  gen2eModel?: Gen2ELLMAgentModel;
+  playwrightModel?: Gen2ELLMAgentModel;
   openaiApiKey?: string;
+  /** API key for the Vercel AI Gateway, defaults to AI_GATEWAY_API_KEY. */
+  gatewayApiKey?: string;
+  /** Base URL for OpenAI-compatible endpoints, OpenAI runner only. */
+  baseURL?: string;
   recordUsage?: boolean;
   policies?: Gen2EGenPolicies;
 };
@@ -54,6 +55,7 @@ export type Gen2ERecordingResult = {
   tasks: string[];
   gen2eCode: string;
   code: string;
+  usageStats?: Gen2EInterpreterUsageStats;
 };
 
 export type Gen2ERecordingStep = {

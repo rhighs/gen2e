@@ -11,7 +11,8 @@
     "noImplicitAny": false,
     "strict": true,
     "target": "ES2022",
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": true
   },
   "include": ["src", "tests"]
 }

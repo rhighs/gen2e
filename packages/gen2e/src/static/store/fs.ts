@@ -4,7 +4,7 @@ import {
   readFileSync,
   readdirSync,
   writeFileSync,
-} from "fs";
+} from "node:fs";
 import { StaticGenStep } from "../../types";
 import { StaticStore } from "./store";
 import path from "path";

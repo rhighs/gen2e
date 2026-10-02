@@ -7,7 +7,7 @@ ${expr}
 export const generateFakeTestCode = (
   testTitle: string,
   body: string,
-  includeTimeout: boolean = true
+  includeTimeout: boolean = true,
 ) => {
   let code = `\
 test(
@@ -29,7 +29,7 @@ test(
         : ""
     }
 `;
-  code += body + "\n";
+  code += `${body}\n`;
   code += "}))";
   return code;
 };

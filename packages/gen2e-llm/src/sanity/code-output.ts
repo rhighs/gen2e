@@ -11,17 +11,14 @@ export const sanitizeCodeOutput = (llmOutput: string): string => {
 
   if (llmOutput.length > 6) {
     for (let k = 0; k < llmOutput.length - 6; ++k) {
-      if (
-        llmOutput.substring(k, k + MARKDOWN_BLOCK_TOKEN.length) === "```" &&
-        k > 0
-      ) {
+      if (llmOutput.substring(k, k + MARKDOWN_BLOCK_TOKEN.length) === "```" && k > 0) {
         llmOutput = llmOutput.slice(k);
         break;
       }
     }
   }
 
-  for (let startToken of [
+  for (const startToken of [
     MARKDOWN_TYPESCRIPT_BLOCK_TOKEN,
     MARKDOWN_JAVASCRIPT_BLOCK_TOKEN,
     MARKDOWN_TS_BLOCK_TOKEN,
@@ -35,14 +32,10 @@ export const sanitizeCodeOutput = (llmOutput: string): string => {
     }
   }
 
-  if (
-    llmOutput.endsWith(MARKDOWN_BLOCK_TOKEN) ||
-    llmOutput.endsWith(MARKDOWN_BLOCK_TOKEN + "\n")
-  ) {
+  if (llmOutput.endsWith(MARKDOWN_BLOCK_TOKEN) || llmOutput.endsWith(`${MARKDOWN_BLOCK_TOKEN}\n`)) {
     llmOutput = llmOutput.slice(
       0,
-      llmOutput.length -
-        (MARKDOWN_BLOCK_TOKEN.length + (llmOutput.endsWith("\n") ? 1 : 0))
+      llmOutput.length - (MARKDOWN_BLOCK_TOKEN.length + (llmOutput.endsWith("\n") ? 1 : 0)),
     );
     llmOutput = llmOutput
       .split("\n")

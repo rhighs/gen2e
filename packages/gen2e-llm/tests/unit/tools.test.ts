@@ -1,9 +1,9 @@
 import {
-  makeTool,
+  type Gen2ELLMAgentTool,
+  type Gen2LLMAgentTracedTool,
   makeFormatTool,
+  makeTool,
   makeTracedTool,
-  Gen2LLMAgentTracedTool,
-  Gen2ELLMAgentTool,
 } from "../../src";
 
 describe("makeTracedTool", () => {

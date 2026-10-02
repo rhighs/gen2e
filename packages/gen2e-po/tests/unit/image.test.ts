@@ -1,8 +1,8 @@
-import { loadImageWithLabel } from "../../src/image";
+import fs from "node:fs";
 import Jimp from "jimp";
-import fs from "fs";
+import { loadImageWithLabel } from "../../src/image";
 
-jest.mock("fs", () => ({
+jest.mock("node:fs", () => ({
   promises: {
     readFile: jest.fn(),
   },
@@ -16,13 +16,9 @@ jest.mock("jimp", () => ({
 }));
 
 describe("loadImageWithLabel", () => {
-  const mockedReadFile = fs.promises.readFile as jest.MockedFunction<
-    typeof fs.promises.readFile
-  >;
+  const mockedReadFile = fs.promises.readFile as jest.MockedFunction<typeof fs.promises.readFile>;
   const mockedJimpRead = Jimp.read as jest.MockedFunction<typeof Jimp.read>;
-  const mockedJimpLoadFont = Jimp.loadFont as jest.MockedFunction<
-    typeof Jimp.loadFont
-  >;
+  const mockedJimpLoadFont = Jimp.loadFont as jest.MockedFunction<typeof Jimp.loadFont>;
 
   it("should load an image, label it, and return a buffer", async () => {
     const sampleImagePath = "path/to/sample.jpg";
@@ -44,15 +40,8 @@ describe("loadImageWithLabel", () => {
     expect(mockedReadFile).toHaveBeenCalledWith(sampleImagePath);
     expect(mockedJimpRead).toHaveBeenCalledWith(sampleImageBuffer);
     expect(mockedJimpLoadFont).toHaveBeenCalledWith(Jimp.FONT_SANS_32_BLACK);
-    expect(mockJimpInstance.print).toHaveBeenCalledWith(
-      "mocked-font",
-      10,
-      10,
-      sampleLabel
-    );
-    expect(mockJimpInstance.getBufferAsync).toHaveBeenCalledWith(
-      Jimp.MIME_JPEG
-    );
+    expect(mockJimpInstance.print).toHaveBeenCalledWith("mocked-font", 10, 10, sampleLabel);
+    expect(mockJimpInstance.getBufferAsync).toHaveBeenCalledWith(Jimp.MIME_JPEG);
     expect(result).toBe(sampleImageBuffer);
   });
 
@@ -62,8 +51,8 @@ describe("loadImageWithLabel", () => {
 
     mockedReadFile.mockRejectedValue(new Error("File not found"));
 
-    await expect(
-      loadImageWithLabel(sampleImagePath, sampleLabel)
-    ).rejects.toThrow("File not found");
+    await expect(loadImageWithLabel(sampleImagePath, sampleLabel)).rejects.toThrow(
+      "File not found",
+    );
   });
 });

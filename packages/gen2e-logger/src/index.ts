@@ -1,20 +1,18 @@
-export * from "./types";
 export * from "./callstack";
+export * from "./types";
 
-import {
+import util from "node:util";
+import { runtimeExecutionInfo } from "./callstack";
+import type {
+  Gen2ELogger,
   Gen2ELoggerArgsFmt,
+  Gen2ELoggerConfig,
   Gen2ELoggerRuntimeCallInfo,
+  Gen2ELoggerSinks,
+  Gen2ELoggerSinkTag,
   Gen2ELoggerTag,
   Gen2ELoggerTagColor,
-  Gen2ELogger,
-  Gen2ELoggerSinkTag,
-  Gen2ELoggerSinks,
-  Gen2ELoggerConfig,
 } from "./types";
-
-import util from "util";
-
-import { runtimeExecutionInfo } from "./callstack";
 
 const defaultArgsFmt: Gen2ELoggerArgsFmt = (
   tag: Gen2ELoggerTag,
@@ -43,7 +41,7 @@ const defaultArgsFmt: Gen2ELoggerArgsFmt = (
             colors: true,
             maxStringLength: Infinity,
           })
-        : arg
+        : arg,
     )
     .join(" ")}`;
 };
@@ -52,11 +50,11 @@ export const makeLogger = (
   tag: Gen2ELoggerTag = "GEN2E",
   _fmt: Gen2ELoggerArgsFmt = defaultArgsFmt,
   _sinks: Gen2ELoggerSinks = {
-    info: (s) => process.stdout.write(s + "\n"),
-    debug: (s) => process.stdout.write(s + "\n"),
-    warn: (s) => process.stdout.write(s + "\n"),
-    error: (s) => process.stderr.write(s + "\n"),
-  }
+    info: (s) => process.stdout.write(`${s}\n`),
+    debug: (s) => process.stdout.write(`${s}\n`),
+    warn: (s) => process.stdout.write(`${s}\n`),
+    error: (s) => process.stderr.write(`${s}\n`),
+  },
 ): Gen2ELogger => {
   return new (class _Gen2ELogger implements Gen2ELogger {
     private fmt: Gen2ELoggerArgsFmt;
@@ -66,22 +64,10 @@ export const makeLogger = (
       this.sinks = _sinks;
     }
 
-    dump(
-      metatag: Gen2ELoggerSinkTag,
-      color: Gen2ELoggerTagColor,
-      ...args: any[]
-    ): unknown {
+    dump(metatag: Gen2ELoggerSinkTag, color: Gen2ELoggerTagColor, ...args: any[]): unknown {
       const rinfo = runtimeExecutionInfo(5);
-      const sink =
-        typeof this.sinks === "function" ? this.sinks : this.sinks[metatag];
-      return sink(
-        this.fmt(
-          `${tag}-${(metatag as string).toUpperCase()}`,
-          color,
-          rinfo,
-          ...args
-        )
-      );
+      const sink = typeof this.sinks === "function" ? this.sinks : this.sinks[metatag];
+      return sink(this.fmt(`${tag}-${(metatag as string).toUpperCase()}`, color, rinfo, ...args));
     }
 
     debug(this: _Gen2ELogger, ...args: any[]): unknown {

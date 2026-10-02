@@ -1,15 +1,15 @@
-import {
-  TestInfo as PlayrightTestInfo,
-  type PlaywrightTestArgs,
-  type TestType,
-} from "@playwright/test";
+import type { TestInfo as PlayrightTestInfo, PlaywrightTestArgs, TestType } from "@playwright/test";
 
-export { type Page };
-import { type Page } from "@playwright/test";
-import { StaticStore } from "./static/store/store";
-import { Gen2ELLMAgentHooks, Gen2ELLMCodeGenAgent } from "@rhighs/gen2e-llm";
-import { Gen2ELogger } from "@rhighs/gen2e-logger";
-import { WebSnapshotResult } from "./snapshot";
+export type { Page };
+
+import type { Page } from "@playwright/test";
+import type {
+  Gen2ELLMAgentHooks,
+  Gen2ELLMAgentModel,
+  Gen2ELLMCodeGenAgent,
+} from "@rhighs/gen2e-llm";
+import type { Gen2ELogger } from "@rhighs/gen2e-logger";
+import type { StaticStore } from "./static/store/store";
 
 export type Gen2EScreenshotUsagePolicy = "force" | "model" | "onfail" | "off";
 export type Gen2EVisualDebugLevel = "none" | "medium" | "high";
@@ -22,8 +22,16 @@ export type Gen2EGenPolicies = {
 
 export type Gen2EGenOptions = {
   debug?: boolean;
-  model?: string;
+  /**
+   * Model to use: an OpenAI model id, a `provider/model` Vercel AI Gateway id
+   * (e.g. `openai/gpt-5.4`), or any AI SDK language model instance.
+   */
+  model?: Gen2ELLMAgentModel;
   openaiApiKey?: string;
+  /** API key for the Vercel AI Gateway, defaults to AI_GATEWAY_API_KEY. */
+  gatewayApiKey?: string;
+  /** Base URL for OpenAI-compatible endpoints, OpenAI runner only. */
+  baseURL?: string;
   policies?: Gen2EGenPolicies;
   saveContext?: boolean;
 };
@@ -34,18 +42,12 @@ export type TestInfo = PlayrightTestInfo;
 
 export type PlaywrightTestFunction = (
   args: PlaywrightTestArgs,
-  testInfo: PlayrightTestInfo
+  testInfo: PlayrightTestInfo,
 ) => Promise<void> | void;
 
-export type TestFunction = (
-  args: TestArgs,
-  testInfo: TestInfo
-) => Promise<void> | void;
+export type TestFunction = (args: TestArgs, testInfo: TestInfo) => Promise<void> | void;
 
-export type Gen2EPlaywriteCodeEvalFunc = (
-  code: string,
-  p: Page
-) => Promise<any> | any;
+export type Gen2EPlaywriteCodeEvalFunc = (code: string, p: Page) => Promise<any> | any;
 
 export interface Gen2EGenContext {
   agent?: Gen2ELLMCodeGenAgent;
@@ -103,7 +105,7 @@ export type Gen2EEvalLoopResult =
     };
 
 export type Gen2EEvalLoopOptions = {
-  model?: string;
+  model?: Gen2ELLMAgentModel;
   debug?: boolean;
   visualInfoLevel?: "none" | "medium" | "high";
   saveScreenshots?: boolean;
@@ -124,19 +126,17 @@ export type Gen2ELLMCallHooks = Gen2ELLMAgentHooks;
  * @returns {Promise<any>} The result of the evaluation.
  * @throws Will throw an error if the `config` object or `config.page` is missing.
  */
-export interface GenFunction {
-  (
-    task: string,
-    config: { page: Page },
-    options?: Gen2EGenOptions,
-    init?: {
-      store?: StaticStore;
-      hooks?: Gen2ELLMCallHooks;
-      logger?: Gen2ELogger;
-    },
-    evalCode?: Gen2EPlaywriteCodeEvalFunc
-  ): Promise<any>;
-}
+export type GenFunction = (
+  task: string,
+  config: { page: Page },
+  options?: Gen2EGenOptions,
+  init?: {
+    store?: StaticStore;
+    hooks?: Gen2ELLMCallHooks;
+    logger?: Gen2ELogger;
+  },
+  evalCode?: Gen2EPlaywriteCodeEvalFunc,
+) => Promise<any>;
 
 /**
  * Gen2E library configuration options.
@@ -149,8 +149,12 @@ export interface GenFunction {
 export type Gen2EConfig = {
   staticStorePath?: string;
   openaiApiKey?: string;
+  /** API key for the Vercel AI Gateway, defaults to AI_GATEWAY_API_KEY. */
+  gatewayApiKey?: string;
+  /** Base URL for OpenAI-compatible endpoints, OpenAI runner only. */
+  baseURL?: string;
   debug?: boolean;
-  model?: string;
+  model?: Gen2ELLMAgentModel;
   policies?: Gen2EGenPolicies;
 };
 
@@ -168,7 +172,7 @@ export type GenTestFunction = (
     store?: StaticStore;
     hooks?: Gen2ELLMCallHooks;
     logger?: Gen2ELogger;
-  }
+  },
 ) => PlaywrightTestFunction;
 
 /**
@@ -188,5 +192,5 @@ export type GenStepFunction = (
   task: string,
   config: { page: Page; test: Test },
   options?: Gen2EGenOptions,
-  evalCode?: Gen2EPlaywriteCodeEvalFunc
+  evalCode?: Gen2EPlaywriteCodeEvalFunc,
 ) => Promise<any>;

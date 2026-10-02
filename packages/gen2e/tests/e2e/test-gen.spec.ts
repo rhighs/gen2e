@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { gen, stepLoggingEnabled } from "../../src";
+
 stepLoggingEnabled(true);
 
 test.beforeEach(async ({ page }) => {
@@ -11,7 +12,7 @@ test(
   gen.test(async ({ page, gen }) => {
     const headerText = await gen("get the header text", { page, test });
     expect(headerText).toBe("Hello, Gen2E!");
-  })
+  }),
 );
 
 test(
@@ -22,7 +23,7 @@ test(
       test,
     });
     expect(headerText).toBe("H");
-  })
+  }),
 );
 
 test(
@@ -31,7 +32,7 @@ test(
     await gen(`Type "foo" in the search box`, { page, test });
     await page.pause();
     await expect(page.getByTestId("search-input")).toHaveValue("foo");
-  })
+  }),
 );
 
 test(
@@ -45,8 +46,8 @@ test(
       page,
       test,
     });
-    expect(parseInt(count)).toBe(2);
-  })
+    expect(parseInt(count, 10)).toBe(2);
+  }),
 );
 
 test(
@@ -54,10 +55,10 @@ test(
   gen.test(async ({ page, gen }) => {
     const searchInputHasHeaderText = await gen(
       `Is the contents of the header equal to "Hello, Gen2E!"?`,
-      { page, test }
+      { page, test },
     );
     expect(searchInputHasHeaderText).toBe(true);
-  })
+  }),
 );
 
 test(
@@ -65,10 +66,10 @@ test(
   gen.test(async ({ page, gen }) => {
     const searchInputHasHeaderText = await gen(
       `Is the contents of the header equal to "Flying Donkeys"?`,
-      { page, test }
+      { page, test },
     );
     expect(searchInputHasHeaderText).toBe(false);
-  })
+  }),
 );
 
 test(
@@ -79,9 +80,9 @@ test(
 
     const searchInputHasHeaderText = await gen(
       `is the contents of the search box equal to "${headerText}"?`,
-      { page, test }
+      { page, test },
     );
 
     expect(searchInputHasHeaderText).toBe(true);
-  })
+  }),
 );
