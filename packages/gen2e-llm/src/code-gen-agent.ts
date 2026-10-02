@@ -1,32 +1,22 @@
 import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
-import { createGateway, gateway, type LanguageModel } from "ai";
 import { Gen2ELLMGenericError } from "./errors";
-import {
-  isGatewayModel,
-  isModelSupported,
-  isOpenAIModel,
-  isProviderModel,
-  modelId,
-  modelKey,
-} from "./models";
+import { isModelSupported, modelId } from "./models";
 import { Gen2EOpenAIRunner } from "./runner/openai";
-import { Gen2EVercelRunner } from "./runner/vercel";
 import { sanitizeCodeOutput, validateJSCode, validateJSONString } from "./sanity";
 import { makeTool, makeTracedTool } from "./tools";
 import { makeFormatTool } from "./tools/ensure-format";
-import {
-  type Gen2ELLMAgent,
-  type Gen2ELLMAgentBuilder,
-  type Gen2ELLMAgentBuilderOptions,
-  type Gen2ELLMAgentModel,
-  Gen2ELLMAgentOpenAIModels,
-  type Gen2ELLMAgentResult,
-  type Gen2ELLMAgentRunner,
-  type Gen2ELLMAgentRunnerInit,
-  type Gen2ELLMAgentTool,
-  type Gen2ELLMAgentUsageStats,
-  type Gen2ELLMCodeGenAgent,
-  type Gen2ELLMCodeGenAgentTask,
+import type {
+  Gen2ELLMAgent,
+  Gen2ELLMAgentBuilder,
+  Gen2ELLMAgentBuilderOptions,
+  Gen2ELLMAgentModel,
+  Gen2ELLMAgentResult,
+  Gen2ELLMAgentRunner,
+  Gen2ELLMAgentRunnerInit,
+  Gen2ELLMAgentTool,
+  Gen2ELLMAgentUsageStats,
+  Gen2ELLMCodeGenAgent,
+  Gen2ELLMCodeGenAgentTask,
 } from "./types";
 
 const createCodeGenTools = (lang: string) => {
@@ -120,59 +110,29 @@ Never give back the full context, only the new part.`
 const defaultAgentLogger = makeLogger("GEN2E-LLM");
 
 /**
- * Resolve a `provider/model` gateway id against the Vercel AI Gateway. When an
- * explicit key is given a dedicated provider is created, otherwise the default
- * provider reads AI_GATEWAY_API_KEY from the environment.
+ * Build the runner for a model id. Every model is served through the OpenAI
+ * SDK against the configured OpenAI-compatible endpoint (base URL plus API
+ * key), so a single runner covers OpenAI and any compatible endpoint.
  */
-const resolveGatewayModel = (id: string, options?: Gen2ELLMAgentBuilderOptions): LanguageModel => {
-  const provider = options?.gatewayApiKey
-    ? createGateway({ apiKey: options.gatewayApiKey })
-    : gateway;
-  return provider(id);
-};
-
 const buildRunner = (
   model: Gen2ELLMAgentModel,
   options: Gen2ELLMAgentBuilderOptions | undefined,
   logger: Gen2ELogger,
   debug: boolean,
 ): Gen2ELLMAgentRunner => {
-  const runnerOptions = {
+  const apiKey = options?.openaiApiKey ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Gen2ELLMGenericError(
+      "no API key found for the OpenAI-compatible endpoint (set openaiApiKey or OPENAI_API_KEY)",
+    );
+  }
+  return new Gen2EOpenAIRunner({
+    apiKey,
+    model,
     debug,
     logger,
-    maxSteps: options?.maxSteps,
-    temperature: options?.temperature,
-  };
-
-  if (isProviderModel(model)) {
-    return new Gen2EVercelRunner({
-      model: model as LanguageModel,
-      ...runnerOptions,
-    });
-  }
-
-  if (typeof model === "string" && isGatewayModel(model)) {
-    return new Gen2EVercelRunner({
-      model: resolveGatewayModel(model, options),
-      ...runnerOptions,
-    });
-  }
-
-  if (typeof model === "string" && (isOpenAIModel(model) || model in Gen2ELLMAgentOpenAIModels)) {
-    const apiKey = options?.openaiApiKey ?? process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Gen2ELLMGenericError("openai model supplied but no openai api key was found");
-    }
-    return new Gen2EOpenAIRunner({
-      apiKey,
-      model,
-      debug,
-      logger,
-      baseURL: options?.baseURL,
-    });
-  }
-
-  throw new Gen2ELLMGenericError(`unsupported model type ${String(model)}`);
+    baseURL: options?.baseURL,
+  });
 };
 
 export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
@@ -202,7 +162,7 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
   const runners = new Map<string, { runner: Gen2ELLMAgentRunner; model: Gen2ELLMAgentModel }>();
   const getRunner = (override?: Gen2ELLMAgentModel) => {
     const target = override ?? model;
-    const key = modelKey(target);
+    const key = modelId(target);
     let entry = runners.get(key);
     if (!entry) {
       entry = {

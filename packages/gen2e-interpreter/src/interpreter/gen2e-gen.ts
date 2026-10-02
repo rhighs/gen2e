@@ -121,10 +121,7 @@ export const createGen2ECodeGenAgent = (
     defaultModel,
     {
       openaiApiKey: options?.openaiApiKey,
-      gatewayApiKey: options?.gatewayApiKey,
       baseURL: options?.baseURL,
-      maxSteps: options?.maxSteps,
-      temperature: options?.temperature,
       debug: options?.debug,
       promptVersion: options?.promptVersion ?? GEN2E_INTERPRETER_PROMPT_VERSION,
     },

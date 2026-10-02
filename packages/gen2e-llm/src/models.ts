@@ -1,69 +1,16 @@
-import {
-  type Gen2ELLMAgentGatewayModel,
-  type Gen2ELLMAgentModel,
-  Gen2ELLMAgentOpenAIModels,
-  type Gen2ELLMProviderModel,
-} from "./types";
+import type { Gen2ELLMAgentModel } from "./types";
 
 /**
- * True for OpenAI chat model ids handled by the OpenAI runner. Covers
- * `gpt-*` generations and the `o*` reasoning series.
+ * Runtime model check. Any non-empty string is a valid model id: it is the
+ * configured OpenAI-compatible endpoint that decides which models exist.
  */
-export const isOpenAIModel = (model: string): boolean => /^(gpt-|chatgpt-|o\d)/.test(model);
+export const isModelSupported = (model: unknown): model is Gen2ELLMAgentModel =>
+  typeof model === "string" && model.trim().length > 0;
 
 /**
- * True for `provider/model` gateway ids such as `openai/gpt-5.4`,
- * `anthropic/claude-sonnet-4.6` or `google/gemini-3.8-flash`.
+ * Human readable id for a model, used in usage stats and logs.
  */
-export const isGatewayModel = (model: string): model is Gen2ELLMAgentGatewayModel =>
-  /^[^/\s]+\/[^/\s]+$/.test(model);
-
-/**
- * True for an AI SDK language model instance (e.g. `gateway("openai/gpt-5.4")`,
- * `openai("gpt-4o-mini")`, `createOpenAI({ baseURL })("my-model")`).
- */
-export const isProviderModel = (model: unknown): model is Gen2ELLMProviderModel =>
-  typeof model === "object" &&
-  model !== null &&
-  "provider" in model &&
-  typeof (model as { provider?: unknown }).provider === "string" &&
-  "modelId" in model &&
-  typeof (model as { modelId?: unknown }).modelId === "string";
-
-/**
- * Runtime model support check. Known OpenAI ids, gateway ids and AI SDK
- * language model instances are supported; anything else is rejected before a
- * runner is created.
- */
-export const isModelSupported = (model: unknown): model is Gen2ELLMAgentModel => {
-  if (isProviderModel(model)) {
-    return true;
-  }
-  if (typeof model !== "string") {
-    return false;
-  }
-  return model in Gen2ELLMAgentOpenAIModels || isOpenAIModel(model) || isGatewayModel(model);
-};
-
-/**
- * Human readable id for any supported model, used in usage stats and logs.
- */
-export const modelId = (model: Gen2ELLMAgentModel): string => {
-  if (typeof model === "string") {
-    return model;
-  }
-  if (isProviderModel(model)) {
-    return model.modelId;
-  }
-  return String(model);
-};
-
-/**
- * Cache key for a model. Provider instances are keyed by provider + model id
- * so two providers exposing the same model id do not share a runner.
- */
-export const modelKey = (model: Gen2ELLMAgentModel): string =>
-  typeof model === "string" ? model : `${model.provider}::${model.modelId}`;
+export const modelId = (model: Gen2ELLMAgentModel): string => String(model);
 
 const VISION_HINTS = [
   "gpt-4o",

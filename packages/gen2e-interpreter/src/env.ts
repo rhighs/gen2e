@@ -1,7 +1,6 @@
 export type Gen2EInterpreterEnv = {
   MODEL_DEBUG: boolean;
   OPENAI_MODEL: string;
-  GATEWAY_API_KEY: string;
   BASE_URL: string;
   SANDBOX_DEBUG: boolean;
 };
@@ -33,7 +32,6 @@ const parseParam = (f: string | undefined, def: string = ""): string => {
 export default {
   MODEL_DEBUG: parseFlag(process.env.GEN2EI_MODEL_DBG),
   OPENAI_MODEL: parseParam(process.env.GEN2EI_MODEL, "gpt-4o-mini"),
-  GATEWAY_API_KEY: parseParam(process.env.AI_GATEWAY_API_KEY),
-  BASE_URL: parseParam(process.env.GEN2EI_BASE_URL),
+  BASE_URL: parseParam(process.env.GEN2EI_BASE_URL || process.env.OPENAI_BASE_URL),
   SANDBOX_DEBUG: parseFlag(process.env.GEN2EI_SANDBOX_DBG),
 } as Gen2EInterpreterEnv;

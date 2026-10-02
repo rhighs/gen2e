@@ -2,7 +2,7 @@
 
 Run and generate Playwright tests using LLMs. Write plain English steps; Gen2E asks a model for the Playwright expression, validates it, executes it, retries on failure, and caches the result.
 
-Part of the [Gen2E monorepo](../../README.md). See the root README for the full product tour, model gateway setup and CLI docs.
+Part of the [Gen2E monorepo](../../README.md). See the root README for the full product tour, model and endpoint setup and CLI docs.
 
 ## Getting started
 
@@ -18,11 +18,12 @@ npm install @rhighs/gen2e -D
 export OPENAI_API_KEY="sk-..."
 ```
 
-or any provider through the Vercel AI Gateway:
+or point it at any OpenAI-compatible endpoint:
 
 ```bash
-export AI_GATEWAY_API_KEY="..."
-export GEN2E_MODEL="openai/gpt-5.4"
+export OPENAI_API_KEY="your-endpoint-key"
+export OPENAI_BASE_URL="https://your-endpoint.internal/v1"
+export GEN2E_MODEL="your-model-id"
 ```
 
 3. Import `gen` and structure a test:
@@ -134,34 +135,23 @@ gen.useStatic = true;
 
 `staticStoreEnabled(false)` does the same globally.
 
-## Models and gateways
+## Models and endpoints
 
-Anywhere a model is accepted (`gen` options, `gen2e.config.ts`, `GEN2E_MODEL`) three forms work:
+Anywhere a model is accepted (`gen` options, `gen2e.config.ts`, `GEN2E_MODEL`) you pass a model id, an optional base URL and an API key:
 
 ```ts
-// 1. OpenAI id, uses OPENAI_API_KEY
+// OpenAI
 await gen("goto google.com", { page, test }, { model: "gpt-4o-mini" });
 
-// 2. provider/model gateway id, uses AI_GATEWAY_API_KEY
-await gen("goto google.com", { page, test }, { model: "openai/gpt-5.4" });
-
-// 3. an AI SDK language model instance you configured yourself
-import { createOpenAI } from "@ai-sdk/openai";
-const provider = createOpenAI({ baseURL: "http://localhost:4000/v1" });
-await gen("goto google.com", { page, test }, { model: provider("my-model") });
-```
-
-You can also point the OpenAI runner at any OpenAI-compatible endpoint:
-
-```ts
+// Any OpenAI-compatible endpoint
 await gen("goto google.com", { page, test }, {
-  model: "gpt-4o-mini",
-  baseURL: "https://my-gateway.internal/v1",
-  openaiApiKey: process.env.MY_GATEWAY_KEY,
+  model: "your-model-id",
+  baseURL: "https://your-endpoint.internal/v1",
+  openaiApiKey: process.env.MY_ENDPOINT_KEY,
 });
 ```
 
-See the [root README](../../README.md#models-and-gateways) for configuration files and precedence rules.
+`OPENAI_API_KEY` and `OPENAI_BASE_URL` are used as defaults, and `baseURL`/`openaiApiKey` can be set in `gen2e.config.ts` too. See the [root README](../../README.md#models-and-endpoints) for configuration files and precedence rules.
 
 ## Configuration
 
@@ -171,8 +161,8 @@ See the [root README](../../README.md#models-and-gateways) for configuration fil
 import type { Gen2EConfig } from "@rhighs/gen2e";
 
 export default {
-  model: "openai/gpt-5.4",
-  gatewayApiKey: process.env.AI_GATEWAY_API_KEY,
+  model: "gpt-4o-mini",
+  baseURL: process.env.OPENAI_BASE_URL,
   debug: false,
   staticStorePath: ".static",
   policies: {
@@ -200,10 +190,10 @@ GEN2E_STATIC_PATH=
 # enables debug mode, logs more stuff
 GEN2E_DBG=1
 
-# sets the default model used by gen2e (OpenAI id or provider/model gateway id)
-GEN2E_MODEL="openai/gpt-5.4"
+# sets the default model id served by the OpenAI-compatible endpoint
+GEN2E_MODEL="gpt-4o-mini"
 
-# base URL for OpenAI-compatible endpoints
+# base URL for OpenAI-compatible endpoints (also reads OPENAI_BASE_URL)
 GEN2E_BASE_URL=
 
 # enables step-by-step logging in the gen2e process
@@ -214,7 +204,6 @@ GEN2E_USE_STATIC_STORE=1
 
 # model credentials
 OPENAI_API_KEY=<your-api-key>
-AI_GATEWAY_API_KEY=<your-gateway-key>
 ```
 
 ## Development

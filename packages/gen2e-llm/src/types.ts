@@ -39,8 +39,8 @@ export type Gen2ELLMAgentUsageStats = {
 };
 
 /**
- * Provider agnostic chat message surfaced to agent hooks. OpenAI messages,
- * AI SDK steps and custom provider messages all satisfy this shape.
+ * Chat message surfaced to agent hooks. OpenAI chat completion messages
+ * satisfy this shape.
  */
 export type Gen2ELLMAgentMessage = {
   role: string;
@@ -59,21 +59,13 @@ export type Gen2ELLMAgent<T extends Gen2ELLMAgentTask, R> = (
 
 export type Gen2ELLMAgentBuilderOptions = {
   debug?: boolean;
+  /** API key for OpenAI or the OpenAI-compatible endpoint. */
   openaiApiKey?: string;
   /**
-   * API key for the Vercel AI Gateway. When omitted the AI SDK reads
-   * AI_GATEWAY_API_KEY from the environment.
-   */
-  gatewayApiKey?: string;
-  /**
-   * Base URL for OpenAI-compatible endpoints, only used by the OpenAI runner,
-   * e.g. a local LiteLLM/OpenRouter/Varco gateway.
+   * Base URL of an OpenAI-compatible endpoint, e.g. a self-hosted proxy or
+   * vendor API. Falls back to OPENAI_BASE_URL when omitted.
    */
   baseURL?: string;
-  /** Maximum number of model steps when tools are involved, AI SDK runner only. */
-  maxSteps?: number;
-  /** Sampling temperature, AI SDK runner only. Omitted by default. */
-  temperature?: number;
   /**
    * Version of the system prompt used by this agent. Reported back in usage
    * stats so callers can invalidate caches when the prompt changes.
@@ -167,34 +159,11 @@ export const Gen2ELLMAgentModels = {
 export type Gen2ELLMAgentOpenAIModel = keyof typeof Gen2ELLMAgentOpenAIModels;
 
 /**
- * Gateway model id in `provider/model` form, e.g. `openai/gpt-5.4` or
- * `anthropic/claude-sonnet-4.6`, resolved through the Vercel AI SDK.
+ * A model id served by the configured OpenAI-compatible endpoint. Known
+ * OpenAI ids are offered for autocomplete; any non-empty string is accepted
+ * because the endpoint decides which models exist.
  */
-export type Gen2ELLMAgentGatewayModel = `${string}/${string}`;
-
-/**
- * Any AI SDK compatible language model instance (a provider call such as
- * `openai("gpt-4o-mini")`, `gateway("openai/gpt-5.4")` or `createOpenAI(...)`),
- * structurally typed so `gen2e-llm` does not depend on a provider package.
- */
-export type Gen2ELLMProviderModel = {
-  readonly specificationVersion?: string;
-  readonly provider: string;
-  readonly modelId: string;
-  readonly doGenerate?: (...args: any[]) => PromiseLike<any>;
-  readonly doStream?: (...args: any[]) => PromiseLike<any>;
-};
-
-/**
- * Everything the agent builders accept as a model: a known OpenAI model id,
- * a `provider/model` gateway id, an AI SDK language model instance, or any
- * other string (validated at runtime).
- */
-export type Gen2ELLMAgentModel =
-  | Gen2ELLMAgentOpenAIModel
-  | Gen2ELLMAgentGatewayModel
-  | Gen2ELLMProviderModel
-  | (string & {});
+export type Gen2ELLMAgentModel = Gen2ELLMAgentOpenAIModel | (string & {});
 
 export interface Gen2LLMAgentTracedTool<T extends object> extends Gen2ELLMAgentTool<T> {
   callCount(): number;

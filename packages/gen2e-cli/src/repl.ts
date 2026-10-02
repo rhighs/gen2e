@@ -24,7 +24,6 @@ type InterpeterREPLOptions = {
   debug?: boolean;
   model?: string;
   openaiApiKey?: string;
-  gatewayApiKey?: string;
   baseURL?: string;
   logger?: Gen2ELogger;
 };
@@ -46,7 +45,6 @@ class InterpreterREPL {
     const opts = {
       debug: options.debug,
       openaiApiKey: options.openaiApiKey,
-      gatewayApiKey: options.gatewayApiKey,
       baseURL: options.baseURL,
     };
 

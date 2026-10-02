@@ -3,7 +3,7 @@
 **Write Playwright tests in plain English.** Gen2E asks a language model for the exact Playwright expression, validates it, runs it against the real page, feeds failures back to the model, and caches every solved step so the next run is as fast as hand-written code.
 
 > **TL;DR: what does Gen2E do?**
-> You call `gen("click the login button", { page, test })` inside a Playwright test. Gen2E snapshots the page (DOM plus an optional screenshot), asks a model for a single Playwright expression, validates the output with tools, evaluates it in the browser, and retries with the error text when it fails. Successful expressions are stored in a static store keyed by test title and task, so re-runs skip the model entirely. Models come from OpenAI, or from any provider the [Vercel AI SDK](https://ai-sdk.dev) supports: `openai/gpt-5.4`, `anthropic/claude-sonnet-4.6`, `google/gemini-3.8-flash`, your own OpenAI-compatible gateway, or a provider instance you pass in.
+> You call `gen("click the login button", { page, test })` inside a Playwright test. Gen2E snapshots the page (DOM plus an optional screenshot), asks a model for a single Playwright expression, validates the output with tools, evaluates it in the browser, and retries with the error text when it fails. Successful expressions are stored in a static store keyed by test title and task, so re-runs skip the model entirely. Gen2E talks to OpenAI or any endpoint that speaks the OpenAI API — one base URL, one API key, any model id.
 
 Made by Roberto Montalti · TypeScript · Node 20+ · `github.com/rhighs/gen2e`
 
@@ -19,11 +19,9 @@ Made by Roberto Montalti · TypeScript · Node 20+ · `github.com/rhighs/gen2e`
   - [Actions, queries and assertions](#actions-queries-and-assertions)
   - [Options per call](#options-per-call)
   - [Standalone generation](#standalone-generation)
-- [Models and gateways](#models-and-gateways)
+- [Models and endpoints](#models-and-endpoints)
   - [OpenAI](#openai)
-  - [Vercel AI SDK gateway](#vercel-ai-sdk-gateway)
-  - [Bring your own provider](#bring-your-own-provider)
-  - [OpenAI-compatible endpoints](#openai-compatible-endpoints)
+  - [Any OpenAI-compatible endpoint](#any-openai-compatible-endpoint)
   - [Model resolution rules](#model-resolution-rules)
 - [Configuration](#configuration)
 - [Static store](#static-store)
@@ -49,7 +47,7 @@ Gen2E closes that loop inside Playwright:
 | **Self-healing retries** | When evaluation throws, the error and the previous attempt are sent back to the model for a different solution. |
 | **Deterministic re-runs** | Solved steps are cached by `test title + task` in a static store; a green suite replays cached code without model calls. |
 | **Real Playwright** | `gen.test(...)` wraps your test function. No new runner, no fixtures to adopt, no vendor test format. |
-| **Model freedom** | OpenAI ids, `provider/model` Vercel AI Gateway ids, or any AI SDK language model instance — including your own gateway. |
+| **Model freedom** | OpenAI or any OpenAI-compatible endpoint — one base URL and API key, any model id that endpoint serves. |
 | **Recording + page objects** | The CLI records instructions into compiled specs, and can turn test dumps into typed page objects. |
 
 ---
@@ -59,7 +57,7 @@ Gen2E closes that loop inside Playwright:
 | Package | Description |
 |---|---|
 | [`@rhighs/gen2e`](./packages/gen2e) | The library: `gen`, `gen.test`, static stores, snapshots, evaluation loop. |
-| [`@rhighs/gen2e-llm`](./packages/gen2e-llm) | Model runners and code-gen agents: OpenAI, Vercel AI SDK, tool validation, usage stats. |
+| [`@rhighs/gen2e-llm`](./packages/gen2e-llm) | Model runners and code-gen agents: OpenAI-compatible endpoint support, tool validation, usage stats. |
 | [`@rhighs/gen2e-interpreter`](./packages/gen2e-interpreter) | Natural-language interpreter that compiles instruction lists into gen2e IL or Playwright code. |
 | [`@rhighs/gen2e-cli`](./packages/gen2e-cli) | `gen2e-cli generate`, `recorder`, `repl` and `po-gen` commands. |
 | [`@rhighs/gen2e-po`](./packages/gen2e-po) | Page object generation and a TypeScript error-solving agent. |
@@ -81,11 +79,12 @@ Point Gen2E at a model. Either export an OpenAI key:
 export OPENAI_API_KEY="sk-..."
 ```
 
-or use the Vercel AI Gateway and pick any model it serves:
+or point Gen2E at any OpenAI-compatible endpoint:
 
 ```bash
-export AI_GATEWAY_API_KEY="..."
-export GEN2E_MODEL="openai/gpt-5.4"
+export OPENAI_API_KEY="your-endpoint-key"
+export OPENAI_BASE_URL="https://your-endpoint/v1"   # optional, defaults to OpenAI
+export GEN2E_MODEL="gpt-4o-mini"
 ```
 
 Write a test. Everything inside `gen(...)` is plain English; the `test` argument is what makes each step show up in the Playwright report:
@@ -167,8 +166,9 @@ await gen(
   "click the submit button",
   { page, test },
   {
-    model: "anthropic/claude-sonnet-4.6", // override the model for this step
-    gatewayApiKey: process.env.AI_GATEWAY_API_KEY,
+    model: "gpt-4o-mini", // override the model for this step
+    baseURL: "https://your-endpoint.internal/v1",
+    openaiApiKey: process.env.MY_ENDPOINT_KEY,
     policies: { maxRetries: 5, screenshot: "force" },
     debug: true,
   },
@@ -197,9 +197,9 @@ await browser.close();
 
 ---
 
-## Models and gateways
+## Models and endpoints
 
-Gen2E treats the model as a plug. Three forms are accepted anywhere a model is taken — `gen` options, `gen2e.config.ts`, `GEN2E_MODEL`, CLI flags, interpreter options and the page-object generator.
+Gen2E talks to OpenAI or to any endpoint that speaks the OpenAI API. There is no provider-specific integration to configure: a base URL (optional, defaults to OpenAI), an API key, and a model id. The same three values work in `gen` options, `gen2e.config.ts`, `GEN2E_MODEL`, CLI flags, interpreter options and the page-object generator.
 
 ### OpenAI
 
@@ -210,85 +210,49 @@ export OPENAI_API_KEY="sk-..."
 export GEN2E_MODEL="gpt-4o-mini"   # or gpt-4.1, gpt-5, o3, ...
 ```
 
-The OpenAI runner is used for ids matching `gpt-*`, `chatgpt-*` and `o*`. It counts tokens and trims oversized prompts, supports tool calls, and attaches screenshots only for vision-capable models.
+The runner counts tokens and trims oversized prompts, supports tool calls, and attaches screenshots only for vision-capable models.
 
-### Vercel AI SDK gateway
+### Any OpenAI-compatible endpoint
 
-Use a `provider/model` id. Gen2E routes it through the AI SDK's default [AI Gateway](https://ai-sdk.dev/providers/ai-sdk-providers/ai-gateway) provider, which needs one key for every provider it serves:
+Point the runner at another base URL and use the model ids that endpoint serves. This covers self-hosted proxies, routers, and vendor APIs that expose the OpenAI schema:
 
 ```bash
-export AI_GATEWAY_API_KEY="..."
-export GEN2E_MODEL="openai/gpt-5.4"
+export OPENAI_API_KEY="your-endpoint-key"
+export OPENAI_BASE_URL="https://your-endpoint.internal/v1"
+export GEN2E_MODEL="your-model-id"
 ```
 
-```ts
-// or per call
-await gen("click accept all", { page, test }, { model: "openai/gpt-5.4" });
-```
-
-```ts
-// or in gen2e.config.ts
-import type { Gen2EConfig } from "@rhighs/gen2e";
-
-export default {
-  model: "anthropic/claude-sonnet-4.6",
-  gatewayApiKey: process.env.AI_GATEWAY_API_KEY,
-  policies: { screenshot: "model", maxRetries: 3 },
-} satisfies Gen2EConfig;
-```
-
-The `gatewayApiKey` option overrides `AI_GATEWAY_API_KEY` and is forwarded to the AI SDK's `createGateway`.
-
-### Bring your own provider
-
-Install any AI SDK provider package and pass the model instance itself. Gen2E hands it straight to `generateText`, so anything the AI SDK can talk to works:
-
-```ts
-import { createOpenAI } from "@ai-sdk/openai";
-import type { Gen2EConfig } from "@rhighs/gen2e";
-
-// e.g. a self-hosted gateway, OpenRouter, LiteLLM, vLLM, Ollama ...
-const provider = createOpenAI({
-  baseURL: "http://localhost:4000/v1",
-  apiKey: process.env.MY_GATEWAY_KEY,
-});
-
-export default {
-  model: provider("my-finetune-7b"),
-} satisfies Gen2EConfig;
-```
-
-This is the recommended path for company gateways: Gen2E never sees provider credentials beyond what your AI SDK provider is configured with.
-
-### OpenAI-compatible endpoints
-
-If you just need to move the OpenAI runner's base URL — LiteLLM, Varco, OpenRouter, Azure — set `baseURL`:
+Per call:
 
 ```ts
 await gen("click the login button", { page, test }, {
-  model: "gpt-4o-mini",
-  baseURL: "https://my-gateway.internal/v1",
-  openaiApiKey: process.env.MY_GATEWAY_KEY,
+  model: "your-model-id",
+  baseURL: "https://your-endpoint.internal/v1",
+  openaiApiKey: process.env.MY_ENDPOINT_KEY,
 });
 ```
 
-or globally:
+Or in `gen2e.config.ts`:
 
-```bash
-export GEN2E_BASE_URL="https://my-gateway.internal/v1"
-export OPENAI_API_KEY="my-gateway-key"
+```ts
+import type { Gen2EConfig } from "@rhighs/gen2e";
+
+export default {
+  model: "your-model-id",
+  baseURL: "https://your-endpoint.internal/v1",
+  openaiApiKey: process.env.MY_ENDPOINT_KEY,
+} satisfies Gen2EConfig;
 ```
 
 ### Model resolution rules
 
-| Model value | Runner | Credentials |
-|---|---|---|
-| `gpt-4o-mini`, `gpt-5`, `o3`, ... | OpenAI runner | `openaiApiKey` option, else `OPENAI_API_KEY` |
-| `provider/model` (e.g. `openai/gpt-5.4`) | Vercel AI SDK runner | `gatewayApiKey` option, else `AI_GATEWAY_API_KEY` |
-| AI SDK language model instance | Vercel AI SDK runner | owned by your provider instance |
-| anything else | rejected with `Gen2ELLMGenericError` | — |
+| Value | How it is used |
+|---|---|
+| `gpt-4o-mini`, `gpt-5`, `o3`, ... | Model id sent to the endpoint. |
+| Any other non-empty string | Model id sent to the endpoint; the endpoint decides whether it exists. |
+| Empty string | Rejected with `Gen2ELLMGenericError`. |
 
-Every runner reports token usage through the `onUsage` hook; the interpreter aggregates it into its stats report.
+Credentials come from `openaiApiKey` (option or config), else `OPENAI_API_KEY`. The endpoint comes from `baseURL` (option or config), else `OPENAI_BASE_URL`, else OpenAI. Every runner reports token usage through the `onUsage` hook; the interpreter aggregates it into its stats report.
 
 ---
 
@@ -300,8 +264,7 @@ Every runner reports token usage through the `onUsage` hook; the interpreter agg
 import type { Gen2EConfig } from "@rhighs/gen2e";
 
 export default {
-  model: "openai/gpt-5.4",
-  gatewayApiKey: process.env.AI_GATEWAY_API_KEY,
+  model: "gpt-4o-mini",
   debug: false,
   staticStorePath: ".static",
   policies: {
@@ -357,9 +320,14 @@ Compile it to a Playwright spec:
 ```bash
 gen2e-cli generate tasks.gen2e \
   --imode playwright \
-  --model anthropic/claude-sonnet-4.6 \
-  --gateway-api-key "$AI_GATEWAY_API_KEY" \
+  --model gpt-4o-mini \
   --out tests/generated.spec.ts
+```
+
+For an OpenAI-compatible endpoint, export `OPENAI_BASE_URL` and the matching key, or pass `--base-url`:
+
+```bash
+gen2e-cli generate tasks.gen2e --imode playwright --model your-model-id --base-url "https://your-endpoint.internal/v1"
 ```
 
 Record instructions one at a time against a live browser:
@@ -375,7 +343,7 @@ gen2e-cli repl --model gpt-4o-mini
 gen2e-cli po-gen ./dumps --model openai/gpt-5.4 --root-dir ./page-objects
 ```
 
-Useful flags: `--imode gen2e|playwright`, `--gen2e-model`, `--pw-model`, `--max-retries`, `--screenshot force|model|onfail|off`, `--visual-debug none|medium|high`, `--stats`, `--base-url`, `--gateway-api-key`, `--openai-api-key`.
+Useful flags: `--imode gen2e|playwright`, `--gen2e-model`, `--pw-model`, `--max-retries`, `--screenshot force|model|onfail|off`, `--visual-debug none|medium|high`, `--stats`, `--base-url`, `--openai-api-key`.
 
 ---
 
@@ -389,9 +357,9 @@ import { recordingInterpreter } from "@rhighs/gen2e-interpreter";
 const interpreter = recordingInterpreter(
   { mode: "playwright" },
   {
-    model: "openai/gpt-5.4",
-    playwrightModel: "openai/gpt-5.4-mini",
-    gatewayApiKey: process.env.AI_GATEWAY_API_KEY,
+    model: "gpt-4o-mini",
+    playwrightModel: "gpt-4o-mini",
+    baseURL: process.env.OPENAI_BASE_URL,
     recordUsage: true,
     policies: { maxRetries: 3, screenshot: "onfail", visualDebugLevel: "medium" },
   },
@@ -408,7 +376,7 @@ const { code, tasks, gen2eCode } = await interpreter.finish();
 console.log(code); // compiled Playwright test body
 ```
 
-`playwrightModel` and `gen2eModel` let you spend a small model on gen2e expression generation and a stronger one on raw Playwright code — or the same gateway model for both.
+`playwrightModel` and `gen2eModel` let you spend a small model on gen2e expression generation and a stronger one on raw Playwright code — or the same model for both.
 
 ---
 
@@ -421,8 +389,8 @@ import { Gen2EPOGenerator, loadDumps } from "@rhighs/gen2e-po";
 
 const dumps = await loadDumps("./dumps");
 const generator = new Gen2EPOGenerator({
-  model: "openai/gpt-5.4",
-  codeGenOptions: { gatewayApiKey: process.env.AI_GATEWAY_API_KEY },
+  model: "gpt-4o-mini",
+  codeGenOptions: { baseURL: process.env.OPENAI_BASE_URL },
   staticDataDir: "./page-objects",
 });
 
@@ -440,12 +408,13 @@ for (const dump of dumps) {
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `OPENAI_API_KEY` | — | Key for the OpenAI runner. |
-| `AI_GATEWAY_API_KEY` | — | Key for the Vercel AI Gateway. |
-| `GEN2E_MODEL` | `gpt-4o-mini` | Default model for the library. Accepts OpenAI ids and `provider/model` gateway ids. |
-| `GEN2E_BASE_URL` | — | Base URL for OpenAI-compatible endpoints. |
+| `OPENAI_API_KEY` | — | Key for OpenAI or the OpenAI-compatible endpoint. |
+| `OPENAI_BASE_URL` | OpenAI | Base URL of the endpoint; `GEN2E_BASE_URL` and `GEN2EI_BASE_URL` override it per package. |
+| `GEN2E_MODEL` | `gpt-4o-mini` | Default model id for the library. |
+| `GEN2E_BASE_URL` | — | Base URL for the library (wins over `OPENAI_BASE_URL`). |
 | `GEN2E_STATIC_PATH` | `.static` | Where generated expressions are cached. |
 | `GEN2E_USE_STATIC_STORE` | `1` | Enable the static store. |
+| `GEN2E_REPLAY_ONLY` | off | Serve from the cache only; a miss throws `Gen2ECacheMissError`. |
 | `GEN2E_PRELOAD_ENABLED` | off | Preload cached steps at startup. |
 | `GEN2E_DBG` | off | Debug logging. |
 | `GEN2E_LOG_STEP` | off | Log each generated expression. |
@@ -482,16 +451,16 @@ No. It generates expressions that run inside your existing Playwright tests. Pag
 The expression fails validation or throws during evaluation. Gen2E retries with the error text and the previous attempt, up to `maxRetries` (default 3), then fails the step.
 
 **Is the cache safe?**
-Cache keys are `test title + task`. Change the task wording and the step regenerates; change nothing and it replays. Delete `.static` or set `GEN2E_USE_STATIC_STORE=0` to start clean.
+Cache keys combine test title, task, page origin, prompt version and model. Change the task wording, the model or the prompt version and the step regenerates; change nothing and it replays. Delete `.static` or set `GEN2E_USE_STATIC_STORE=0` to start clean.
 
 **Can I run it without OpenAI?**
-Yes. Use a `provider/model` gateway id or pass any AI SDK provider model instance — see [Models and gateways](#models-and-gateways).
+Yes. Point `baseURL` or `OPENAI_BASE_URL` at any OpenAI-compatible endpoint and use its key and model ids — see [Models and endpoints](#models-and-endpoints).
 
 **Does it send screenshots to the model?**
 Only when the screenshot policy allows it and the model is known to accept images. `screenshot: "off"` guarantees DOM-only prompts.
 
 **Which Node versions are supported?**
-Node 20 or newer. The AI SDK runner uses `ai@6`, which supports CommonJS consumers.
+Node 20 or newer. The runner uses the OpenAI SDK and ships CommonJS, so it works in Node and bundlers without ESM constraints.
 
 ---
 

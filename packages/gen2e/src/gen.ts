@@ -51,7 +51,6 @@ type Gen2EStepOptions = {
   policies: Gen2EGenPolicies;
   replayOnly: boolean;
   openaiApiKey?: string;
-  gatewayApiKey?: string;
   baseURL?: string;
 };
 
@@ -256,7 +255,6 @@ const step = async (
       options.model,
       {
         openaiApiKey: options?.openaiApiKey,
-        gatewayApiKey: options?.gatewayApiKey,
         baseURL: options?.baseURL,
         debug: options.debug,
         promptVersion: GEN2E_PROMPT_VERSION,
@@ -418,7 +416,6 @@ const _gen: GenType = (
         debug: isDebug,
         model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
         openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
-        gatewayApiKey: options?.gatewayApiKey ?? globalConfig.gatewayApiKey ?? env.GATEWAY_API_KEY,
         baseURL: options?.baseURL ?? globalConfig.baseURL ?? env.BASE_URL,
         policies: {
           maxRetries: options?.policies?.maxRetries ?? globalConfig.policies?.maxRetries ?? 3,
@@ -490,8 +487,6 @@ _gen.test = function (
             debug: isDebug,
             model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
             openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
-            gatewayApiKey:
-              options?.gatewayApiKey ?? globalConfig.gatewayApiKey ?? env.GATEWAY_API_KEY,
             baseURL: options?.baseURL ?? globalConfig.baseURL ?? env.BASE_URL,
             policies: {
               maxRetries: options?.policies?.maxRetries ?? globalConfig.policies?.maxRetries ?? 3,

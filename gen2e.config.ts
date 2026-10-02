@@ -1,7 +1,7 @@
 import type { Gen2EConfig } from "@rhighs/gen2e";
 
 export default {
-  // OpenAI id, `provider/model` gateway id, or an AI SDK language model instance
+  // Model id served by the OpenAI-compatible endpoint
   model: "gpt-4o-mini",
   policies: {
     screenshot: "off",

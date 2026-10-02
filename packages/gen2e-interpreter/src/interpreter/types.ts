@@ -14,9 +14,7 @@ export type Gen2EInterpreterOptions = {
   gen2eModel?: Gen2ELLMAgentModel;
   playwrightModel?: Gen2ELLMAgentModel;
   openaiApiKey?: string;
-  /** API key for the Vercel AI Gateway, defaults to AI_GATEWAY_API_KEY. */
-  gatewayApiKey?: string;
-  /** Base URL for OpenAI-compatible endpoints, OpenAI runner only. */
+  /** Base URL of the OpenAI-compatible endpoint. */
   baseURL?: string;
   recordUsage?: boolean;
   policies?: Gen2EGenPolicies;

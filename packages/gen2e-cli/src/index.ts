@@ -26,16 +26,9 @@ program
     /^(gen2e|playwright)$/,
     "gen2e",
   )
-  .option("--openai-api-key <openaiApiKey>", "api key for openai services")
-  .option(
-    "--gateway-api-key <gatewayApiKey>",
-    "api key for the Vercel AI Gateway (defaults to AI_GATEWAY_API_KEY)",
-  )
+  .option("--openai-api-key <openaiApiKey>", "api key for OpenAI or an OpenAI-compatible endpoint")
   .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
-  .option(
-    "--model <model>",
-    "model to use for each task, an OpenAI id or a provider/model gateway id",
-  )
+  .option("--model <model>", "model id served by the OpenAI-compatible endpoint")
   .option("--gen2e-model <gen2eModel>", "model to use for gen2e source code generation")
   .option("--pw-model <pwModel>", "model to use for playwright source code generation")
   .option(
@@ -88,7 +81,6 @@ program
     const appendFile = options.append;
     const maxRetries = options.maxRetries;
     const apiKey = options.openaiApiKey ? String(options.openaiApiKey).trim() : undefined;
-    const gatewayApiKey = options.gatewayApiKey ? String(options.gatewayApiKey).trim() : undefined;
     const baseURL = options.baseUrl ? String(options.baseUrl).trim() : undefined;
     const tasksFile = readFileSync(file).toString();
     const screenshot = options.screenshot;
@@ -109,7 +101,6 @@ program
         gen2eModel: gen2eModel,
         debug: isDebug,
         openaiApiKey: apiKey,
-        gatewayApiKey,
         baseURL,
         recordUsage: showStats,
         policies: {
@@ -179,16 +170,9 @@ program
     /^(gen2e|playwright)$/,
     "gen2e",
   )
-  .option("--openai-api-key <openaiApiKey>", "api key for openai services")
-  .option(
-    "--gateway-api-key <gatewayApiKey>",
-    "api key for the Vercel AI Gateway (defaults to AI_GATEWAY_API_KEY)",
-  )
+  .option("--openai-api-key <openaiApiKey>", "api key for OpenAI or an OpenAI-compatible endpoint")
   .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
-  .option(
-    "--model <model>",
-    "model to use for each task, an OpenAI id or a provider/model gateway id",
-  )
+  .option("--model <model>", "model id served by the OpenAI-compatible endpoint")
   .option("--gen2e-model <gen2eModel>", "model to use for gen2e source code generation")
   .option("--pw-model <pwModel>", "model to use for playwright source code generation")
   .option(
@@ -239,7 +223,6 @@ program
     const visualDebugLevel = options.visualDebug ?? "medium";
     const maxRetries = options.maxRetries;
     const apiKey = options.openaiApiKey ? String(options.openaiApiKey).trim() : undefined;
-    const gatewayApiKey = options.gatewayApiKey ? String(options.gatewayApiKey).trim() : undefined;
     const baseURL = options.baseUrl ? String(options.baseUrl).trim() : undefined;
     const screenshot = options.screenshot;
 
@@ -257,7 +240,6 @@ program
         gen2eModel: gen2eModel,
         debug: isDebug,
         openaiApiKey: apiKey,
-        gatewayApiKey,
         baseURL,
         recordUsage: showStats,
         policies: {
@@ -408,10 +390,6 @@ program
   .argument("[dumppath]", "directory path containing test json dumps")
   .option("-d, --root-dir <rootDir>")
   .option("--model <model>", "model used to generate page objects")
-  .option(
-    "--gateway-api-key <gatewayApiKey>",
-    "api key for the Vercel AI Gateway (defaults to AI_GATEWAY_API_KEY)",
-  )
   .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
   .action(async (dumppath, options) => {
     const dpath = dumppath;
@@ -422,7 +400,6 @@ program
       staticDataDir: options.rootDir,
       model: options.model,
       codeGenOptions: {
-        gatewayApiKey: options.gatewayApiKey,
         baseURL: options.baseUrl,
       },
     });
@@ -439,16 +416,9 @@ program
   .command("repl")
   .description("Simple repl mode with no test generation")
   .option("-d, --debug", "enabled debug mode, shows debug logs and more")
-  .option("--openai-api-key <openaiApiKey>", "api key for openai services")
-  .option(
-    "--gateway-api-key <gatewayApiKey>",
-    "api key for the Vercel AI Gateway (defaults to AI_GATEWAY_API_KEY)",
-  )
+  .option("--openai-api-key <openaiApiKey>", "api key for OpenAI or an OpenAI-compatible endpoint")
   .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
-  .option(
-    "--model <model>",
-    "model to use for each task, an OpenAI id or a provider/model gateway id",
-  )
+  .option("--model <model>", "model id served by the OpenAI-compatible endpoint")
   .option("--browser <browser>", "playwright browser to use (chromium, firefox)", "chromium")
   .option("--headless", "start browser in headless mode")
   .option("-v, --verbose", "show more REPL activity logging")
@@ -457,7 +427,6 @@ program
     const isDebug = options.debug ? true : undefined;
     const model = options.model ? String(options.model).trim() : undefined;
     const apiKey = options.openaiApiKey ? String(options.openaiApiKey).trim() : undefined;
-    const gatewayApiKey = options.gatewayApiKey ? String(options.gatewayApiKey).trim() : undefined;
     const baseURL = options.baseUrl ? String(options.baseUrl).trim() : undefined;
 
     const REPL = makeREPL({
@@ -468,7 +437,6 @@ program
       debug: isDebug,
       model,
       openaiApiKey: apiKey,
-      gatewayApiKey,
       baseURL,
       verbose,
     });

@@ -32,14 +32,11 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
     obj: object = exportedConfig,
   ) => (obj ? (typeof obj[prop] === typename ? obj[prop] : undefined) : undefined);
 
-  // A model can be a plain string or an AI SDK language model instance.
+  // A model is the id served by the configured OpenAI-compatible endpoint.
   const unwrapModel = (): Gen2ELLMAgentModel | undefined => {
     const model = exportedConfig ? (exportedConfig as { model?: unknown }).model : undefined;
     if (typeof model === "string") {
       return model;
-    }
-    if (model !== null && typeof model === "object" && "modelId" in model && "provider" in model) {
-      return model as Gen2ELLMAgentModel;
     }
     return undefined;
   };
@@ -47,7 +44,6 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
   return {
     debug: unwrapAs("debug", "boolean"),
     openaiApiKey: unwrapAs("openaiApiKey"),
-    gatewayApiKey: unwrapAs("gatewayApiKey"),
     baseURL: unwrapAs("baseURL"),
     model: unwrapModel(),
     staticStorePath: unwrapAs("staticStorePath"),

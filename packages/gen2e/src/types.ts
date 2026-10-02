@@ -23,14 +23,12 @@ export type Gen2EGenPolicies = {
 export type Gen2EGenOptions = {
   debug?: boolean;
   /**
-   * Model to use: an OpenAI model id, a `provider/model` Vercel AI Gateway id
-   * (e.g. `openai/gpt-5.4`), or any AI SDK language model instance.
+   * Model id served by the OpenAI-compatible endpoint (OpenAI or any
+   * compatible API).
    */
   model?: Gen2ELLMAgentModel;
   openaiApiKey?: string;
-  /** API key for the Vercel AI Gateway, defaults to AI_GATEWAY_API_KEY. */
-  gatewayApiKey?: string;
-  /** Base URL for OpenAI-compatible endpoints, OpenAI runner only. */
+  /** Base URL of the OpenAI-compatible endpoint. */
   baseURL?: string;
   policies?: Gen2EGenPolicies;
   saveContext?: boolean;
@@ -164,9 +162,7 @@ export type GenFunction = (
 export type Gen2EConfig = {
   staticStorePath?: string;
   openaiApiKey?: string;
-  /** API key for the Vercel AI Gateway, defaults to AI_GATEWAY_API_KEY. */
-  gatewayApiKey?: string;
-  /** Base URL for OpenAI-compatible endpoints, OpenAI runner only. */
+  /** Base URL of the OpenAI-compatible endpoint. */
   baseURL?: string;
   debug?: boolean;
   model?: Gen2ELLMAgentModel;

@@ -141,7 +141,6 @@ export class RecordingInterpreter {
       gen2eModel,
       {
         openaiApiKey: this.options.openaiApiKey,
-        gatewayApiKey: this.options.gatewayApiKey ?? env.GATEWAY_API_KEY,
         baseURL: this.options.baseURL ?? env.BASE_URL,
         debug: this.options.debug,
       },
@@ -323,7 +322,6 @@ export class RecordingInterpreter {
         {
           model: this.options.playwrightModel ?? this.fallbackModel,
           openaiApiKey: this.options.openaiApiKey,
-          gatewayApiKey: this.options.gatewayApiKey ?? env.GATEWAY_API_KEY,
           baseURL: this.options.baseURL ?? env.BASE_URL,
           debug: this.options.debug,
           policies: this.options.policies,

@@ -16,11 +16,12 @@ npm install @rhighs/gen2e-interpreter -D
 export OPENAI_API_KEY="sk-..."
 ```
 
-or any provider through the Vercel AI Gateway:
+or point it at any OpenAI-compatible endpoint:
 
 ```bash
-export AI_GATEWAY_API_KEY="..."
-export GEN2EI_MODEL="openai/gpt-5.4"
+export OPENAI_API_KEY="your-endpoint-key"
+export OPENAI_BASE_URL="https://your-endpoint.internal/v1"
+export GEN2EI_MODEL="your-model-id"
 ```
 
 3. Try and form up a runnable script like the following:
@@ -164,8 +165,8 @@ const store: StaticStore = {
 
 ;(async () => {
   await sandboxEval(gen2eTestSource, page, store, undefined, {
-    model: 'openai/gpt-5.4',
-    gatewayApiKey: process.env.AI_GATEWAY_API_KEY,
+    model: 'gpt-4o-mini',
+    baseURL: process.env.OPENAI_BASE_URL,
   }, (code, page) => {
     const evalFunc = new Function('page', `return (async () => { const result = await ${code}(); return result })()`);
     return evalFunc(page);
@@ -200,10 +201,9 @@ The ending result will be a playwright test with no dependencies to the gen2e li
 GEN2EI_DEBUG_AST=0
 
 # sets the default model used by the interpreter, with a fallback to "gpt-4o-mini" if not specified
-# accepts OpenAI ids and provider/model Vercel AI Gateway ids
-GEN2EI_MODEL="openai/gpt-5.4"
+GEN2EI_MODEL="gpt-4o-mini"
 
-# base URL for OpenAI-compatible endpoints
+# base URL for OpenAI-compatible endpoints (also reads OPENAI_BASE_URL)
 GEN2EI_BASE_URL=
 
 # show debug logs for the custom agents
@@ -213,5 +213,4 @@ GEN2EI_MODEL_DBG=0
 GEN2EI_SANDBOX_DBG=0
 
 OPENAI_API_KEY=<your-api-key>
-AI_GATEWAY_API_KEY=<your-gateway-key>
 ```

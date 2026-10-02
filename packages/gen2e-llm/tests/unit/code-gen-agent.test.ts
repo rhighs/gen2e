@@ -1,37 +1,27 @@
 import { createCodeGenAgent, type Gen2ELLMAgentModel, Gen2ELLMGenericError } from "../../src";
 
-const mockGenerateText = jest.fn();
-const mockGateway = jest.fn((id: string) => ({
-  provider: "gateway",
-  modelId: id,
-  specificationVersion: "v3",
-}));
-const mockCreateGateway = jest.fn((_settings?: unknown) => (id: string) => ({
-  provider: "gateway",
-  modelId: id,
-  specificationVersion: "v3",
-}));
+const mockRunnerRun = jest.fn();
+const mockRunnerGetUsage = jest.fn();
+const mockRunnerOptions: Array<Record<string, unknown>> = [];
 
-jest.mock("ai", () => ({
-  generateText: (...args: unknown[]) => mockGenerateText(...args),
-  gateway: (id: string) => mockGateway(id),
-  createGateway: (settings: unknown) => mockCreateGateway(settings),
-  tool: (definition: unknown) => definition,
-  jsonSchema: (schema: unknown) => ({ jsonSchema: schema }),
-  stepCountIs: (count: number) => count,
+jest.mock("../../src/runner/openai", () => ({
+  Gen2EOpenAIRunner: jest.fn().mockImplementation((options: Record<string, unknown>) => {
+    mockRunnerOptions.push(options);
+    return {
+      run: (...args: unknown[]) => mockRunnerRun(...args),
+      getUsage: (...args: unknown[]) => mockRunnerGetUsage(...args),
+    };
+  }),
 }));
 
-const lastGenerateTextArgs = () =>
-  mockGenerateText.mock.calls.at(-1)?.[0] as {
-    model: { modelId?: string };
-  };
-
-describe("createCodeGenAgent model gateways", () => {
+describe("createCodeGenAgent model handling", () => {
   beforeEach(() => {
-    mockGenerateText.mockResolvedValue({
-      text: "let x = 1;",
-      totalUsage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
-      steps: [],
+    mockRunnerOptions.length = 0;
+    mockRunnerRun.mockResolvedValue({ type: "success", result: "let x = 1;" });
+    mockRunnerGetUsage.mockResolvedValue({
+      completionTokens: 2,
+      promptTokens: 3,
+      totalTokens: 5,
     });
   });
 
@@ -39,58 +29,59 @@ describe("createCodeGenAgent model gateways", () => {
     jest.clearAllMocks();
   });
 
-  test("uses the AI SDK runner for provider/model gateway ids", async () => {
-    const agent = createCodeGenAgent("system", "openai/gpt-5.4");
+  test("uses the OpenAI-compatible endpoint options and model id", async () => {
+    const agent = createCodeGenAgent("system", "my-model", {
+      openaiApiKey: "key",
+      baseURL: "https://endpoint.internal/v1",
+      promptVersion: "v1",
+    });
     const result = await agent({ task: "generate code" });
 
-    expect(mockGateway).toHaveBeenCalledWith("openai/gpt-5.4");
-    expect(mockGenerateText).toHaveBeenCalledWith(
+    expect(mockRunnerOptions[0]).toEqual(
       expect.objectContaining({
-        model: expect.objectContaining({ modelId: "openai/gpt-5.4" }),
+        apiKey: "key",
+        model: "my-model",
+        baseURL: "https://endpoint.internal/v1",
       }),
     );
     expect(result).toEqual({ type: "success", result: "let x = 1;" });
   });
 
-  test("uses an explicit AI Gateway key when provided", async () => {
-    const agent = createCodeGenAgent("system", "openai/gpt-5.4", {
-      gatewayApiKey: "gw-key",
+  test("reports usage with the model and prompt version", async () => {
+    const onUsage = jest.fn();
+    const agent = createCodeGenAgent("system", "my-model", {
+      openaiApiKey: "key",
+      promptVersion: "v1",
     });
-    await agent({ task: "generate code" });
+    await agent({ task: "generate code" }, { onUsage });
 
-    expect(mockCreateGateway).toHaveBeenCalledWith({ apiKey: "gw-key" });
-  });
-
-  test("switches models per task through task options", async () => {
-    const agent = createCodeGenAgent("system", "openai/gpt-5.4");
-    await agent({
-      task: "generate code",
-      options: { model: "anthropic/claude-sonnet-4.6" },
-    });
-
-    expect(mockGateway).toHaveBeenCalledWith("anthropic/claude-sonnet-4.6");
-    expect(lastGenerateTextArgs().model.modelId).toBe("anthropic/claude-sonnet-4.6");
-  });
-
-  test("accepts AI SDK language model instances", async () => {
-    const customModel = {
-      provider: "custom",
-      modelId: "local-llm",
-      specificationVersion: "v3",
-    };
-    const agent = createCodeGenAgent("system", customModel);
-    await agent({ task: "generate code" });
-
-    expect(lastGenerateTextArgs().model).toBe(customModel);
-  });
-
-  test("rejects unsupported model ids", () => {
-    expect(() => createCodeGenAgent("system", "not-a-real-model" as Gen2ELLMAgentModel)).toThrow(
-      Gen2ELLMGenericError,
+    expect(onUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "my-model",
+        promptVersion: "v1",
+        totalTokens: 5,
+      }),
     );
   });
 
-  test("throws when an OpenAI model is used without an API key", () => {
+  test("creates a runner for a per-task model override", async () => {
+    const agent = createCodeGenAgent("system", "my-model", { openaiApiKey: "key" });
+    await agent({ task: "generate code", options: { model: "other-model" } });
+
+    expect(mockRunnerOptions[1]).toEqual(expect.objectContaining({ model: "other-model" }));
+  });
+
+  test("returns an error when the runner fails", async () => {
+    mockRunnerRun.mockResolvedValueOnce({ type: "error", reason: "boom" });
+    const agent = createCodeGenAgent("system", "my-model", { openaiApiKey: "key" });
+
+    const result = await agent({ task: "generate code" });
+
+    expect(result.type).toBe("error");
+    expect(result.type === "error" && result.errorMessage).toContain("boom");
+  });
+
+  test("throws when no API key is available", () => {
     const previous = process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_API_KEY;
     try {
@@ -100,5 +91,13 @@ describe("createCodeGenAgent model gateways", () => {
         process.env.OPENAI_API_KEY = previous;
       }
     }
+  });
+
+  test("rejects an empty model id", () => {
+    expect(() =>
+      createCodeGenAgent("system", "" as Gen2ELLMAgentModel, {
+        openaiApiKey: "key",
+      }),
+    ).toThrow(Gen2ELLMGenericError);
   });
 });
