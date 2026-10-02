@@ -1,3 +1,5 @@
+![Gen2E — plain English in, precise Playwright steps out](docs/assets/gen2e-banner.jpg)
+
 # Gen2E
 
 **Write Playwright tests in plain English.** Gen2E asks a language model for the exact Playwright expression, validates it, runs it against the real page, feeds failures back to the model, and caches every solved step so the next run is as fast as hand-written code.
