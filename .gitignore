@@ -136,3 +136,7 @@ test.*
 .DS_Store
 ./static/
 static/
+
+# gen2e source and test dirs named "static" are tracked
+!packages/gen2e/src/static/
+!packages/gen2e/tests/unit/static/

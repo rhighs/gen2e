@@ -1,16 +1,16 @@
 import { existsSync, mkdirSync, readFile, writeFile } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { BASE_STATIC_PATH } from "../static";
+import { staticBasePath } from "../static";
 import type { IOWriter, StaticData } from "./interface";
 
-const FILES_DIR = path.join(BASE_STATIC_PATH, "data");
+const filesDir = (): string => path.join(staticBasePath(), "data");
 
 const writeFileAsync = promisify(writeFile);
 const readFileAsync = promisify(readFile);
 
 export const FSWriter: IOWriter = {
-  read: async (filename: string, dir: string = FILES_DIR): Promise<StaticData | undefined> => {
+  read: async (filename: string, dir: string = filesDir()): Promise<StaticData | undefined> => {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
@@ -23,7 +23,7 @@ export const FSWriter: IOWriter = {
     }
   },
 
-  write: async (filename: string, data: StaticData, dir: string = FILES_DIR): Promise<string> => {
+  write: async (filename: string, data: StaticData, dir: string = filesDir()): Promise<string> => {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }

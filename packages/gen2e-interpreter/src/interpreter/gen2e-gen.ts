@@ -105,6 +105,12 @@ what the task asking you to do:
 
 export type Gen2EGen2ECodeGenOptions = Gen2ELLMAgentBuilderOptions;
 
+/**
+ * Manual version of the interpreter system message. Bump whenever the system
+ * message changes so cached expressions are invalidated.
+ */
+export const GEN2E_INTERPRETER_PROMPT_VERSION = "2026-10-02.1";
+
 export const createGen2ECodeGenAgent = (
   defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
   options?: Gen2EGen2ECodeGenOptions,
@@ -120,6 +126,7 @@ export const createGen2ECodeGenAgent = (
       maxSteps: options?.maxSteps,
       temperature: options?.temperature,
       debug: options?.debug,
+      promptVersion: options?.promptVersion ?? GEN2E_INTERPRETER_PROMPT_VERSION,
     },
     logger,
   );

@@ -5,6 +5,7 @@ export type Gen2EEnv = {
   BASE_URL: string;
   USE_STATIC_STORE: boolean;
   LOG_STEP: boolean;
+  REPLAY_ONLY: boolean;
 };
 
 const parseFlag = (f: string | undefined, def: boolean = false): boolean => {
@@ -38,4 +39,5 @@ export default {
   BASE_URL: parseParam(process.env.GEN2E_BASE_URL),
   LOG_STEP: parseFlag(process.env.GEN2E_LOG_STEP),
   USE_STATIC_STORE: parseFlag(process.env.GEN2E_USE_STATIC_STORE, true),
+  REPLAY_ONLY: parseFlag(process.env.GEN2E_REPLAY_ONLY),
 } as Gen2EEnv;

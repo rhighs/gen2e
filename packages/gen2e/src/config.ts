@@ -59,6 +59,7 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
         visualDebugLevel: unwrapAs("visualDebugLevel", "string", obj),
       };
     })(),
+    replayOnly: unwrapAs("replayOnly", "boolean"),
   };
 }
 

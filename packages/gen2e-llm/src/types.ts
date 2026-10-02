@@ -27,6 +27,7 @@ export type Gen2ELLMCodeGenAgentTask = Gen2ELLMAgentTask & {
 
 export type Gen2ELLMAgentUsageStats = {
   model: string;
+  promptVersion?: string;
   task?: {
     prompt: string;
     output?: string;
@@ -73,6 +74,11 @@ export type Gen2ELLMAgentBuilderOptions = {
   maxSteps?: number;
   /** Sampling temperature, AI SDK runner only. Omitted by default. */
   temperature?: number;
+  /**
+   * Version of the system prompt used by this agent. Reported back in usage
+   * stats so callers can invalidate caches when the prompt changes.
+   */
+  promptVersion?: string;
 };
 
 export type Gen2ELLMCodeGenAgent = Gen2ELLMAgent<Gen2ELLMCodeGenAgentTask, string>;

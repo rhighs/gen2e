@@ -30,7 +30,6 @@ test(
   "executes a simple action, filling a search box",
   gen.test(async ({ page, gen }) => {
     await gen(`Type "foo" in the search box`, { page, test });
-    await page.pause();
     await expect(page.getByTestId("search-input")).toHaveValue("foo");
   }),
 );

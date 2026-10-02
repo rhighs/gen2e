@@ -1,8 +1,19 @@
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import type { APIRequestContext, BrowserContext } from "@playwright/test";
-import { Gen2EGenError, gen, type Page, type StaticGenStep, type StaticStore } from "../../src";
+import {
+  FSStaticStore,
+  Gen2EGenError,
+  gen,
+  type Page,
+  type StaticGenStep,
+  type StaticStore,
+} from "../../src";
 import env from "../../src/env";
 import { createPlaywrightCodeGenAgent, generatePlaywrightCode } from "../../src/playwright-gen";
 import { getSnapshot } from "../../src/snapshot";
+import { wrapIdent } from "../../src/static/ident";
 
 jest.mock("../../src/snapshot", () => ({
   getSnapshot: jest.fn().mockReturnValue({ dom: "<html><!-- mock dom --></html>" }),
@@ -11,6 +22,7 @@ jest.mock("../../src/snapshot", () => ({
 jest.mock("../../src/playwright-gen", () => ({
   createPlaywrightCodeGenAgent: jest.fn(),
   generatePlaywrightCode: jest.fn(),
+  GEN2E_PROMPT_VERSION: "test-prompt-version",
 }));
 
 jest.mock("../../src/env", () => ({
@@ -18,6 +30,7 @@ jest.mock("../../src/env", () => ({
   DEBUG_MODE: false,
   LOG_STEP: false,
   USE_STATIC_STORE: true,
+  REPLAY_ONLY: false,
 }));
 
 const mockCreatePlaywrightCodeGenAgent = createPlaywrightCodeGenAgent as jest.MockedFunction<
@@ -46,6 +59,10 @@ describe("gen function", () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    gen.useStatic = true;
+  });
+
   test("should create a Playwright code generation agent", async () => {
     const mockAgent = jest.fn();
     mockCreatePlaywrightCodeGenAgent.mockReturnValue(mockAgent);
@@ -58,7 +75,7 @@ describe("gen function", () => {
 
     expect(mockCreatePlaywrightCodeGenAgent).toHaveBeenCalledWith(
       env.OPENAI_MODEL,
-      expect.any(Object),
+      expect.objectContaining({ promptVersion: "test-prompt-version" }),
       {
         fmt: expect.any(Function),
         sinks: expect.any(Object),
@@ -130,5 +147,84 @@ describe("gen function", () => {
         { title: "gen test" },
       ),
     ).rejects.toThrow(Error);
+  });
+
+  test("should persist saved context refs and meta in a single write", async () => {
+    const basePath = mkdtempSync(path.join(tmpdir(), "gen2e-save-context-"));
+    const originalStaticPath = process.env.GEN2E_STATIC_PATH;
+    process.env.GEN2E_STATIC_PATH = basePath;
+
+    try {
+      mockGeneratePlaywrightCode.mockResolvedValue({
+        type: "success",
+        result: codeSample,
+      });
+      mockGetSnapshot.mockResolvedValue({
+        dom: "<html><body>rendered</body></html>",
+        screenshot: Buffer.from("fake-image"),
+      });
+
+      const persisted: StaticGenStep[] = [];
+      const store: StaticStore = {
+        makeIdent: (_title, task) => task,
+        fetchStatic: () => undefined,
+        makeStatic: (_ident, content) => persisted.push(content),
+      };
+      const evalCode = jest.fn().mockResolvedValue(undefined);
+
+      await gen(
+        "save context task",
+        { page: mockPage },
+        { saveContext: true },
+        { store },
+        evalCode,
+      );
+
+      expect(persisted).toHaveLength(1);
+      const saved = persisted[0];
+      expect(saved.context?.refs?.pageUrl).toBe("https://example.com");
+
+      const ident = wrapIdent("save context task");
+      const htmlPath = saved.context?.refs?.htmlPath;
+      const screenshotPath = saved.context?.refs?.screenshotPath;
+      expect(htmlPath).toBe(path.join(basePath, "data", `${ident}.gen.html`));
+      expect(screenshotPath).toBe(path.join(basePath, "data", `${ident}.gen.jpg`));
+      expect(existsSync(htmlPath as string)).toBe(true);
+      expect(existsSync(screenshotPath as string)).toBe(true);
+
+      expect(saved.meta?.model).toBe(env.OPENAI_MODEL);
+      expect(saved.meta?.promptVersion).toBe("test-prompt-version");
+      expect(saved.meta?.pageUrl).toBe("https://example.com");
+      expect(saved.meta?.generatedAt).toEqual(expect.any(String));
+      expect(saved.meta?.domFingerprint).toBe(wrapIdent("<html><body>rendered</body></html>"));
+    } finally {
+      if (originalStaticPath === undefined) {
+        delete process.env.GEN2E_STATIC_PATH;
+      } else {
+        process.env.GEN2E_STATIC_PATH = originalStaticPath;
+      }
+      rmSync(basePath, { recursive: true, force: true });
+    }
+  });
+
+  test("should disable the store when explicitly null", async () => {
+    mockGeneratePlaywrightCode.mockResolvedValue({
+      type: "success",
+      result: codeSample,
+    });
+    mockGetSnapshot.mockResolvedValue({ dom: "<html></html>" });
+
+    const fetchSpy = jest.spyOn(FSStaticStore, "fetchStatic");
+    const makeSpy = jest.spyOn(FSStaticStore, "makeStatic");
+    const evalCode = jest.fn().mockResolvedValue(undefined);
+
+    await gen("task 1", { page: mockPage }, {}, { store: null }, evalCode);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(makeSpy).not.toHaveBeenCalled();
+    expect(evalCode).toHaveBeenCalledWith(codeSample, mockPage);
+
+    fetchSpy.mockRestore();
+    makeSpy.mockRestore();
   });
 });

@@ -85,6 +85,12 @@ You follow this set of rules when proposing solutions:
 
 export type Gen2EPlaywrightCodeGenOptions = Gen2ELLMAgentBuilderOptions;
 
+/**
+ * Manual version of the Playwright system message. Bump whenever the system
+ * message changes so cached expressions are invalidated.
+ */
+export const GEN2E_PROMPT_VERSION = "2026-10-02.1";
+
 export const createPlaywrightCodeGenAgent = (
   defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
   options?: Gen2EPlaywrightCodeGenOptions,
@@ -100,6 +106,7 @@ export const createPlaywrightCodeGenAgent = (
       maxSteps: options?.maxSteps,
       temperature: options?.temperature,
       debug: options?.debug,
+      promptVersion: options?.promptVersion ?? GEN2E_PROMPT_VERSION,
     },
     logger,
   );

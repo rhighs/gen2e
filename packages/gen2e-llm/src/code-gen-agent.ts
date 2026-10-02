@@ -274,6 +274,7 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
       const usage = await entry.runner.getUsage();
       const usageStats: Gen2ELLMAgentUsageStats = {
         model: modelId(entry.model),
+        promptVersion: options?.promptVersion,
         task: {
           prompt: taskPrompt,
           output: expression ?? "",

@@ -34,6 +34,11 @@ export type Gen2EGenOptions = {
   baseURL?: string;
   policies?: Gen2EGenPolicies;
   saveContext?: boolean;
+  /**
+   * Serve exclusively from the static store. A cache miss throws
+   * `Gen2ECacheMissError`; no snapshot, generation or write happens.
+   */
+  replayOnly?: boolean;
 };
 
 export type Test = TestType<any, any>;
@@ -60,17 +65,27 @@ export interface GenType extends GenFunction, Gen2EGenContext {
   test: GenTestFunction;
 }
 
+export type StaticGenStepRefs = {
+  screenshotPath?: string;
+  htmlPath?: string;
+  pageUrl: string;
+};
+
 export type StaticGenStep = {
   expression: string;
   context?: {
     task?: string;
     testTitle?: string;
     notes?: string;
-    refs?: {
-      screenshotPath?: string;
-      htmlPath?: string;
-      pageUrl: string;
-    };
+    refs?: StaticGenStepRefs;
+  };
+  meta?: {
+    generatedAt: string;
+    model?: string;
+    promptVersion?: string;
+    pageUrl?: string;
+    domFingerprint?: string;
+    attempts?: number;
   };
 };
 
@@ -131,7 +146,7 @@ export type GenFunction = (
   config: { page: Page },
   options?: Gen2EGenOptions,
   init?: {
-    store?: StaticStore;
+    store?: StaticStore | null;
     hooks?: Gen2ELLMCallHooks;
     logger?: Gen2ELogger;
   },
@@ -156,6 +171,8 @@ export type Gen2EConfig = {
   debug?: boolean;
   model?: Gen2ELLMAgentModel;
   policies?: Gen2EGenPolicies;
+  /** Serve exclusively from the static store, never generating or writing. */
+  replayOnly?: boolean;
 };
 
 /**
@@ -169,7 +186,7 @@ export type Gen2EConfig = {
 export type GenTestFunction = (
   testFunction: TestFunction,
   init?: {
-    store?: StaticStore;
+    store?: StaticStore | null;
     hooks?: Gen2ELLMCallHooks;
     logger?: Gen2ELogger;
   },

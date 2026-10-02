@@ -251,10 +251,26 @@ make sure to use the import path correctly to create the other class file, impor
   return [rm_tool, list_tool, touch_tool, peek_tool];
 }
 
+/**
+ * Manual version of the page object system message. Bump whenever the system
+ * message changes so cached page objects are invalidated.
+ */
+export const GEN2E_PO_PROMPT_VERSION = "2026-10-02.1";
+
 export const createPOCodeGenAgent = (
   defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
   codeAPI: Gen2EPOCodeAPI,
   options?: Gen2EPOCodeGenOptions,
   logger?: Gen2ELogger,
 ): Gen2ELLMCodeGenAgent =>
-  createCodeGenAgent(SYSTEM_MESSAGE, defaultModel, options, logger, makeTools(codeAPI), "json");
+  createCodeGenAgent(
+    SYSTEM_MESSAGE,
+    defaultModel,
+    {
+      ...options,
+      promptVersion: options?.promptVersion ?? GEN2E_PO_PROMPT_VERSION,
+    },
+    logger,
+    makeTools(codeAPI),
+    "json",
+  );

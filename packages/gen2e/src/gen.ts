@@ -1,15 +1,19 @@
-import { type Gen2ELLMAgentModel, modelSupportsImage } from "@rhighs/gen2e-llm";
+import { type Gen2ELLMAgentModel, modelId, modelSupportsImage } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 import globalConfig from "./config";
 import env from "./env";
-import { Gen2EGenError, TestStepGenResultError } from "./errors";
+import { Gen2ECacheMissError, Gen2EGenError, TestStepGenResultError } from "./errors";
 import { FSWriter } from "./io";
 import loggerInstance from "./logger";
-import { createPlaywrightCodeGenAgent, generatePlaywrightCode } from "./playwright-gen";
+import {
+  createPlaywrightCodeGenAgent,
+  GEN2E_PROMPT_VERSION,
+  generatePlaywrightCode,
+} from "./playwright-gen";
 import { getSnapshot, type WebSnapshotResult } from "./snapshot";
-import { defaultMakeIdent, wrapIdent } from "./static/ident";
+import { defaultMakeIdentFromContext, wrapIdent } from "./static/ident";
 import { FSStaticStore } from "./static/store/fs";
-import type { StaticStore } from "./static/store/store";
+import type { StaticKeyContext, StaticStore } from "./static/store/store";
 import type {
   Gen2EEvalLoopInit,
   Gen2EEvalLoopOptions,
@@ -25,6 +29,7 @@ import type {
   Page,
   PlaywrightTestFunction,
   StaticGenStep,
+  StaticGenStepRefs,
   Test,
   TestFunction,
 } from "./types";
@@ -35,7 +40,7 @@ type Gen2EStepInit = {
   title: string;
   evalCode: Gen2EPlaywriteCodeEvalFunc;
   logger: Gen2ELogger;
-  store?: StaticStore;
+  store?: StaticStore | null;
   hooks?: Gen2ELLMCallHooks;
 };
 
@@ -44,6 +49,7 @@ type Gen2EStepOptions = {
   model: Gen2ELLMAgentModel;
   saveContext: boolean;
   policies: Gen2EGenPolicies;
+  replayOnly: boolean;
   openaiApiKey?: string;
   gatewayApiKey?: string;
   baseURL?: string;
@@ -51,15 +57,16 @@ type Gen2EStepOptions = {
 
 const tryFetch = (
   store: StaticStore,
-  testTitle: string,
-  testTask: string,
+  ident: string,
   {
     logger,
+    testTask,
   }: {
     logger: Gen2ELogger;
+    testTask?: string;
   },
 ): string | undefined => {
-  const staticStep = store.fetchStatic(store.makeIdent(testTitle, testTask));
+  const staticStep = store.fetchStatic(ident);
   if (
     staticStep?.expression &&
     typeof staticStep?.expression === "string" &&
@@ -217,13 +224,30 @@ const step = async (
   options: Gen2EStepOptions,
 ) => {
   title = title ?? "";
-  store = store ?? FSStaticStore;
-  const testIdent = store.makeIdent(title, task);
+  store = store === null ? undefined : (store ?? FSStaticStore);
+
+  const pageUrl = page.url();
+  const cacheKey: StaticKeyContext = {
+    testTitle: title,
+    task,
+    pageUrl,
+    model: modelId(options.model),
+    promptVersion: GEN2E_PROMPT_VERSION,
+  };
+  const testIdent =
+    store?.makeIdentFromContext?.(cacheKey) ??
+    store?.makeIdent(title, task) ??
+    defaultMakeIdentFromContext(cacheKey);
+
   if (store) {
-    const expression = tryFetch(store, title, task, { logger });
+    const expression = tryFetch(store, testIdent, { logger, testTask: task });
     if (expression) {
       return evalCode(`${expression}`, page);
     }
+  }
+
+  if (options.replayOnly) {
+    throw new Gen2ECacheMissError(testIdent);
   }
 
   if (!ctx.agent) {
@@ -235,6 +259,7 @@ const step = async (
         gatewayApiKey: options?.gatewayApiKey,
         baseURL: options?.baseURL,
         debug: options.debug,
+        promptVersion: GEN2E_PROMPT_VERSION,
       },
       logger,
     );
@@ -283,41 +308,56 @@ const step = async (
   }
 
   if (store) {
+    const refs: StaticGenStepRefs = { pageUrl };
     const _static: StaticGenStep = {
       expression,
       context: {
         task,
         testTitle: title,
-        refs: {
-          pageUrl: page.url(),
-        },
+        refs,
       },
     };
 
-    if (options.saveContext && savedContext && _static.context?.refs) {
-      const ident = wrapIdent(defaultMakeIdent(title, task));
+    if (options.saveContext && savedContext) {
+      const ident = wrapIdent(testIdent);
       const htmlFile = `${ident}.gen.html`;
       const jpgFile = `${ident}.gen.jpg`;
 
-      Promise.all([
+      const [htmlPath, jpgPath] = await Promise.all([
         FSWriter.write(htmlFile, savedContext.dom),
         FSWriter.write(jpgFile, savedContext.screenshot ?? Buffer.from([])),
-      ]).then(([htmlPath, jpgPath]) => {
-        _static.context!.refs!.htmlPath = htmlPath;
-        _static.context!.refs!.screenshotPath = jpgPath;
-        if (options.debug) {
-          logger.debug("saved web context data at", [
-            (_static.context!.refs!.htmlPath, _static.context!.refs!.screenshotPath),
-          ]);
-        }
-      });
+      ]);
+
+      refs.htmlPath = htmlPath;
+      refs.screenshotPath = jpgPath;
+
+      if (options.debug) {
+        logger.debug("saved web context data at", [htmlPath, jpgPath]);
+      }
     }
+
+    _static.meta = {
+      generatedAt: new Date().toISOString(),
+      model: modelId(options.model),
+      promptVersion: GEN2E_PROMPT_VERSION,
+      pageUrl,
+      ...(savedContext ? { domFingerprint: wrapIdent(savedContext.dom) } : {}),
+    };
 
     if (options.debug) {
       logger.debug("storing static", _static);
     }
-    store.makeStatic(testIdent, _static);
+
+    try {
+      store.makeStatic(testIdent, _static);
+    } catch (err) {
+      if (options.replayOnly) {
+        throw err;
+      }
+      logger.warn("failed to persist static generation step, continuing without cache", err);
+    }
   }
+
   return evalResult;
 };
 
@@ -338,7 +378,7 @@ const _gen: GenType = (
     options?: Gen2EGenOptions,
     init?: {
       hooks?: Gen2ELLMCallHooks;
-      store?: StaticStore;
+      store?: StaticStore | null;
       logger?: Gen2ELogger;
     },
     evalCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
@@ -357,8 +397,8 @@ const _gen: GenType = (
     }
     const logger = this.logger;
 
-    const store = init?.store ?? FSStaticStore;
-    if (!store) {
+    const store = init?.store === undefined ? FSStaticStore : init.store;
+    if (store === null) {
       logger.warn("found explicitly null static store init config, disabling static store...");
       this.useStatic = false;
     }
@@ -369,7 +409,7 @@ const _gen: GenType = (
         task,
         title: "",
         page,
-        store: this.useStatic && env.USE_STATIC_STORE ? store : undefined,
+        store: this.useStatic && env.USE_STATIC_STORE ? store : null,
         hooks: init?.hooks,
         logger,
         evalCode,
@@ -385,6 +425,7 @@ const _gen: GenType = (
           screenshot: options?.policies?.screenshot ?? globalConfig.policies?.screenshot ?? "model",
         },
         saveContext: options?.saveContext ?? false,
+        replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
       },
     );
   } as GenType
@@ -394,7 +435,7 @@ _gen.test = function (
   this: GenType,
   testFunction: TestFunction,
   init?: {
-    store?: StaticStore;
+    store?: StaticStore | null;
     hooks?: Gen2ELLMCallHooks;
     logger?: Gen2ELogger;
   },
@@ -407,8 +448,8 @@ _gen.test = function (
   return async ({ page, context, request }, testInfo): Promise<void> => {
     const { title } = testInfo;
 
-    const store = init?.store ?? FSStaticStore;
-    if (!store) {
+    const store = init?.store === undefined ? FSStaticStore : init.store;
+    if (store === null) {
       logger.warn("found explicitly null static store init config, disabling static store...");
       this.useStatic = false;
     }
@@ -440,7 +481,7 @@ _gen.test = function (
             task,
             title,
             page,
-            store: this.useStatic && env.USE_STATIC_STORE ? store : undefined,
+            store: this.useStatic && env.USE_STATIC_STORE ? store : null,
             hooks: init?.hooks,
             logger,
             evalCode,
@@ -458,6 +499,7 @@ _gen.test = function (
                 options?.policies?.screenshot ?? globalConfig.policies?.screenshot ?? "model",
             },
             saveContext: options?.saveContext ?? false,
+            replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
           },
         );
       });

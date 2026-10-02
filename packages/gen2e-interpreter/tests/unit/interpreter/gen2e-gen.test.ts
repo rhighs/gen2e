@@ -1,5 +1,9 @@
 import { createCodeGenAgent, type Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
-import { createGen2ECodeGenAgent, generateGen2ECode } from "../../../src";
+import {
+  createGen2ECodeGenAgent,
+  GEN2E_INTERPRETER_PROMPT_VERSION,
+  generateGen2ECode,
+} from "../../../src";
 
 jest.mock("@rhighs/gen2e-llm", () => ({
   createCodeGenAgent: jest.fn(),
@@ -29,6 +33,7 @@ describe("Gen2E Code Generation", () => {
       {
         openaiApiKey: options.openaiApiKey,
         debug: options.debug,
+        promptVersion: GEN2E_INTERPRETER_PROMPT_VERSION,
       },
       undefined,
     );

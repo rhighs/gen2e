@@ -28,3 +28,16 @@ export class LLMCodeError extends Gen2EError {
     super(`LLM failed generaing a valid js expression got error ${message}`);
   }
 }
+
+/**
+ * Thrown in replay-only mode when no static cache entry matches the
+ * generation request. Carries the identifier that was looked up.
+ */
+export class Gen2ECacheMissError extends Gen2EError {
+  public readonly ident: string;
+
+  public constructor(ident: string) {
+    super(`replay-only mode: no static cache entry found for identifier ${ident}`);
+    this.ident = ident;
+  }
+}
