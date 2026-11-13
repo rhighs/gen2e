@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page, PlaywrightTestConfig } from "@playwright/test";
 import type { StaticStore } from "@rhighs/gen2e-core";
 import type { Gen2ELLMAgentHooks, Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
@@ -100,6 +100,12 @@ export type Gen2EConfig = {
   replayOnly?: boolean;
   cheapModel?: Gen2ELLMAgentModel;
   ladder?: boolean;
+  /** Globs for the files `gen2e run` picks up. Default: `**\/*.gen2e` and `**\/*.gen2e.ts`. */
+  tests?: string[];
+  /** Values for `{{name}}` placeholders in every step. `--var name=value` overrides them. */
+  vars?: Gen2EVars;
+  /** Passed to Playwright as is, except `testDir`, `testMatch` and `projects`. */
+  playwright?: PlaywrightTestConfig;
 };
 
 export interface Gen2EAI {

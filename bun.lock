@@ -13,7 +13,11 @@
     "packages/gen2e": {
       "name": "@rhighs/gen2e",
       "version": "1.2.6",
+      "bin": {
+        "gen2e": "src/cli.ts",
+      },
       "dependencies": {
+        "@playwright/test": "^1.65.0",
         "@rhighs/gen2e-core": "workspace:^",
         "@rhighs/gen2e-llm": "workspace:^",
         "@rhighs/gen2e-logger": "workspace:^",
@@ -25,7 +29,6 @@
       "devDependencies": {
         "@ai-sdk/provider": "4.0.36",
         "@hono/node-server": "^2.1.6",
-        "@playwright/test": "^1.39.0",
         "@types/sanitize-html": "^2.9.4",
         "hono": "^4.13.16",
       },

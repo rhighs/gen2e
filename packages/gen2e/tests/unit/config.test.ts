@@ -67,6 +67,26 @@ describe("loadConfig", () => {
     expect(loadConfig()?.model).toMatchObject({ provider: "p", modelId: "m" });
   });
 
+  test("reads the runner fields", () => {
+    writeConfig(`exports.default = {
+      tests: ["e2e/**/*.gen2e"],
+      vars: { user: "ada" },
+      playwright: { use: { baseURL: "http://localhost:3000" } },
+    };`);
+
+    expect(loadConfig()).toMatchObject({
+      tests: ["e2e/**/*.gen2e"],
+      vars: { user: "ada" },
+      playwright: { use: { baseURL: "http://localhost:3000" } },
+    });
+  });
+
+  test("throws when the config file does not load", () => {
+    writeConfig("exports.default = {");
+
+    expect(() => loadConfig()).toThrow();
+  });
+
   test("treats a module without a default export as an empty config", () => {
     writeConfig("module.exports = { model: 'gpt-4o-mini' };");
 

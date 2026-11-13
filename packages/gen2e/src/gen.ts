@@ -74,7 +74,7 @@ const returnsFor = (schema: z.ZodType): Gen2EStepReturns => ({
   },
 });
 
-const assertTask = (task: string): string =>
+export const assertTask = (task: string): string =>
   `Check whether this holds on the page: ${task}. Return true if it holds and false if it does not.`;
 
 const tryFetch = (
@@ -391,6 +391,11 @@ const defaultEvalCode: Gen2EPlaywrightCodeEvalFunc = (code, page, vars = {}) =>
     `return (async () => { const result = await ${code}(); return result })()`,
   )(page, vars);
 
+const mergeVars = (...all: (Gen2EVars | undefined)[]): Gen2EVars | undefined => {
+  const vars = Object.assign({}, ...all);
+  return Object.keys(vars).length ? vars : undefined;
+};
+
 const stepOptions = (options: Gen2EGenOptions | undefined): Gen2EStepOptions => ({
   debug: options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE,
   model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
@@ -405,7 +410,7 @@ const stepOptions = (options: Gen2EGenOptions | undefined): Gen2EStepOptions => 
   saveContext: options?.saveContext ?? false,
   replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
   ladder: resolveLadder(options?.ladder),
-  vars: options?.vars,
+  vars: mergeVars(globalConfig.vars, options?.vars),
 });
 
 const activeStore = (ctx: Gen2EGenContext, store: StaticStore | null | undefined) =>

@@ -1,8 +1,11 @@
 {
   "name": "@rhighs/gen2e",
   "version": "1.2.6",
-  "description": "A playwright assistant library, write e2e tests as plain english instructions",
+  "description": "Playwright tests in plain English: an agent writes each step once, then the suite replays cached code",
   "type": "module",
+  "bin": {
+    "gen2e": "src/cli.ts"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
@@ -17,6 +20,7 @@
   "homepage": "https://github.com/rhighs/gen2e/tree/main/packages/gen2e#readme",
   "bugs": "https://github.com/rhighs/gen2e/issues",
   "dependencies": {
+    "@playwright/test": "^1.65.0",
     "@rhighs/gen2e-core": "workspace:^",
     "@rhighs/gen2e-llm": "workspace:^",
     "@rhighs/gen2e-logger": "workspace:^",
@@ -28,7 +32,6 @@
   "devDependencies": {
     "@ai-sdk/provider": "4.0.36",
     "@hono/node-server": "^2.1.6",
-    "@playwright/test": "^1.39.0",
     "@types/sanitize-html": "^2.9.4",
     "hono": "^4.13.16"
   },
@@ -37,7 +40,7 @@
     "test": "bun test --isolate --preload ../../test-setup.ts tests/unit",
     "test:e2e": "bun --bun playwright test tests/e2e/test-gen.spec.ts",
     "typecheck": "tsc --noEmit",
-    "test:e2e:scripted": "bun --bun playwright test tests/e2e/scripted.spec.ts tests/e2e/dom-revision.spec.ts tests/e2e/corpus.spec.ts",
+    "test:e2e:scripted": "bun --bun playwright test tests/e2e/scripted.spec.ts tests/e2e/dom-revision.spec.ts tests/e2e/corpus.spec.ts tests/e2e/runner.spec.ts",
     "release": "bun publish --access public --tolerate-republish"
   },
   "keywords": [

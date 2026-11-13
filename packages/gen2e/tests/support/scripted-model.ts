@@ -34,3 +34,17 @@ export const scriptedModel = (turns: LanguageModelV4GenerateResult[], modelId = 
 
 export const promptText = (model: MockLanguageModelV4, call: number): string =>
   JSON.stringify(model.doGenerateCalls[call]?.prompt ?? []);
+
+// Answers each step by the first route whose key appears in the prompt, so it works across processes and in any order.
+export const routedModel = (routes: [string, string][], modelId = "scripted") =>
+  new MockLanguageModelV4({
+    modelId,
+    doGenerate: async ({ prompt }) => {
+      const text = JSON.stringify(prompt);
+      const hit = routes.find(([k]) => text.includes(k));
+      if (!hit) {
+        throw new Error(`no scripted answer for this prompt: ${text.slice(0, 300)}`);
+      }
+      return toolTurn({ name: "run_expression", input: { code: hit[1] } });
+    },
+  });

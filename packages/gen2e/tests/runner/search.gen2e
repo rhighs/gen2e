@@ -1,0 +1,6 @@
+# Search, then count a click
+open /
+type {{query}} in the search box
+assert the search box says dogs
+click the button
+assert the click count is 1

@@ -1,8 +1,12 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { type Gen2ELLMAgentModel, isLanguageModel } from "@rhighs/gen2e-llm";
-import type { Gen2ELogger } from "@rhighs/gen2e-logger";
-import type { Gen2EConfig, Gen2EScreenshotUsagePolicy, Gen2EVisualDebugLevel } from "./types";
+import type {
+  Gen2EConfig,
+  Gen2EScreenshotUsagePolicy,
+  Gen2EVars,
+  Gen2EVisualDebugLevel,
+} from "./types";
 
 const SCREENSHOT_POLICIES: readonly Gen2EScreenshotUsagePolicy[] = [
   "force",
@@ -19,22 +23,15 @@ const configPath = (configname = "gen2e.config") =>
     .map((f) => join(process.cwd(), f))
     .find((fp) => existsSync(fp));
 
-export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
+export function loadConfig(): Gen2EConfig | undefined {
   const filepath = configPath();
   if (!filepath) {
     return undefined;
   }
 
-  let exportedConfig: Record<string, unknown> = {};
-  try {
-    const mod: unknown = require(filepath).default;
-    exportedConfig = mod && typeof mod === "object" ? (mod as Record<string, unknown>) : {};
-  } catch (error) {
-    if (logger) {
-      logger.error("loading config module error", error);
-      logger.warn("unabled to load config module, skipping...");
-    }
-  }
+  const mod: unknown = require(filepath).default;
+  const exportedConfig: Record<string, unknown> =
+    mod && typeof mod === "object" ? (mod as Record<string, unknown>) : {};
 
   const str = (o: Record<string, unknown>, k: string): string | undefined => {
     const v = o[k];
@@ -65,6 +62,12 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
     return allowed.find((a) => a === v);
   };
 
+  const strings = (v: unknown): string[] | undefined =>
+    Array.isArray(v) && v.every((x) => typeof x === "string") ? v : undefined;
+
+  const record = (v: unknown): Record<string, unknown> | undefined =>
+    v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
+
   const rawPolicies = exportedConfig.policies;
   const policies: Record<string, unknown> =
     rawPolicies && typeof rawPolicies === "object" ? (rawPolicies as Record<string, unknown>) : {};
@@ -83,18 +86,19 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
     replayOnly: bool(exportedConfig, "replayOnly"),
     cheapModel: modelOf(exportedConfig, "cheapModel"),
     ladder: bool(exportedConfig, "ladder"),
+    tests: strings(exportedConfig.tests),
+    vars: record(exportedConfig.vars) as Gen2EVars | undefined,
+    playwright: record(exportedConfig.playwright),
   };
 }
 
-let config: Gen2EConfig | undefined;
-export default ((): Gen2EConfig => {
-  if (!config) {
-    const c = loadConfig();
-    if (!c) {
-      config = {};
-    } else {
-      config = c;
-    }
-  }
-  return config;
-})();
+export const defineConfig = (cfg: Gen2EConfig): Gen2EConfig => cfg;
+
+const envVars = (): Gen2EVars => {
+  const raw = process.env.GEN2E_VARS;
+  return raw ? (JSON.parse(raw) as Gen2EVars) : {};
+};
+
+const loaded = loadConfig() ?? {};
+
+export default { ...loaded, vars: { ...loaded.vars, ...envVars() } } satisfies Gen2EConfig;
