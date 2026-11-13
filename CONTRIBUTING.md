@@ -10,8 +10,8 @@ bun run gate
 `bun run gate` runs these checks, in order:
 
 1. Biome
-2. The type check
-3. The build
+2. The build
+3. The type check
 4. The unsafe-pattern guard and its tests
 5. The unit tests CI runs the same command. A pull request is merged only when it passes.
 

@@ -19,7 +19,7 @@
     "eval:replay": "bun packages/gen2e/tests/evals/run.ts --replay",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "gate": "bun run check && bun run typecheck && bun run build && bun run guard && bun run test:guards && bun run test",
+    "gate": "bun run check && bun run build && bun run typecheck && bun run guard && bun run test:guards && bun run test",
     "release": "bun run gate && bun run --filter './packages/*' release",
     "guard": "bun scripts/unsafe-patterns.ts",
     "test:guards": "bun test scripts"
