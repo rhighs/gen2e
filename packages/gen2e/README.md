@@ -21,12 +21,8 @@ test(
 );
 ```
 
-To use another OpenAI-compatible endpoint, set `OPENAI_BASE_URL` and `GEN2E_MODEL`.
+To use another OpenAI-compatible endpoint, set `OPENAI_BASE_URL` and `GEN2E_MODEL`. Any AI SDK model can be passed as `model` too.
 
-The full documentation is in the [repository](https://github.com/rhighs/gen2e):
-
-- [Writing tests](https://github.com/rhighs/gen2e/blob/master/docs/writing-tests.md)
-- [Configuration](https://github.com/rhighs/gen2e/blob/master/docs/configuration.md)
-- [Cache](https://github.com/rhighs/gen2e/blob/master/docs/cache.md)
+Models, configuration and caching are documented in the [repository README](https://github.com/rhighs/gen2e#readme).
 
 MIT licensed.

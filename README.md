@@ -2,16 +2,15 @@
 
 <p align="center">
   <b>Write Playwright tests in plain English.</b><br>
-  A model writes each step once against the live page. The step is checked, run, and cached on disk.<br>
+  An agent writes each step against the live page, runs it, and fixes it until it works. Then the step is cached on disk.<br>
   After that, your suite replays plain Playwright with no model calls.
 </p>
 
 <p align="center">
-  <a href="docs/writing-tests.md">Writing tests</a> ·
-  <a href="docs/configuration.md">Configuration</a> ·
-  <a href="docs/cache.md">Cache</a> ·
-  <a href="docs/cli.md">CLI</a> ·
-  <a href="docs/evals.md">Evals</a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#models">Models</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="packages/gen2e-cli">CLI</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
   <br>
   <a href="https://www.npmjs.com/package/@rhighs/gen2e"><img alt="npm" src="https://img.shields.io/npm/v/@rhighs/gen2e.svg"></a>
@@ -46,7 +45,7 @@ On the first run, gen2e writes each step to `.static/steps/`:
 {
   "expression": "(async () => { await page.locator(\"[data-testid=\\\"search-input\\\"]\").fill(\"funny cats\") })",
   "context": { "task": "type \"funny cats\" in the search box", "testTitle": "search" },
-  "meta": { "model": "gpt-4o-mini", "promptVersion": "2026-10-02.1" }
+  "meta": { "model": "gpt-4o-mini", "promptVersion": "2026-11-13.1" }
 }
 ```
 
@@ -54,13 +53,13 @@ Commit the directory. Later runs and CI execute this file without calling a mode
 
 ## Why gen2e
 
-- **Steps are run before they are cached.** Each expression must pass a format check and a JavaScript parse check, and then it runs against the real page. If it throws, the error goes back to the model for a new attempt.
+- **Steps are run before they are cached.** The agent submits its code through a tool that runs it on the real page. If the code throws, the agent sees the error, and the new DOM if the page changed, in the same conversation and tries again.
 - **Re-runs are deterministic.** The cache key is the test title, the task, the page origin, the model and the prompt version. If one of these changes, only that step is generated again.
 - **Stale steps are generated again.** If a cached locator stops matching the page, gen2e generates the step again. Set `GEN2E_STALE_CACHE=fail` to fail the test instead.
 - **Replay-only mode for CI.** With `GEN2E_REPLAY_ONLY=1`, gen2e only reads the cache. A cache miss fails the test, and no API key is needed.
 - **Cost ladder.** The first attempt can use a cheaper model and only the DOM. Retries use your main model and can include screenshots.
 - **Tests stay normal Playwright tests.** `gen.test(...)` wraps your test function, so you keep the same runner, fixtures and report.
-- **Any OpenAI-compatible endpoint.** You need a base URL, an API key and a model id. This works with OpenAI, proxies, routers and self-hosted servers.
+- **Any model.** Use an OpenAI model id, any OpenAI-compatible endpoint, or any [AI SDK](https://ai-sdk.dev) provider model.
 
 ## Quickstart
 
@@ -70,8 +69,6 @@ gen2e needs Node 22.12 or newer.
 npm install -D @rhighs/gen2e @playwright/test
 export OPENAI_API_KEY="sk-..."
 ```
-
-To use another OpenAI-compatible endpoint, also set `OPENAI_BASE_URL` and `GEN2E_MODEL`.
 
 ```ts
 import { expect, test } from "@playwright/test";
@@ -93,26 +90,67 @@ npx playwright test
 
 The first run generates, runs and caches each step. The next run replays `.static/` and makes no model calls.
 
-[Writing tests](docs/writing-tests.md) covers actions, queries, assertions and per-call options.
+`gen` returns whatever the step's code returns: use it for actions, or ask for a value and assert on it with `expect`. Outside a test, call `gen(task, { page })`; nothing is cached then.
+
+## Models
+
+A model id string goes to OpenAI, or to any OpenAI-compatible endpoint when you set a base URL:
+
+```bash
+export OPENAI_API_KEY="your-key"
+export OPENAI_BASE_URL="https://your-endpoint/v1"
+export GEN2E_MODEL="your-model-id"
+```
+
+Any AI SDK model works too, per call or in `gen2e.config.ts`:
+
+```ts
+import { anthropic } from "@ai-sdk/anthropic";
+
+await gen("click the login button", { page, test }, { model: anthropic("claude-sonnet-4-5") });
+```
+
+## Configuration
+
+`gen2e.config.ts` in the working directory is loaded automatically. Each value can also be passed per call as the third argument of `gen`.
+
+```ts
+import type { Gen2EConfig } from "@rhighs/gen2e";
+
+export default {
+  model: "gpt-4o-mini",
+  cheapModel: "gpt-4o-mini",
+  policies: { maxRetries: 3, screenshot: "onfail" },
+} satisfies Gen2EConfig;
+```
+
+| Setting                  | What it does                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------- |
+| `policies.maxRetries`    | How many times the agent may run code on the page before the step fails. Default 3.    |
+| `policies.screenshot`    | `model` (vision models only), `onfail`, `force` or `off`.                              |
+| `cheapModel`, `ladder`   | Try a cheaper model with the DOM only first; switch to the main model after a failure. |
+| `GEN2E_REPLAY_ONLY=1`    | Serve only from the cache. A miss fails the test.                                      |
+| `GEN2E_STALE_CACHE=fail` | Fail instead of regenerating a cached step whose locator stopped matching.             |
+| `GEN2E_STATIC_PATH`      | Cache directory. Default `.static`.                                                    |
+| `GEN2E_TELEMETRY=1`      | Write one JSON line per step to `.gen2e/telemetry.jsonl`.                              |
 
 ## How it works
 
-```
-task ─► snapshot (DOM, plus a screenshot if the policy allows)
-     ─► model returns one Playwright expression
-     ─► format and JS parse checks ─(invalid)─► retry with the reason
-     ─► run the expression on the page ─(throws)─► retry with the error
-     ─► write it to the static store
-```
+Each step is one agent run (`runAgent` in `@rhighs/gen2e-llm`, built on the AI SDK):
+
+1. The agent gets the task and the page DOM, plus a screenshot if the policy allows.
+2. It calls `run_expression` with Playwright code. Code that does not parse is sent back without running.
+3. The code runs on the page. On success the run ends and the code is cached.
+4. On failure the error goes back to the agent, with the current DOM if the page changed, until `maxRetries` runs have failed.
 
 ## Packages
 
 | Package                                                   | What it does                                                                                               |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [`@rhighs/gen2e`](packages/gen2e)                         | The library: `gen`, `gen.test`, the evaluation loop and the static store.                                  |
+| [`@rhighs/gen2e`](packages/gen2e)                         | The library: `gen`, `gen.test`, the step agent and the static store.                                       |
 | [`@rhighs/gen2e-cli`](packages/gen2e-cli)                 | Compiles `.gen2e` instruction files to specs. Also has a live recorder, a REPL and page-object generation. |
 | [`@rhighs/gen2e-interpreter`](packages/gen2e-interpreter) | Compiles lists of English instructions to gen2e or Playwright code.                                        |
-| [`@rhighs/gen2e-llm`](packages/gen2e-llm)                 | The model runner and code-gen agents, with tool validation and usage stats.                                |
+| [`@rhighs/gen2e-llm`](packages/gen2e-llm)                 | The AI SDK model layer and the agent loop: tools, events, usage.                                           |
 | [`@rhighs/gen2e-po`](packages/gen2e-po)                   | Generates page objects, with an agent that fixes TypeScript errors.                                        |
 | [`@rhighs/gen2e-store`](packages/gen2e-store)             | Store backends: file system, in-memory and CI cache bundles.                                               |
 | [`@rhighs/gen2e-core`](packages/gen2e-core)               | Shared contracts, cache identity, errors, pricing and telemetry.                                           |

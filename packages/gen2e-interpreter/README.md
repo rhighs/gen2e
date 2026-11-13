@@ -26,6 +26,6 @@ There are two modes:
 - `gen2e` emits gen2e calls, which stay cached and regenerate when the page changes.
 - `playwright` compiles the solved expressions to plain Playwright code.
 
-The interpreter reads `GEN2EI_MODEL` and `GEN2EI_BASE_URL`, and falls back to `OPENAI_BASE_URL`. See [docs/cli.md](https://github.com/rhighs/gen2e/blob/master/docs/cli.md#interpreter).
+The interpreter reads `GEN2EI_MODEL` and `GEN2EI_BASE_URL`, and falls back to `OPENAI_BASE_URL`.
 
 MIT licensed.

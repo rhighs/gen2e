@@ -20,7 +20,7 @@ bun run gate
 | `bun run check:fix`        | Applies Biome's safe fixes.                                                                                           |
 | `bun run test:integration` | The LLM integration tests. They need `OPENAI_API_KEY` and are skipped without it.                                     |
 | `bun run test:e2e`         | The Playwright suite against the fixture app. It needs a model key and Chromium (`bunx playwright install chromium`). |
-| `bun run eval:replay`      | The eval corpus, served from a cache. See [docs/evals.md](docs/evals.md).                                             |
+| `bun run eval:replay`      | The eval corpus, served from a cache.                                                                                 |
 
 `gen2e.config.ts` at the repo root configures local and eval runs: screenshots are off and there are two retries.
 
@@ -45,14 +45,14 @@ It compares the counts to `scripts/unsafe-baseline.json`, which may only shrink.
 
 These are the gaps between this repo and the guidelines we follow. Each one has its reason and the condition for closing it.
 
-| Gap                                                                       | Size            | Reason                                                                        | Closes when                                                                |
-| ------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `noUncheckedIndexedAccess` is off                                         | 73 errors       | Index access is used without checks across the AST and snapshot code.         | The errors are fixed and the flag is turned on.                            |
-| `exactOptionalPropertyTypes` is off                                       | 34 errors       | Option objects pass `undefined` explicitly.                                   | The errors are fixed and the flag is turned on.                            |
-| `verbatimModuleSyntax` is off, and output is CommonJS                     | 574 errors      | The packages are published as CommonJS.                                       | The packages ship as ESM.                                                  |
-| TypeScript 6, not 7                                                       | none            | `gen2e-po` calls the compiler API at runtime, and TypeScript 7 has no JS API. | `gen2e-po` stops needing the compiler API, or TypeScript 7 ships one.      |
-| zod instead of Effect Schema; errors are thrown, not returned with Effect | 4 files use zod | Tool arguments and errors predate the guideline.                              | We rewrite the LLM tool layer.                                             |
-| No runtime dependency ceiling                                             | none            | Not measured yet.                                                             | A guard counts runtime dependencies per package against a written ceiling. |
+| Gap                                                                       | Size            | Reason                                                                                             | Closes when                                                                |
+| ------------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `noUncheckedIndexedAccess` is off                                         | 73 errors       | Index access is used without checks across the AST and snapshot code.                              | The errors are fixed and the flag is turned on.                            |
+| `exactOptionalPropertyTypes` is off                                       | 34 errors       | Option objects pass `undefined` explicitly.                                                        | The errors are fixed and the flag is turned on.                            |
+| `verbatimModuleSyntax` is off, and output is CommonJS                     | 574 errors      | The packages are published as CommonJS.                                                            | The packages ship as ESM.                                                  |
+| TypeScript 6, not 7                                                       | none            | `gen2e-po` calls the compiler API at runtime, and TypeScript 7 has no JS API.                      | `gen2e-po` stops needing the compiler API, or TypeScript 7 ships one.      |
+| zod instead of Effect Schema; errors are thrown, not returned with Effect | 5 files use zod | The AI SDK takes zod tool schemas natively; Effect would add a large dependency for a few schemas. | We adopt Effect across the packages.                                       |
+| No runtime dependency ceiling                                             | none            | Not measured yet.                                                                                  | A guard counts runtime dependencies per package against a written ceiling. |
 
 ## Releasing
 

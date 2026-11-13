@@ -13,6 +13,4 @@ const store = new InMemoryStaticStore();
 exportStoreToDir(store, ".ci-cache");
 ```
 
-See [docs/cache.md](https://github.com/rhighs/gen2e/blob/master/docs/cache.md).
-
 MIT licensed.

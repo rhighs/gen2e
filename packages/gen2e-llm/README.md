@@ -1,85 +1,78 @@
 # @rhighs/gen2e-llm
 
-LLM runners and code-generation agents behind [Gen2E](../gen2e). The package owns the model layer: it turns a model id into a runner, attaches validation tools, enforces output format, and reports token usage.
+This is the model layer of [gen2e](https://github.com/rhighs/gen2e), built on the [AI SDK](https://ai-sdk.dev). It provides:
 
-Everything goes through the OpenAI SDK against a configurable OpenAI-compatible endpoint, so one code path covers OpenAI and any compatible API (self-hosted proxy, router or vendor endpoint).
-
-## Install
+- `runAgent`, a small tool-calling agent loop
+- `createCodeGenAgent`, which wraps `runAgent` for code generation
 
 ```bash
 npm install @rhighs/gen2e-llm
 ```
 
-## Quick start
+## Agent loop
 
 ```ts
-import { createCodeGenAgent } from "@rhighs/gen2e-llm";
+import { defineTool, resolveModel, runAgent } from "@rhighs/gen2e-llm";
+import { z } from "zod";
 
-const agent = createCodeGenAgent(
-  "You write Playwright expressions. Return code only.",
-  "gpt-4o-mini",
-  {
-    openaiApiKey: process.env.MY_ENDPOINT_KEY,
-    baseURL: "https://my-endpoint.internal/v1",
-  },
-);
+const lookup = defineTool({
+  name: "lookup",
+  description: "Returns the stock for a product id.",
+  inputSchema: z.object({ id: z.string() }),
+  execute: ({ id }) => ({
+    output: id === "a1" ? "3 in stock" : "unknown product",
+    isError: id !== "a1",
+  }),
+});
 
-const result = await agent(
-  { task: "click the login button" },
-  { onUsage: (usage) => console.log(usage) },
-);
+const res = await runAgent({
+  model: resolveModel("gpt-4o-mini"),
+  instructions: "Answer stock questions with the lookup tool.",
+  messages: [{ role: "user", content: "How many a1 do we have?" }],
+  tools: [lookup],
+  maxTurns: 5,
+});
 
-if (result.type === "success") {
-  console.log(result.result);
-}
+console.log(res.stopReason, res.text, res.usage);
 ```
 
-## Models and endpoints
+Each turn makes one model call. The loop then runs the tool calls in order.
 
-`createCodeGenAgent(systemMessage, model, options?, logger?, tools?, lang?)` accepts any non-empty model id string. The endpoint decides which models exist; `openaiApiKey` and `baseURL` select where requests go.
+**Tool calls:**
 
-Builder options:
+- Each call is checked against the tool's zod schema before it runs.
+- An unknown tool, invalid input or a thrown error becomes an error result that the model sees.
+- A result with `terminate: true` ends the run.
 
-```ts
-type Gen2ELLMAgentBuilderOptions = {
-  debug?: boolean;
-  openaiApiKey?: string;
-  baseURL?: string;
-  promptVersion?: string;
-};
-```
+**The run stops when:**
 
-`openaiApiKey` falls back to `OPENAI_API_KEY`. `baseURL` falls back to `OPENAI_BASE_URL`, then to OpenAI. `promptVersion` is reported in usage stats and is part of the cache key.
+- the model answers without calling a tool
+- a tool result terminates the run
+- `maxTurns` is reached
+- the signal aborts
+- the model call fails
 
-Models can also be switched per task through `task.options.model`. The initial runner is created when the agent is built; runners for model overrides are created on demand and cached per model id.
+**Hooks:**
 
-## Runner
+- `prepareTurn` can switch the model or add messages before each turn.
+- `beforeToolCall` can block a call.
+- `onEvent` receives `agent_start`, `turn_start`, `message`, `turn_end`, `tool_start`, `tool_end` and `agent_end`.
 
-`Gen2EOpenAIRunner` is the only runner:
+## Models
 
-- Uses `openai.chat.completions.runTools` for multi-step tool calls.
-- Works against OpenAI or any OpenAI-compatible base URL.
-- Trims oversized prompts using the model's context window (`openai-token`).
-- Attaches images only when the model is vision-capable (`modelSupportsImage`); screenshot policy `force` overrides.
+`resolveModel` turns a model id into an AI SDK model:
 
-## Validation and tools
+- Without a base URL, a string id uses OpenAI's Responses API.
+- With `baseURL` (or `OPENAI_BASE_URL`), it uses Chat Completions on that endpoint.
+- The API key comes from the `apiKey` option or `OPENAI_API_KEY`.
+- An AI SDK model instance from any provider is used as is.
 
-Every agent gets built-in tools before generation finishes:
+## Code generation
 
-- `format_validation_tool` - rejects markdown-wrapped output.
-- `code_validation_tool` - parses the output with `esprima` (JavaScript) or `JSON.parse` (JSON).
+`createCodeGenAgent(system, model, opts?, logger?, tools?, lang?)` returns a function. It takes a task and resolves to `{ type: "success", result }` or `{ type: "error", errorMessage }`.
 
-Custom tools passed to `createCodeGenAgent` are traced (`callCount()`), and their `parse` function receives the JSON stringified model arguments before `function` is called.
-
-## Exports
-
-- `createCodeGenAgent`
-- `Gen2EOpenAIRunner`
-- `isModelSupported`, `modelId`, `modelSupportsImage`
-- tool helpers: `makeTool`, `makeFormatTool`, `makeTracedTool`
-- sanity helpers: `sanitizeCodeOutput`, `validateJSCode`, `validateJSONString`
-- token helpers: `fitsContext`, `maxCharactersApprox`, `countTokens`, `tokenLimits`
-
-## License
+- It adds validation tools for the language: a format check, plus a parse check for JavaScript or JSON.
+- It falls back to `opts.fallbackModels` on retryable errors.
+- It reports token usage through `onUsage`.
 
 MIT licensed.
