@@ -37,6 +37,7 @@ export type EvalCorpusTask = {
   url: string;
   task: string;
   expect?: EvalExpectation;
+  reference?: string;
   verify?: EvalVerification;
 };
 
@@ -305,6 +306,7 @@ export const loadCorpus = (corpusPath: string): EvalCorpus => {
       task: requireString(record.task, "task", where),
       ...(record.expect !== undefined ? { expect: parseExpectation(record.expect, where) } : {}),
       ...(record.verify !== undefined ? { verify: parseVerification(record.verify, where) } : {}),
+      ...(typeof record.reference === "string" ? { reference: record.reference } : {}),
     };
   });
 
@@ -388,7 +390,7 @@ export const checkVerification = async (
   return { ok: false, detail: "verification has no expected value" };
 };
 
-const checkTask = async (
+export const checkTask = async (
   task: EvalCorpusTask,
   page: Page,
   value: unknown,

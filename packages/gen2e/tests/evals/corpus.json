@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "tasks": [
     {
       "id": "query-header",
@@ -7,7 +7,11 @@
       "kind": "query",
       "url": "/",
       "task": "get the header text",
-      "expect": { "type": "equals", "value": "Hello, Gen2E!" }
+      "expect": {
+        "type": "equals",
+        "value": "Hello, Gen2E!"
+      },
+      "reference": "return await page.locator('h1').innerText()"
     },
     {
       "id": "query-frame-text",
@@ -15,7 +19,11 @@
       "kind": "query",
       "url": "/iframe",
       "task": "get the text of the paragraph inside the child frame",
-      "expect": { "type": "equals", "value": "frame child" }
+      "expect": {
+        "type": "equals",
+        "value": "frame child"
+      },
+      "reference": "return await page.frameLocator('#child-frame').locator('#frame-text').innerText()"
     },
     {
       "id": "action-type-search",
@@ -23,7 +31,11 @@
       "kind": "action",
       "url": "/",
       "task": "type \"gen2e\" in the search box",
-      "verify": { "locator": "[data-testid=\"search-input\"]", "inputValue": "gen2e" }
+      "verify": {
+        "locator": "[data-testid=\"search-input\"]",
+        "inputValue": "gen2e"
+      },
+      "reference": "await page.getByTestId('search-input').fill('gen2e')"
     },
     {
       "id": "action-click-once",
@@ -31,7 +43,11 @@
       "kind": "action",
       "url": "/",
       "task": "click the \"Click me\" button once",
-      "verify": { "locator": "[data-testid=\"current-count\"]", "text": "1" }
+      "verify": {
+        "locator": "[data-testid=\"current-count\"]",
+        "text": "1"
+      },
+      "reference": "await page.getByRole('button', { name: 'Click me' }).click()"
     },
     {
       "id": "assertion-header-true",
@@ -39,7 +55,11 @@
       "kind": "assertion",
       "url": "/",
       "task": "is the header text equal to \"Hello, Gen2E!\"?",
-      "expect": { "type": "equals", "value": true }
+      "expect": {
+        "type": "equals",
+        "value": true
+      },
+      "reference": "return (await page.locator('h1').innerText()) === 'Hello, Gen2E!'"
     },
     {
       "id": "multi-step-counter",
@@ -47,7 +67,143 @@
       "kind": "multi-step",
       "url": "/",
       "task": "click the \"Click me\" button until the counter value is equal to 2, then get the counter value",
-      "expect": { "type": "equals", "value": "2" }
+      "expect": {
+        "type": "equals",
+        "value": "2"
+      },
+      "reference": "const b = page.getByRole('button', { name: 'Click me' }); await b.click(); await b.click(); return await page.getByTestId('current-count').innerText()"
+    },
+    {
+      "id": "login-sign-in",
+      "title": "multi-step: sign in through labelled fields without test ids",
+      "kind": "multi-step",
+      "url": "/login",
+      "task": "sign in with the email ada@example.com and the password correct-horse",
+      "verify": {
+        "locator": "#status",
+        "text": "Welcome, ada@example.com"
+      },
+      "reference": "await page.getByLabel('Email address').fill('ada@example.com'); await page.getByLabel('Password').fill('correct-horse'); await page.getByRole('button', { name: 'Sign in' }).click()"
+    },
+    {
+      "id": "table-price",
+      "title": "query: read one cell from a table",
+      "kind": "query",
+      "url": "/products",
+      "task": "get the price of the Blue Mug",
+      "expect": {
+        "type": "equals",
+        "value": "$12.50"
+      },
+      "reference": "return await page.getByRole('row', { name: /Blue Mug/ }).locator('td').nth(1).innerText()"
+    },
+    {
+      "id": "table-out-of-stock",
+      "title": "query: count table rows that match a condition",
+      "kind": "query",
+      "url": "/products",
+      "task": "how many products are out of stock?",
+      "expect": {
+        "type": "equals",
+        "value": "2"
+      },
+      "reference": "const rows = await page.locator('tbody tr').all(); let n = 0; for (const r of rows) { if ((await r.locator('td').nth(2).innerText()) === '0') n++; } return n"
+    },
+    {
+      "id": "table-cheapest",
+      "title": "query: compare values across a table",
+      "kind": "query",
+      "url": "/products",
+      "task": "which product is the cheapest?",
+      "expect": {
+        "type": "equals",
+        "value": "Red Mug"
+      },
+      "reference": "const rows = await page.locator('tbody tr').all(); let best = ''; let min = Infinity; for (const r of rows) { const price = Number((await r.locator('td').nth(1).innerText()).replace('$', '')); if (price < min) { min = price; best = await r.locator('td').first().innerText(); } } return best"
+    },
+    {
+      "id": "assertion-teapot-false",
+      "title": "assertion: a check that should be false",
+      "kind": "assertion",
+      "url": "/products",
+      "task": "is the Teapot out of stock?",
+      "expect": {
+        "type": "equals",
+        "value": false
+      },
+      "reference": "return (await page.getByRole('row', { name: /Teapot/ }).locator('td').nth(2).innerText()) === '0'"
+    },
+    {
+      "id": "consent-subscribe",
+      "title": "action: get past a cookie wall, then act",
+      "kind": "action",
+      "url": "/consent",
+      "task": "subscribe to the newsletter",
+      "verify": {
+        "locator": "#sub",
+        "text": "Subscribed"
+      },
+      "reference": "await page.getByRole('button', { name: 'Accept all' }).click(); await page.getByRole('button', { name: 'Subscribe' }).click()"
+    },
+    {
+      "id": "delayed-results",
+      "title": "query: wait for content that loads late",
+      "kind": "query",
+      "url": "/delayed",
+      "task": "get the number of search results",
+      "expect": {
+        "type": "contains",
+        "value": "3"
+      },
+      "reference": "await page.getByText('results found').waitFor(); return await page.locator('#results').innerText()"
+    },
+    {
+      "id": "select-country",
+      "title": "action: pick an option in a native select",
+      "kind": "action",
+      "url": "/select",
+      "task": "choose Italy as the country",
+      "verify": {
+        "locator": "#country",
+        "inputValue": "it"
+      },
+      "reference": "await page.getByLabel('Country').selectOption({ label: 'Italy' })"
+    },
+    {
+      "id": "cards-delete-one",
+      "title": "action: pick the right one of several identical buttons",
+      "kind": "action",
+      "url": "/cards",
+      "task": "delete the Hiring plan draft",
+      "verify": {
+        "locator": "#count",
+        "text": "2 drafts: Q3 report, Offsite agenda"
+      },
+      "reference": "await page.locator('.card', { hasText: 'Hiring plan' }).getByRole('button', { name: 'Delete' }).click()"
+    },
+    {
+      "id": "shadow-rating",
+      "title": "action: click inside a shadow root",
+      "kind": "action",
+      "url": "/shadow",
+      "task": "rate us 4 stars",
+      "verify": {
+        "locator": "#rating",
+        "text": "4"
+      },
+      "reference": "await page.getByRole('button', { name: '4 stars' }).click()"
+    },
+    {
+      "id": "settings-dark-mode",
+      "title": "multi-step: change a setting inside a modal dialog and save",
+      "kind": "multi-step",
+      "url": "/settings",
+      "task": "turn on dark mode in the settings and save",
+      "verify": {
+        "locator": "#theme",
+        "text": "dark"
+      },
+      "reference": "await page.getByRole('button', { name: 'Open settings' }).click(); await page.getByLabel('Dark mode').check(); await page.getByRole('button', { name: 'Save' }).click()"
     }
   ]
 }

@@ -39,7 +39,7 @@
     "test:e2e": "playwright test tests/e2e/**.spec.ts",
     "typecheck": "tsc --noEmit",
     "release": "bun publish --access public --tolerate-republish",
-    "test:e2e:scripted": "playwright test tests/e2e/scripted.spec.ts tests/e2e/dom-revision.spec.ts"
+    "test:e2e:scripted": "playwright test tests/e2e/scripted.spec.ts tests/e2e/dom-revision.spec.ts tests/e2e/corpus.spec.ts"
   },
   "keywords": [
     "ai",

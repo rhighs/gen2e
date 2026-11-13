@@ -14,7 +14,7 @@ bun run gate
 3. The type check
 4. The unsafe-pattern guard and its tests
 5. The unit tests
-6. The scripted e2e lane: real Chromium against the fixture app, with a scripted model and no API key
+6. The scripted e2e lane: real Chromium against the fixture app, with a scripted model and no API key. It also runs the reference solution of every eval task, so a broken corpus task fails the gate instead of skewing a score.
 
 CI runs the same command on Node 22.12.0. A pull request is merged only when it passes.
 
