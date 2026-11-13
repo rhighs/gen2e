@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { isModelSupported, isRetryableModelError, modelId, modelSupportsImage } from "../../src";
+import { APICallError } from "ai";
+import {
+  isModelSupported,
+  isRetryableError,
+  isRetryableModelError,
+  modelId,
+  modelSupportsImage,
+  resolveModel,
+} from "../../src";
+import { scriptedModel } from "../support/scripted-model";
 
 describe("model helpers", () => {
   test("isModelSupported accepts any non-empty model id", () => {
@@ -12,8 +21,33 @@ describe("model helpers", () => {
     expect(isModelSupported(42)).toBe(false);
   });
 
+  test("isModelSupported accepts an AI SDK model instance", () => {
+    expect(isModelSupported(scriptedModel([]))).toBe(true);
+  });
+
   test("modelId", () => {
     expect(modelId("my-model")).toBe("my-model");
+    expect(modelId(scriptedModel([], "m"))).toBe("mock-provider:m");
+  });
+
+  test("resolveModel uses the Responses API for OpenAI and Chat Completions for a custom base URL", () => {
+    expect(resolveModel("gpt-4o-mini", { apiKey: "k" }).provider).toBe("openai.responses");
+    expect(
+      resolveModel("my-model", { apiKey: "k", baseURL: "http://localhost:1/v1" }).provider,
+    ).toBe("openai.chat");
+  });
+
+  test("resolveModel passes a model instance through", () => {
+    const m = scriptedModel([]);
+    expect(resolveModel(m)).toBe(m);
+  });
+
+  test("isRetryableError trusts APICallError.isRetryable", () => {
+    const err = (isRetryable: boolean) =>
+      new APICallError({ message: "x", url: "u", requestBodyValues: {}, isRetryable });
+    expect(isRetryableError(err(true))).toBe(true);
+    expect(isRetryableError(err(false))).toBe(false);
+    expect(isRetryableError(new Error("503 service unavailable"))).toBe(true);
   });
 
   test("modelSupportsImage", () => {

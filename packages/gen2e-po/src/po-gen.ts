@@ -1,11 +1,12 @@
 import {
   createCodeGenAgent,
+  defineTool,
+  type Gen2EAgentTool,
   type Gen2ELLMAgentModel,
-  type Gen2ELLMAgentTool,
   type Gen2ELLMCodeGenAgent,
 } from "@rhighs/gen2e-llm";
 import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
-import z from "zod";
+import { z } from "zod";
 import env from "./env";
 import type { Gen2EPageObjectFileContents, Gen2EPOCodeAPI, Gen2EPOCodeGenOptions } from "./types";
 
@@ -85,172 +86,89 @@ The above will be formatted in JSON, so expect something like:
 - If you ever need to change a playwright selector, you must only do so by means of parametrizion: you cannot change the selector core behavior but only the data it uses.
 `;
 
-function makeTools(
-  api: Gen2EPOCodeAPI,
-  logger?: Gen2ELogger,
-): Gen2ELLMAgentTool<{
-  code?: string;
-  [key: string]: any;
-}>[] {
+function makeTools(api: Gen2EPOCodeAPI, logger?: Gen2ELogger): Gen2EAgentTool[] {
   let pageObjects: Gen2EPageObjectFileContents[] = [];
-  logger = logger ?? makeLogger("GEN2EPO-AGENT-TOOLS");
-  const rm_tool = {
+  const log = logger ?? makeLogger("GEN2EPO-AGENT-TOOLS");
+
+  const summary = () =>
+    JSON.stringify(
+      pageObjects.map(({ filename, objects }) => ({ filename, objects })),
+      null,
+      2,
+    );
+
+  const rmTool = defineTool({
+    name: "remove_page_object",
     description: `This is a function used to delete page objects files, you only want to use this when performing file renames or page objects. \
 This function returns the list of page objects without the one you have deleted. You can delete multiple page objects at time.`,
-    function: async (params: any): Promise<string> => {
-      logger.debug("deleting page objects", params.pageObjects);
-      await Promise.all(
-        params.pageObjects.map(({ filepath }: { filepath: string }) => api.rm(filepath)),
-      );
+    inputSchema: z.object({
+      pageObjects: z
+        .array(z.object({ filepath: z.string().describe("filepath of the page object to delete") }))
+        .describe("page objects to delete by filepath"),
+    }),
+    execute: async ({ pageObjects: targets }) => {
+      log.debug("deleting page objects", targets);
+      await Promise.all(targets.map(({ filepath }) => api.rm(filepath)));
       pageObjects = await api.list();
-      const result = pageObjects.map(({ filename, objects, ..._rest }) => ({
-        filename,
-        objects,
-      }));
-      return JSON.stringify(result, null, 2);
+      return { output: summary() };
     },
-    name: "remove_page_object",
-    parameters: {
-      type: "object",
-      properties: {
-        pageObjects: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              filepath: {
-                type: "string",
-                description: "filepath of the page object to delete",
-              },
-            },
-            required: ["filepath"],
-          },
-          description: "page objects to delete by filepath",
-        },
-      },
-      required: ["pageObjects"],
-    },
-    parse: (args: string) =>
-      z
-        .object({
-          pageObjects: z.array(
-            z.object({
-              filepath: z.string(),
-            }),
-          ),
-        })
-        .parse(JSON.parse(args)),
-  };
+  });
 
-  const peek_tool = {
+  const peekTool = defineTool({
+    name: "page_object_selection",
     description: `This is a function you will pass the choosen page object name to, the result of this function is the source
 code of the page object you have choosen. You only call this function once. Use this code to understand what method must be added,
 once understood use the create_page_objects to edit the relevant page object.`,
-    function: (params: any): string => {
-      const { name } = params;
-      const pageObject = pageObjects.find(
-        (p) => p.objects.find((o) => o.className === name) !== undefined,
-      );
-
-      return pageObject?.source ?? "ERROR: no such page object found, you must create it.";
+    inputSchema: z.object({ name: z.string().describe("Name of the object you are choosing") }),
+    execute: ({ name }) => {
+      const pageObject = pageObjects.find((p) => p.objects.some((o) => o.className === name));
+      return pageObject
+        ? { output: pageObject.source }
+        : { output: "ERROR: no such page object found, you must create it.", isError: true };
     },
-    name: "page_object_selection",
-    parameters: {
-      type: "object",
-      properties: {
-        name: {
-          type: "string",
-          description: "Name of the object you are choosing",
-        },
-      },
-    },
-    parse: (args: string) =>
-      z
-        .object({
-          name: z.string(),
-        })
-        .parse(JSON.parse(args)),
-  };
+  });
 
-  const list_tool = {
+  const listTool = defineTool({
+    name: "list_page_objects",
     description: `This is a function that provides a list of the current page objects present.
 Each page object is represented as a JSON object containing the class name, URL, and a description.`,
-    function: async (): Promise<string> => {
+    inputSchema: z.object({}),
+    execute: async () => {
       pageObjects = await api.list();
-      const result = pageObjects.map(({ filename, objects, ..._rest }) => ({
-        filename,
-        objects,
-      }));
-      logger.info("listing page objects", result);
-      return JSON.stringify(result, null, 2);
+      const result = summary();
+      log.info("listing page objects", result);
+      return { output: result };
     },
-    name: "list_page_objects",
-    parameters: {
-      type: "object",
-      properties: {},
-    },
-    parse: (_args: string) => {
-      return {};
-    },
-  };
+  });
 
-  const touch_tool = {
+  const touchTool = defineTool({
+    name: "create_page_objects",
     description: `This is a function that receives the source code for a new page object you want to create along with the most appopriate filepath.
 The source should already contain the needed methods to achieve the final task. The source code must only contain 1 exported page object class.
 If multiple exports are detected this function returns false and you must create different files, true otherwise. If needed, link classes by import statement,
 make sure to use the import path correctly to create the other class file, import paths always end with .gen2e-po. You can use this function to create multiple page objects file at a time.`,
-    function: async (params: any): Promise<boolean> => {
-      const { pageObjects } = params;
-      logger.debug("creating page objects:", pageObjects);
-      for (const { filepath, source } of pageObjects) {
-        const nexports = source
-          .split("\n")
-          .filter((line: string) => line.includes("export ")).length;
+    inputSchema: z.object({
+      pageObjects: z.array(
+        z.object({
+          filepath: z.string().describe("filepath for the new page object"),
+          source: z.string().describe("source code for the new page object"),
+        }),
+      ),
+    }),
+    execute: async ({ pageObjects: files }) => {
+      log.debug("creating page objects:", files);
+      for (const { filepath, source } of files) {
+        const nexports = source.split("\n").filter((line) => line.includes("export ")).length;
         if (nexports > 1) {
-          return false;
+          return { output: "false", isError: true };
         }
         await api.touch(filepath, source);
       }
-      return true;
+      return { output: "true" };
     },
-    name: "create_page_objects",
-    parameters: {
-      type: "object",
-      properties: {
-        pageObjects: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              filepath: {
-                type: "string",
-                description: "filepath for the new page object",
-              },
-              source: {
-                type: "string",
-                description: "source code for the new page object",
-              },
-            },
-            required: ["filepath", "source"],
-          },
-        },
-      },
-      required: ["pageObjects"],
-    },
-    parse: (args: string) =>
-      z
-        .object({
-          pageObjects: z.array(
-            z.object({
-              filepath: z.string(),
-              source: z.string(),
-            }),
-          ),
-        })
-        .parse(JSON.parse(args)),
-  };
+  });
 
-  return [rm_tool, list_tool, touch_tool, peek_tool];
+  return [rmTool, listTool, touchTool, peekTool];
 }
 
 /**

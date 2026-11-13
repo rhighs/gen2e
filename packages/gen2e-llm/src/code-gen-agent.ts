@@ -1,71 +1,22 @@
 import { type Gen2ELogger, makeLogger } from "@rhighs/gen2e-logger";
+import type { ModelMessage, UserContent } from "ai";
+import { type Gen2EAgentRunResult, runAgent } from "./agent-loop";
+import { fitsContext, maxCharactersApprox } from "./context-window";
 import { Gen2ELLMGenericError } from "./errors";
-import { isModelSupported, isRetryableModelError, modelId } from "./models";
-import { Gen2EOpenAIRunner } from "./runner/openai";
-import { sanitizeCodeOutput, validateJSCode, validateJSONString } from "./sanity";
-import { makeTool, makeTracedTool } from "./tools";
-import { makeFormatTool } from "./tools/ensure-format";
+import { isModelSupported, isRetryableError, modelId, resolveModel } from "./model";
+import { sanitizeCodeOutput, validateJSCode } from "./sanity";
+import type { Gen2EAgentTool } from "./tool";
 import type {
   Gen2ELLMAgent,
   Gen2ELLMAgentBuilder,
   Gen2ELLMAgentBuilderOptions,
   Gen2ELLMAgentModel,
   Gen2ELLMAgentResult,
-  Gen2ELLMAgentRunner,
-  Gen2ELLMAgentRunnerInit,
-  Gen2ELLMAgentRunnerResult,
-  Gen2ELLMAgentTool,
   Gen2ELLMAgentUsageStats,
   Gen2ELLMCodeGenAgent,
   Gen2ELLMCodeGenAgentTask,
 } from "./types";
-
-const createCodeGenTools = (lang: string) => {
-  const tools = [
-    makeTracedTool(
-      makeFormatTool(({ code }) => {
-        if (
-          code.startsWith("```") ||
-          code.startsWith("\\`\\`\\`") ||
-          code.endsWith("```") ||
-          code.endsWith("\\`\\`\\`")
-        ) {
-          return {
-            success: false,
-            reason:
-              "Invalid format, do not use markdown. Code should be formatted as plain string.",
-          };
-        }
-
-        return {
-          success: true,
-        };
-      }),
-    ),
-  ];
-
-  if (lang === "javascript" || lang === "typescript") {
-    tools.push(
-      makeTracedTool(
-        makeTool(({ code }) => {
-          return validateJSCode(code);
-        }),
-      ),
-    );
-  }
-
-  if (lang === "json") {
-    tools.push(
-      makeTracedTool(
-        makeTool(({ code }) => {
-          return validateJSONString(code);
-        }),
-      ),
-    );
-  }
-
-  return tools;
-};
+import { createValidationTools } from "./validation-tools";
 
 const makePrompt = (
   message: string,
@@ -108,34 +59,6 @@ Never give back the full context, only the new part.`
     : ""
 }`;
 
-const defaultAgentLogger = makeLogger("GEN2E-LLM");
-
-/**
- * Build the runner for a model id. Every model is served through the OpenAI
- * SDK against the configured OpenAI-compatible endpoint (base URL plus API
- * key), so a single runner covers OpenAI and any compatible endpoint.
- */
-const buildRunner = (
-  model: Gen2ELLMAgentModel,
-  options: Gen2ELLMAgentBuilderOptions | undefined,
-  logger: Gen2ELogger,
-  debug: boolean,
-): Gen2ELLMAgentRunner => {
-  const apiKey = options?.openaiApiKey ?? process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Gen2ELLMGenericError(
-      "no API key found for the OpenAI-compatible endpoint (set openaiApiKey or OPENAI_API_KEY)",
-    );
-  }
-  return new Gen2EOpenAIRunner({
-    apiKey,
-    model,
-    debug,
-    logger,
-    baseURL: options?.baseURL,
-  });
-};
-
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -154,12 +77,31 @@ const fallbackDelayMs = (baseMs: number, attempt: number): number => {
   return Math.min(2000, exponential + jitter);
 };
 
+const defaultAgentLogger = makeLogger("GEN2E-LLM");
+
+const fitTask = (model: Gen2ELLMAgentModel, task: string, systemMessage: string): string => {
+  const id = typeof model === "string" ? model : model.modelId;
+  if (fitsContext(id, task + systemMessage)) {
+    return task;
+  }
+  const mustCut = task.length + systemMessage.length - maxCharactersApprox(id);
+  return task.slice(0, Math.max(0, task.length - mustCut));
+};
+
+const userMessage = (text: string, images: Buffer[] | undefined): ModelMessage => {
+  const content: UserContent = [{ type: "text", text }];
+  for (const image of images ?? []) {
+    content.push({ type: "file", data: image, mediaType: "image/jpeg" });
+  }
+  return { role: "user", content };
+};
+
 export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
   options?: Gen2ELLMAgentBuilderOptions,
   logger?: Gen2ELogger,
-  tools?: Gen2ELLMAgentTool<{ code?: string; [key: string]: any }>[],
+  tools?: Gen2EAgentTool[],
   defaultLang: string = "javascript",
 ): Gen2ELLMAgent<Gen2ELLMCodeGenAgentTask, string> => {
   const isDebug = options?.debug ?? false;
@@ -168,40 +110,15 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
     _logger.config(logger);
   }
 
-  const defaultTools = createCodeGenTools(defaultLang);
-  let allTools = [...defaultTools];
-  if (tools) {
-    allTools = [...allTools, ...tools.map((tool) => makeTracedTool(tool))];
-  }
-
   if (!isModelSupported(model)) {
     throw new Gen2ELLMGenericError(`unsupported model type ${String(model)}`);
   }
 
-  const runners = new Map<string, { runner: Gen2ELLMAgentRunner; model: Gen2ELLMAgentModel }>();
-  const getRunner = (override?: Gen2ELLMAgentModel) => {
-    const target = override ?? model;
-    const key = modelId(target);
-    let entry = runners.get(key);
-    if (!entry) {
-      entry = {
-        runner: buildRunner(target, options, _logger, isDebug),
-        model: target,
-      };
-      runners.set(key, entry);
-    }
-    return entry;
-  };
-
-  const totalToolCalls = () => allTools.reduce((acc, tool) => acc + tool.callCount(), 0);
-
+  const endpoint = { apiKey: options?.openaiApiKey, baseURL: options?.baseURL };
+  const allTools = [...createValidationTools(defaultLang), ...(tools ?? [])];
   const retryBackoffMs = options?.retryBackoffMs ?? 250;
   const maxFallbacks = Math.max(0, options?.maxFallbacks ?? 2);
 
-  /**
-   * Primary model plus deduplicated, validated fallback models, capped at
-   * `maxFallbacks`.
-   */
   const fallbackChain = (primary: Gen2ELLMAgentModel): Gen2ELLMAgentModel[] => {
     const seen = new Set([modelId(primary)]);
     const candidates: Gen2ELLMAgentModel[] = [];
@@ -215,147 +132,103 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
     return [primary, ...candidates.slice(0, maxFallbacks)];
   };
 
-  // Resolve the initial runner eagerly so misconfiguration surfaces when the
-  // agent is created, not on the first generation request.
-  getRunner();
+  // Misconfiguration such as a missing API key surfaces when the agent is created.
+  resolveModel(model, endpoint);
 
   return async (task, hooks): Promise<Gen2ELLMAgentResult<string>> => {
-    let entry: {
-      runner: Gen2ELLMAgentRunner;
-      model: Gen2ELLMAgentModel;
-    };
-    try {
-      entry = getRunner(task.options?.model);
-    } catch (err) {
-      return {
-        type: "error",
-        errorMessage: `LLM call error ${err}`,
-      };
-    }
+    const chain = fallbackChain(task.options?.model ?? model);
+    let run: Gen2EAgentRunResult | undefined;
+    let used: Gen2ELLMAgentModel = chain[0] ?? model;
+    let taskPrompt = "";
 
-    const toolCallsBefore = totalToolCalls();
-    const taskPrompt = makePrompt(
-      task.task,
-      task.codeContext,
-      task.previousAttempts,
-      task.previousErrors,
-    );
-
-    let expression = "";
-    try {
-      const runOpts: Gen2ELLMAgentRunnerInit = {
-        taskPrompt,
-        systemMessage,
-        tools: allTools,
-      };
-      if (task.options?.model) {
-        runOpts.options = {
-          model: task.options?.model,
-        };
-      }
-
-      if (task.images) {
+    for (let i = 0; i < chain.length; ++i) {
+      const candidate = chain[i] ?? model;
+      if (i > 0) {
+        await sleep(fallbackDelayMs(retryBackoffMs, i - 1));
         if (isDebug) {
-          _logger.debug("using runner with image on model", modelId(entry.model));
+          _logger.debug("falling back to model", { model: modelId(candidate), fallbackAttempt: i });
         }
-        runOpts.images = task.images;
       }
 
-      const chain = fallbackChain(entry.model);
-      let runnerResult: Gen2ELLMAgentRunnerResult | undefined;
-      let lastReason = "";
+      let resolved: ReturnType<typeof resolveModel>;
+      try {
+        resolved = resolveModel(candidate, endpoint);
+      } catch (err) {
+        return { type: "error", errorMessage: `LLM call error ${err}` };
+      }
 
-      for (let i = 0; i < chain.length; ++i) {
-        if (i > 0) {
-          await sleep(fallbackDelayMs(retryBackoffMs, i - 1));
-          try {
-            entry = getRunner(chain[i]);
-          } catch (err) {
-            lastReason = `${err}`;
-            break;
+      used = candidate;
+      taskPrompt = fitTask(
+        candidate,
+        makePrompt(task.task, task.codeContext, task.previousAttempts, task.previousErrors),
+        systemMessage,
+      );
+      if (isDebug && task.images?.length) {
+        _logger.debug("using runner with image on model", modelId(candidate));
+      }
+
+      run = await runAgent({
+        model: resolved,
+        instructions: systemMessage,
+        messages: [userMessage(taskPrompt, task.images)],
+        tools: allTools,
+        maxTurns: options?.maxTurns,
+        maxRetries: options?.maxRetries,
+        temperature: 0,
+        onEvent: async (event) => {
+          if (event.type === "message") {
+            await hooks?.onMessage?.(event.message);
           }
-          if (isDebug) {
-            _logger.debug("falling back to model", {
-              model: modelId(entry.model),
-              fallbackAttempt: i,
-            });
-          }
-        }
-
-        const attempt = await entry.runner.run(runOpts, hooks);
-        if (attempt.type === "success") {
-          runnerResult = attempt;
-          break;
-        }
-
-        lastReason = attempt.reason;
-        if (!isRetryableModelError(attempt.reason)) {
-          return {
-            type: "error",
-            errorMessage: `llm runner failed with reason ${attempt.reason}`,
-          };
-        }
-      }
-
-      if (!runnerResult || runnerResult.type === "error") {
-        return {
-          type: "error",
-          errorMessage: `llm runner failed with reason ${lastReason}`,
-        };
-      }
-      expression = runnerResult.result;
-
-      const usage = await entry.runner.getUsage();
-      const usageStats: Gen2ELLMAgentUsageStats = {
-        model: modelId(entry.model),
-        promptVersion: options?.promptVersion,
-        task: {
-          prompt: taskPrompt,
-          output: expression ?? "",
-          noToolCalls: totalToolCalls() - toolCallsBefore,
+          await hooks?.onEvent?.(event);
         },
-        completionTokens: usage.completionTokens,
-        promptTokens: usage.promptTokens,
-        totalTokens: usage.totalTokens,
-      };
+      });
 
-      if (!expression) {
-        return {
-          type: "error",
-          errorMessage: `LLM did not generate valid content as final content, got null or empty response = ${expression}`,
-        };
+      if (run.stopReason !== "error" || !isRetryableError(run.error)) {
+        break;
       }
+    }
 
-      if (hooks?.onUsage) {
-        await hooks.onUsage(usageStats);
-      }
-    } catch (err) {
+    if (!run || run.stopReason === "error") {
+      return { type: "error", errorMessage: `llm runner failed with reason ${run?.error}` };
+    }
+    if (run.stopReason !== "done") {
+      return { type: "error", errorMessage: `llm runner stopped early: ${run.stopReason}` };
+    }
+
+    const expression = run.text;
+    if (!expression) {
       return {
         type: "error",
-        errorMessage: `LLM call error ${err}`,
+        errorMessage: "LLM did not generate valid content as final content, got an empty response",
       };
     }
+
+    const usageStats: Gen2ELLMAgentUsageStats = {
+      model: modelId(used),
+      promptVersion: options?.promptVersion,
+      task: { prompt: taskPrompt, output: expression, noToolCalls: run.toolCalls },
+      completionTokens: run.usage.outputTokens,
+      promptTokens: run.usage.inputTokens,
+      totalTokens: run.usage.totalTokens,
+    };
+    await hooks?.onUsage?.(usageStats);
 
     const sanitizedExpr = sanitizeCodeOutput(expression);
-    if (defaultLang === "javascript" || defaultLang === "typescript") {
-      if (!validateJSCode(sanitizedExpr)) {
-        return {
-          type: "error",
-          errorMessage: `llm runner failed generation a valid javascript expression, got ${sanitizedExpr}`,
-        };
-      }
+    if (
+      (defaultLang === "javascript" || defaultLang === "typescript") &&
+      !validateJSCode(sanitizedExpr)
+    ) {
+      return {
+        type: "error",
+        errorMessage: `llm runner failed generation a valid javascript expression, got ${sanitizedExpr}`,
+      };
     }
 
     if (isDebug) {
       _logger.debug("non-sanitized expression ", { expression });
-      _logger.debug("sanitized expression result ", {
-        expression: sanitizedExpr,
-      });
+      _logger.debug("sanitized expression result ", { expression: sanitizedExpr });
     }
 
-    return {
-      type: "success",
-      result: sanitizedExpr,
-    };
+    return { type: "success", result: sanitizedExpr };
   };
 };

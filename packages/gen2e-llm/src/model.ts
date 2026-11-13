@@ -1,16 +1,47 @@
+import { createOpenAI } from "@ai-sdk/openai";
+import { APICallError, type LanguageModel } from "ai";
+import { Gen2ELLMGenericError } from "./errors";
 import type { Gen2ELLMAgentModel } from "./types";
 
-/**
- * Runtime model check. Any non-empty string is a valid model id: it is the
- * configured OpenAI-compatible endpoint that decides which models exist.
- */
-export const isModelSupported = (model: unknown): model is Gen2ELLMAgentModel =>
-  typeof model === "string" && model.trim().length > 0;
+export type Gen2ELanguageModel = Exclude<LanguageModel, string>;
 
-/**
- * Human readable id for a model, used in usage stats and logs.
- */
-export const modelId = (model: Gen2ELLMAgentModel): string => String(model);
+export type Gen2EModelEndpoint = {
+  apiKey?: string;
+  baseURL?: string;
+};
+
+export const isLanguageModel = (model: unknown): model is Gen2ELanguageModel =>
+  typeof model === "object" &&
+  model !== null &&
+  "specificationVersion" in model &&
+  "modelId" in model;
+
+export const isModelSupported = (model: unknown): model is Gen2ELLMAgentModel =>
+  (typeof model === "string" && model.trim().length > 0) || isLanguageModel(model);
+
+export const modelId = (model: Gen2ELLMAgentModel): string =>
+  typeof model === "string" ? model : `${model.provider}:${model.modelId}`;
+
+// Chat Completions for custom endpoints, which rarely implement the Responses API; the Responses API for OpenAI itself.
+export const resolveModel = (
+  model: Gen2ELLMAgentModel,
+  endpoint: Gen2EModelEndpoint = {},
+): Gen2ELanguageModel => {
+  if (typeof model !== "string") {
+    return model;
+  }
+
+  const apiKey = endpoint.apiKey ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Gen2ELLMGenericError(
+      "no API key found for the OpenAI-compatible endpoint (set openaiApiKey or OPENAI_API_KEY)",
+    );
+  }
+
+  const baseURL = endpoint.baseURL || process.env.OPENAI_BASE_URL || undefined;
+  const provider = createOpenAI({ apiKey, baseURL });
+  return baseURL ? provider.chat(model) : provider.responses(model);
+};
 
 const VISION_HINTS = [
   "gpt-4o",
@@ -43,7 +74,7 @@ const VISION_HINTS = [
  * `force` still attaches images to any model.
  */
 export const modelSupportsImage = (model: Gen2ELLMAgentModel): boolean => {
-  const id = modelId(model).toLowerCase();
+  const id = (typeof model === "string" ? model : model.modelId).toLowerCase();
   return VISION_HINTS.some((hint) => id.includes(hint));
 };
 
@@ -90,3 +121,8 @@ export const isRetryableModelError = (reason: string): boolean => {
     message.includes("gateway timeout")
   );
 };
+
+export const isRetryableError = (err: unknown): boolean =>
+  APICallError.isInstance(err)
+    ? err.isRetryable
+    : isRetryableModelError(err instanceof Error ? err.message : String(err));

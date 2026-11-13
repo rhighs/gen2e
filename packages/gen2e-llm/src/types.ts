@@ -1,5 +1,7 @@
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
-import type { JSONSchema } from "./jsonschema";
+import type { Gen2EAgentEvent } from "./agent-loop";
+import type { Gen2ELanguageModel } from "./model";
+import type { Gen2EAgentTool } from "./tool";
 
 export type Gen2ELLMAgentTask = {
   task: string;
@@ -38,10 +40,6 @@ export type Gen2ELLMAgentUsageStats = {
   totalTokens: number;
 };
 
-/**
- * Chat message surfaced to agent hooks. OpenAI chat completion messages
- * satisfy this shape.
- */
 export type Gen2ELLMAgentMessage = {
   role: string;
   content?: unknown;
@@ -50,6 +48,7 @@ export type Gen2ELLMAgentMessage = {
 export type Gen2ELLMAgentHooks = {
   onMessage?: (message: Gen2ELLMAgentMessage) => Promise<void> | void;
   onUsage?: (usage: Gen2ELLMAgentUsageStats) => Promise<void> | void;
+  onEvent?: (event: Gen2EAgentEvent) => Promise<void> | void;
 };
 
 export type Gen2ELLMAgent<T extends Gen2ELLMAgentTask, R> = (
@@ -81,58 +80,22 @@ export type Gen2ELLMAgentBuilderOptions = {
   maxFallbacks?: number;
   /** Base delay in ms before a fallback retry, doubled per retry. Defaults to 250. */
   retryBackoffMs?: number;
+  /** Maximum model turns per task, tool calls included. Defaults to 10. */
+  maxTurns?: number;
+  /** Retries the AI SDK makes on the same model before an error surfaces. */
+  maxRetries?: number;
 };
 
 export type Gen2ELLMCodeGenAgent = Gen2ELLMAgent<Gen2ELLMCodeGenAgentTask, string>;
-
-export type Gen2ELLMAgentTool<Args extends object> = {
-  function: (args: Args) => Promise<any> | any;
-  description: string;
-  name: string;
-  parameters: JSONSchema;
-  parse: (args: string) => any;
-};
 
 export type Gen2ELLMAgentBuilder<Agent extends object> = (
   systemMessage: string,
   model: Gen2ELLMAgentModel,
   options?: Gen2ELLMAgentBuilderOptions,
   logger?: Gen2ELogger,
-  tools?: Gen2ELLMAgentTool<{ code?: string; [key: string]: any }>[],
+  tools?: Gen2EAgentTool[],
   defaultLang?: string,
 ) => Agent;
-
-export type Gen2ELLMAgentRunnerInit = {
-  taskPrompt: string;
-  systemMessage: string;
-  images?: Buffer[];
-  tools?: any[];
-  options?: {
-    model?: Gen2ELLMAgentModel;
-  };
-};
-
-export type Gen2ELLMAgentRunnerResult =
-  | {
-      type: "success";
-      result: string;
-    }
-  | {
-      type: "error";
-      reason: string;
-    };
-
-export interface Gen2ELLMAgentRunner {
-  run(
-    init: Gen2ELLMAgentRunnerInit,
-    hooks?: Gen2ELLMAgentHooks,
-  ): Promise<Gen2ELLMAgentRunnerResult>;
-  getUsage(): Promise<{
-    completionTokens: number;
-    promptTokens: number;
-    totalTokens: number;
-  }>;
-}
 
 export const Gen2ELLMAgentOpenAIModels = {
   "gpt-3.5-turbo": true,
@@ -169,12 +132,7 @@ export const Gen2ELLMAgentModels = {
 export type Gen2ELLMAgentOpenAIModel = keyof typeof Gen2ELLMAgentOpenAIModels;
 
 /**
- * A model id served by the configured OpenAI-compatible endpoint. Known
- * OpenAI ids are offered for autocomplete; any non-empty string is accepted
- * because the endpoint decides which models exist.
+ * A model id served by the configured OpenAI-compatible endpoint, or any AI
+ * SDK language model instance. Known OpenAI ids are offered for autocomplete.
  */
-export type Gen2ELLMAgentModel = Gen2ELLMAgentOpenAIModel | (string & {});
-
-export interface Gen2LLMAgentTracedTool<T extends object> extends Gen2ELLMAgentTool<T> {
-  callCount(): number;
-}
+export type Gen2ELLMAgentModel = Gen2ELLMAgentOpenAIModel | (string & {}) | Gen2ELanguageModel;

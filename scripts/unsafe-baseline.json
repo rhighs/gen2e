@@ -24,8 +24,8 @@
     "emptyCatch": 0
   },
   "gen2e-llm": {
-    "any": 12,
-    "forcedCast": 3,
+    "any": 0,
+    "forcedCast": 0,
     "nonNull": 0,
     "emptyCatch": 0
   },
@@ -36,7 +36,7 @@
     "emptyCatch": 0
   },
   "gen2e-po": {
-    "any": 7,
+    "any": 0,
     "forcedCast": 0,
     "nonNull": 3,
     "emptyCatch": 0

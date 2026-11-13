@@ -1,12 +1,13 @@
 import {
   createCodeGenAgent,
+  defineTool,
+  type Gen2EAgentTool,
   type Gen2ELLMAgentBuilderOptions,
   type Gen2ELLMAgentModel,
-  type Gen2ELLMAgentTool,
   type Gen2ELLMCodeGenAgent,
 } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
-import z from "zod";
+import { z } from "zod";
 import env from "./env";
 import { getDiagnostics, type TypescriptDiagnostic } from "./ts-compile";
 
@@ -59,98 +60,44 @@ Your first task is always a JSON object containing:
   "projectStructure": [<string_path>, ...]
 }`;
 
-function makeTools(
-  codeAPI: Gen2EErrorSolvingCodeAPI,
-  logger?: Gen2ELogger,
-): Gen2ELLMAgentTool<{
-  [key: string]: any;
-}>[] {
-  const getDiagnostics_tool = {
-    description: `This function provides a list of TypeScript diagnostics for the current project files. Each diagnostic is represented as a JSON object containing details such as the file name, error message, and location. For each diagnostic object, filename is the name of the file subject to the error being addressed in the adjacent fields.`,
-    function: async (): Promise<{
-      diagnostics: TypescriptDiagnostic[];
-      files: string[];
-    }> => {
-      const files = await codeAPI.list();
-      const diagnostics = getDiagnostics(files, {
-        checkJs: true,
-      });
-      if (logger) {
-        logger.debug("diagnostics >>> ", diagnostics);
-      }
-      return {
-        diagnostics,
-        files,
-      };
-    },
+function makeTools(codeAPI: Gen2EErrorSolvingCodeAPI, logger?: Gen2ELogger): Gen2EAgentTool[] {
+  const diagnosticsTool = defineTool({
     name: "get_diagnostics_objects",
-    parameters: {
-      type: "object",
-      properties: {},
+    description:
+      "This function provides a list of TypeScript diagnostics for the current project files. Each diagnostic is represented as a JSON object containing details such as the file name, error message, and location. For each diagnostic object, filename is the name of the file subject to the error being addressed in the adjacent fields.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const files = await codeAPI.list();
+      const diagnostics: TypescriptDiagnostic[] = getDiagnostics(files, { checkJs: true });
+      logger?.debug("diagnostics >>> ", diagnostics);
+      return { output: JSON.stringify({ diagnostics, files }) };
     },
-    parse: (_args: string) => {
-      return {};
-    },
-  };
+  });
 
-  const getSource_tool = {
-    description: `This function retrieves the source code of a specified file. You only use this to read source code relevant to the diagnostic errors you get.`,
-    function: async (args: any): Promise<string> => {
-      const source = await codeAPI.peek(args.filepath);
-      if (logger) {
-        logger.debug("source >>> ", source);
-      }
-      return source;
-    },
+  const sourceTool = defineTool({
     name: "get_source_code",
-    parameters: {
-      type: "object",
-      properties: {
-        filepath: {
-          type: "string",
-        },
-      },
-      required: ["filepath"],
+    description:
+      "This function retrieves the source code of a specified file. You only use this to read source code relevant to the diagnostic errors you get.",
+    inputSchema: z.object({ filepath: z.string() }),
+    execute: async ({ filepath }) => {
+      const source = await codeAPI.peek(filepath);
+      logger?.debug("source >>> ", source);
+      return { output: source };
     },
-    parse: (args: string) => {
-      const schema = z.object({
-        filepath: z.string(),
-      });
-      return schema.parse(JSON.parse(args));
-    },
-  };
+  });
 
-  const solveErrors_tool = {
-    description: `This function saves the provided source code to the specified file path.`,
-    function: async (args: any): Promise<void> => {
-      if (logger) {
-        logger.debug("fixed source >>> ", args.source);
-      }
-      await codeAPI.touch(args.filepath, args.source);
-    },
+  const solveTool = defineTool({
     name: "solve_errors",
-    parameters: {
-      type: "object",
-      properties: {
-        filepath: {
-          type: "string",
-        },
-        source: {
-          type: "string",
-        },
-      },
-      required: ["filepath", "source"],
+    description: "This function saves the provided source code to the specified file path.",
+    inputSchema: z.object({ filepath: z.string(), source: z.string() }),
+    execute: async ({ filepath, source }) => {
+      logger?.debug("fixed source >>> ", source);
+      await codeAPI.touch(filepath, source);
+      return { output: "saved" };
     },
-    parse: (args: string) => {
-      const schema = z.object({
-        filepath: z.string(),
-        source: z.string(),
-      });
-      return schema.parse(JSON.parse(args));
-    },
-  };
+  });
 
-  return [getDiagnostics_tool, getSource_tool, solveErrors_tool];
+  return [diagnosticsTool, sourceTool, solveTool];
 }
 
 export const createErrorSolverAgent = (

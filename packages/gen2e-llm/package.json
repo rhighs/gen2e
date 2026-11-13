@@ -15,13 +15,14 @@
   "bugs": "https://github.com/rhighs/gen2e/issues",
   "main": "dist/index.js",
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.109",
     "@rhighs/gen2e-logger": "workspace:^",
+    "ai": "^7.0.163",
     "esprima": "^4.0.1",
-    "openai": "^7.53.0",
-    "tiktoken": "^1.0.15",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@ai-sdk/provider": "4.0.36",
     "@types/esprima": "4.0.6",
     "@types/node": "^22.20.5",
     "typescript": "^6.0.3"

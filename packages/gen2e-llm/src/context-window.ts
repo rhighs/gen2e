@@ -1,12 +1,10 @@
-import { encoding_for_model, type TiktokenModel } from "tiktoken";
-
 export type TokenLimitInfo = {
   context: number;
   maxOut: number;
 };
 
-export const tokenLimits = (model: TiktokenModel): TokenLimitInfo => {
-  const modelContext: Partial<Record<TiktokenModel, TokenLimitInfo>> = {
+export const tokenLimits = (model: string): TokenLimitInfo => {
+  const modelContext: Record<string, TokenLimitInfo> = {
     "gpt-3.5-turbo": {
       context: 16385,
       maxOut: 4096,
@@ -247,22 +245,6 @@ export const tokenLimits = (model: TiktokenModel): TokenLimitInfo => {
 export const _MARGIN: number = 2;
 
 /**
- * Counts the number of tokens in the given text based on the model.
- *
- * @param {TiktokenModel} model - OpenAI model to use for token counting.
- * @param {string} text - text to count tokens on.
- * @returns {number} - number of tokens in the given text.
- */
-export const countTokens = (model: TiktokenModel, text: string): number => {
-  // rob: memory to waste here. Didn't really find another way to count token
-  //      precisely based off of model type.
-  const encoder = encoding_for_model(model);
-  const l = encoder.encode(text).length;
-  encoder.free();
-  return l;
-};
-
-/**
  * Approximates the number of tokens in the given text. Does not use an encoder,
  * this should be a fast and reliable enough way to count tokens in a text.
  *
@@ -277,14 +259,14 @@ export const countTokenApprox = (text: string): number => {
 /**
  * Checks if the given text fits within the context window of the model.
  *
- * @param {TiktokenModel} model - OpenAI model to use for context window checking.
+ * @param {string} model - OpenAI model to use for context window checking.
  * @param {string} text - text to check if it fits within the context window.
  * @returns {boolean} - if the text fits within the context window.
  */
 export const fitsContext = (
-  model: TiktokenModel,
+  model: string,
   text: string,
-  getTokenLimit: (model: TiktokenModel) => TokenLimitInfo = tokenLimits,
+  getTokenLimit: (model: string) => TokenLimitInfo = tokenLimits,
 ): boolean => {
   return maxCharactersApprox(model, getTokenLimit) > text.length;
 };
@@ -292,12 +274,12 @@ export const fitsContext = (
 /**
  * Approximates the max number of characters allowed in model context window.
  *
- * @param {TiktokenModel} model - OpenAI model to use for context window checking.
+ * @param {string} model - OpenAI model to use for context window checking.
  * @returns {number} - approx. max no. characters allowed in model context.
  */
 export const maxCharactersApprox = (
-  model: TiktokenModel,
-  getTokenLimit: (model: TiktokenModel) => TokenLimitInfo = tokenLimits,
+  model: string,
+  getTokenLimit: (model: string) => TokenLimitInfo = tokenLimits,
 ): number => {
   const max = getTokenLimit(model).context;
   return (max - _MARGIN) * Math.E;
