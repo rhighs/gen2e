@@ -2,6 +2,17 @@
   "name": "@rhighs/gen2e-store",
   "version": "1.0.0",
   "description": "Static store implementations for gen2e: file system, in-memory and CI cache bundles",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rhighs/gen2e.git",
+    "directory": "packages/gen2e-store"
+  },
+  "homepage": "https://github.com/rhighs/gen2e/tree/master/packages/gen2e-store#readme",
+  "bugs": "https://github.com/rhighs/gen2e/issues",
   "main": "dist/index.js",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
@@ -20,8 +31,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "test": "jest",
-    "ts-node": "ts-node"
+    "test": "jest"
   },
   "keywords": [
     "gen2e",

@@ -2,6 +2,17 @@
   "name": "@rhighs/gen2e-core",
   "version": "1.0.0",
   "description": "Store contracts, cache identity, errors, pricing and telemetry types shared across gen2e packages",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rhighs/gen2e.git",
+    "directory": "packages/gen2e-core"
+  },
+  "homepage": "https://github.com/rhighs/gen2e/tree/master/packages/gen2e-core#readme",
+  "bugs": "https://github.com/rhighs/gen2e/issues",
   "main": "dist/index.js",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

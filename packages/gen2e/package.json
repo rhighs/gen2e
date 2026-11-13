@@ -2,10 +2,18 @@
   "name": "@rhighs/gen2e",
   "version": "1.2.6",
   "description": "A playwright assistant library, write e2e tests as plain english instructions",
-  "main": "dist/index.js",
-  "directories": {
-    "test": "tests"
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rhighs/gen2e.git",
+    "directory": "packages/gen2e"
   },
+  "homepage": "https://github.com/rhighs/gen2e/tree/master/packages/gen2e#readme",
+  "bugs": "https://github.com/rhighs/gen2e/issues",
+  "main": "dist/index.js",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
@@ -19,15 +27,11 @@
   "devDependencies": {
     "@hono/node-server": "^1.2.0",
     "@playwright/test": "^1.39.0",
-    "@types/esprima": "^4.0.6",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.19.43",
     "@types/sanitize-html": "^2.9.4",
-    "esprima": "^4.0.1",
     "hono": "^3.9.2",
     "jest": "^29.7.0",
-    "open": "^10.1.0",
-    "semantic-release": "^21.0.2",
     "ts-jest": "^29.1.4",
     "ts-node": "^10.9.2",
     "tsx": "^3.12.7",
@@ -36,7 +40,6 @@
   "scripts": {
     "test-server": "tsx ./tests/bin/start-test-server.ts",
     "build": "tsc --project tsconfig.build.json",
-    "ts-node": "ts-node",
     "static:clear": "rm -rf .static/*",
     "semantic-release": "semantic-release",
     "specs-count": "npx playwright test --list --reporter=json | node -e \"let c=s=>(s.specs?s.specs.length:0)+(s.suites?s.suites.reduce((a,n)=>a+c(n),0):0); console.log(JSON.parse(require('fs').readFileSync(0,'utf-8')).suites.reduce((a,s)=>a+c(s),0))\"",

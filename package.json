@@ -1,7 +1,7 @@
 {
   "name": "gen2e",
   "version": "1.0.0",
-  "description": "gen2e monorepo: LLM powered Playwright code generation",
+  "description": "Write Playwright tests in plain English",
   "private": true,
   "workspaces": [
     "packages/*"
@@ -12,7 +12,7 @@
   "scripts": {
     "build": "lerna run build",
     "publish": "lerna run build && lerna publish",
-    "start": "ts-node ./packages/gen2e-cli/src/index.ts",
+    "start": "tsx ./packages/gen2e-cli/src/index.ts",
     "test": "lerna run test",
     "test:integration": "lerna run test:integration",
     "eval": "tsx packages/gen2e/tests/evals/run.ts",
@@ -22,8 +22,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check": "biome check .",
-    "check:fix": "biome check --write .",
-    "cloc": "find packages \\( -iname \\*.ts -o -iname \\*.js \\) -not -path \"*/node_modules/*\" -not -path \"*/out/*\" -not -path \"*/dist/*\" -not -path \"*.test.ts\" -not -path \"*.spec.ts\" | xargs wc -l"
+    "check:fix": "biome check --write ."
   },
   "optionalDependencies": {
     "@nx/nx-darwin-arm64": "18.0.4",
@@ -36,8 +35,7 @@
     "playwright",
     "e2e",
     "testing",
-    "llm",
-    "vercel-ai-sdk"
+    "llm"
   ],
   "author": "Roberto Montalti",
   "license": "MIT",

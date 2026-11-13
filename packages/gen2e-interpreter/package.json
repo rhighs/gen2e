@@ -2,33 +2,37 @@
   "name": "@rhighs/gen2e-interpreter",
   "version": "1.1.9",
   "description": "A library exposing an LLM based interpreter, provide it human browser instructions and get generated playwright tests back",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rhighs/gen2e.git",
+    "directory": "packages/gen2e-interpreter"
+  },
+  "homepage": "https://github.com/rhighs/gen2e/tree/master/packages/gen2e-interpreter#readme",
+  "bugs": "https://github.com/rhighs/gen2e/issues",
   "main": "dist/index.js",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
-  "directories": {
-    "test": "tests"
-  },
   "dependencies": {
+    "@babel/parser": "^7.24.6",
     "@playwright/test": "^1.44.0",
     "@rhighs/gen2e": "^1.2.6",
     "@rhighs/gen2e-core": "^1.0.0",
     "@rhighs/gen2e-llm": "^1.0.11",
     "@rhighs/gen2e-logger": "^1.0.3",
     "@rhighs/gen2e-store": "^1.0.0",
-    "commander": "^12.0.0",
-    "hono": "^3.9.2",
-    "jscodeshift": "^0.15.2",
-    "openai": "^4.17.3",
-    "zod": "^3.22.4"
+    "ast-types": "^0.14.2",
+    "jscodeshift": "^0.15.2"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/jscodeshift": "^0.11.11",
     "@types/node": "^20.19.43",
     "jest": "^29.7.0",
-    "open": "^10.1.0",
-    "semantic-release": "^21.0.2",
     "ts-jest": "^29.1.4",
     "ts-node": "^10.9.2",
     "tsx": "^3.12.7",
@@ -36,7 +40,6 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "ts-node": "ts-node",
     "test": "jest"
   },
   "keywords": [
