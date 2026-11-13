@@ -1,6 +1,6 @@
 # Contributing
 
-We use [Bun](https://bun.com) to install, build and test, at the version pinned in `packageManager`. The published packages target Node 22 or newer.
+We use [Bun](https://bun.com) to install, build and test, at the version pinned in `packageManager`. The published packages target Node 22.12 or newer. Run `bunx playwright install chromium` in `packages/gen2e` once for the e2e lane.
 
 ```bash
 bun install
@@ -13,14 +13,17 @@ bun run gate
 2. The build
 3. The type check
 4. The unsafe-pattern guard and its tests
-5. The unit tests CI runs the same command. A pull request is merged only when it passes.
+5. The unit tests
+6. The scripted e2e lane: real Chromium against the fixture app, with a scripted model and no API key
 
-| Command                    | What it runs                                                                                                          |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `bun run check:fix`        | Applies Biome's safe fixes.                                                                                           |
-| `bun run test:integration` | The LLM integration tests. They need `OPENAI_API_KEY` and are skipped without it.                                     |
-| `bun run test:e2e`         | The Playwright suite against the fixture app. It needs a model key and Chromium (`bunx playwright install chromium`). |
-| `bun run eval:replay`      | The eval corpus, served from a cache.                                                                                 |
+CI runs the same command on Node 22.12.0. A pull request is merged only when it passes.
+
+| Command                    | What it runs                                                                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `bun run check:fix`        | Applies Biome's safe fixes.                                                                                                |
+| `bun run test:integration` | The LLM integration tests. They need `OPENAI_API_KEY` and are skipped without it.                                          |
+| `bun run test:e2e`         | The live Playwright suite against the fixture app. It needs a model key and Chromium (`bunx playwright install chromium`). |
+| `bun run eval:replay`      | The eval corpus, served from a cache.                                                                                      |
 
 `gen2e.config.ts` at the repo root configures local and eval runs: screenshots are off and there are two retries.
 
