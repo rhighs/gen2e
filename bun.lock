@@ -25,7 +25,7 @@
         "@types/node": "^22.20.5",
         "@types/sanitize-html": "^2.9.4",
         "hono": "^4.13.16",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
       },
     },
     "packages/gen2e-cli": {
@@ -45,7 +45,7 @@
       },
       "devDependencies": {
         "@types/node": "^22.20.5",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
       },
     },
     "packages/gen2e-core": {
@@ -53,7 +53,7 @@
       "version": "1.0.0",
       "devDependencies": {
         "@types/node": "^22.20.5",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
       },
     },
     "packages/gen2e-interpreter": {
@@ -73,7 +73,7 @@
       "devDependencies": {
         "@types/jscodeshift": "^17.3.0",
         "@types/node": "^22.20.5",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
       },
     },
     "packages/gen2e-llm": {
@@ -88,7 +88,7 @@
       },
       "devDependencies": {
         "@types/node": "^22.20.5",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
       },
     },
     "packages/gen2e-logger": {
@@ -96,7 +96,7 @@
       "version": "1.0.3",
       "devDependencies": {
         "@types/node": "^22.20.5",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
       },
     },
     "packages/gen2e-po": {
@@ -107,11 +107,11 @@
         "@rhighs/gen2e-llm": "workspace:^",
         "@rhighs/gen2e-logger": "workspace:^",
         "jimp": "1.6.1",
+        "typescript": "^6.0.3",
         "zod": "^4.6.7",
       },
       "devDependencies": {
         "@types/node": "^22.20.5",
-        "typescript": "^5.9.3",
       },
     },
     "packages/gen2e-store": {
@@ -122,7 +122,7 @@
       },
       "devDependencies": {
         "@types/node": "^22.20.5",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
       },
     },
   },
@@ -509,7 +509,7 @@
 
     "tslib": ["tslib@2.9.1", "", {}, "sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA=="],
 
-    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+    "typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "uint8array-extras": ["uint8array-extras@1.6.0", "", {}, "sha512-8iAasVS4wUx0gPLjH8Xtz2PeDzTSiy8QiLGu2DT3X5GU+egFEQhpnbtkehbAwjvDcxIERmCYcysiODFmE3Ud0Q=="],
 

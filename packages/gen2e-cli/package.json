@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "start": "bun ./src/index.ts",

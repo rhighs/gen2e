@@ -27,7 +27,7 @@
     "@types/node": "^22.20.5",
     "@types/sanitize-html": "^2.9.4",
     "hono": "^4.13.16",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "test-server": "bun ./tests/bin/start-test-server.ts",
