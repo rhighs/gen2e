@@ -32,7 +32,12 @@ export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
     const result: Gen2EPageObjectInfo[] = [];
 
     root.find(j.ClassDeclaration).forEach((path) => {
-      const className = path!.node!.id!.name;
+      const id = path.node.id;
+      if (id?.type !== "Identifier") {
+        return;
+      }
+
+      const className = id.name;
       const methods: Gen2EPageObjectInfo["methods"] = [];
       let pageUrl = "";
       let description = "";
@@ -72,7 +77,7 @@ export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
 
       if (className || pageUrl || description) {
         result.push({
-          className: className ?? "",
+          className,
           pageUrl: pageUrl ?? "",
           description: description ?? "",
           methods,
