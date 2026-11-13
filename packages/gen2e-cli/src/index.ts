@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import readline from "node:readline";

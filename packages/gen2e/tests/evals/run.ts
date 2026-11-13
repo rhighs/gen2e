@@ -144,11 +144,11 @@ type FixtureServer = {
 
 const FIXTURE_PORT = 9999;
 
-const DEFAULT_CORPUS = path.resolve(__dirname, "corpus.json");
+const DEFAULT_CORPUS = path.resolve(import.meta.dir, "corpus.json");
 
-const PACKAGE_DIR = path.resolve(__dirname, "..", "..");
+const PACKAGE_DIR = path.resolve(import.meta.dir, "..", "..");
 
-const SERVER_SCRIPT = path.resolve(__dirname, "..", "bin", "start-test-server.ts");
+const SERVER_SCRIPT = path.resolve(import.meta.dir, "..", "bin", "start-test-server.ts");
 
 const TASK_KINDS = new Set<string>(["query", "action", "assertion", "multi-step"]);
 
@@ -1054,6 +1054,6 @@ const main = async (): Promise<void> => {
   }
 };
 
-if (require.main === module) {
+if (import.meta.main) {
   void main();
 }

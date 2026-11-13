@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const bin = path.resolve(__dirname, "../../bin/gen2e-cli.js");
+const bin = path.resolve(import.meta.dir, "../../src/index.ts");
 
-const run = (...args: string[]) => spawnSync("node", [bin, ...args], { encoding: "utf8" });
+const run = (...args: string[]) => spawnSync("bun", [bin, ...args], { encoding: "utf8" });
 
-describe("gen2e-cli under node", () => {
+describe("gen2e-cli", () => {
   test.each(["generate", "recorder"])("%s --help exits 0", (cmd) => {
     const res = run(cmd, "--help");
 

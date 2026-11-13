@@ -2,9 +2,12 @@
   "name": "@rhighs/gen2e-interpreter",
   "version": "1.1.9",
   "description": "A library exposing an LLM based interpreter, provide it human browser instructions and get generated playwright tests back",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "files": [
-    "dist"
+    "src"
   ],
   "repository": {
     "type": "git",
@@ -13,7 +16,6 @@
   },
   "homepage": "https://github.com/rhighs/gen2e/tree/main/packages/gen2e-interpreter#readme",
   "bugs": "https://github.com/rhighs/gen2e/issues",
-  "main": "dist/index.js",
   "dependencies": {
     "@babel/parser": "^7.29.13",
     "@playwright/test": "^1.44.0",
@@ -26,12 +28,9 @@
     "jscodeshift": "^17.4.0"
   },
   "devDependencies": {
-    "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^22.20.5",
-    "typescript": "^6.0.3"
+    "@types/jscodeshift": "^17.3.0"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "test": "bun test --isolate --preload ../../test-setup.ts tests/unit",
     "typecheck": "tsc --noEmit",
     "release": "bun publish --access public --tolerate-republish"
@@ -49,6 +48,6 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=22.12"
+    "bun": ">=1.4.4"
   }
 }

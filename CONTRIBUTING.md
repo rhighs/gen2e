@@ -1,6 +1,6 @@
 # Contributing
 
-We use [Bun](https://bun.com) to install, build and test, at the version pinned in `packageManager`. The published packages target Node 22.12 or newer. Run `bunx playwright install chromium` in `packages/gen2e` once for the e2e lane.
+We use [Bun](https://bun.com) to install, build and test, at the version pinned in `packageManager`. gen2e runs on Bun only; the packages ship their TypeScript source and there is no build step. Run `bunx playwright install chromium` in `packages/gen2e` once for the e2e lane.
 
 ```bash
 bun install
@@ -10,12 +10,11 @@ bun run gate
 `bun run gate` runs these checks, in order:
 
 1. Biome
-2. The build
-3. The type check
-4. The unit tests
-5. The scripted e2e lane: real Chromium against the fixture app, with a scripted model and no API key. It also runs the reference solution of every eval task, so a broken corpus task fails the gate instead of skewing a score.
+2. The type check
+3. The unit tests
+4. The scripted e2e lane: real Chromium against the fixture app, with a scripted model and no API key. It also runs the reference solution of every eval task, so a broken corpus task fails the gate instead of skewing a score.
 
-CI runs the same command on Node 22.12.0. A pull request is merged only when it passes.
+CI runs the same command. A pull request is merged only when it passes.
 
 | Command                    | What it runs                                                                                                               |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -40,8 +39,6 @@ These are the gaps between this repo and the guidelines we follow. Each one has 
 | ------------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `noUncheckedIndexedAccess` is off                                         | 73 errors       | Index access is used without checks across the AST and snapshot code.                              | The errors are fixed and the flag is turned on.                            |
 | `exactOptionalPropertyTypes` is off                                       | 34 errors       | Option objects pass `undefined` explicitly.                                                        | The errors are fixed and the flag is turned on.                            |
-| `verbatimModuleSyntax` is off, and output is CommonJS                     | 574 errors      | The packages are published as CommonJS.                                                            | The packages ship as ESM.                                                  |
-| TypeScript 6, not 7                                                       | none            | Not tried yet. Its last blocker, `gen2e-po`'s runtime use of the compiler API, is gone.            | We move the build to TypeScript 7.                                         |
 | zod instead of Effect Schema; errors are thrown, not returned with Effect | 5 files use zod | The AI SDK takes zod tool schemas natively; Effect would add a large dependency for a few schemas. | We adopt Effect across the packages.                                       |
 | No runtime dependency ceiling                                             | none            | Not measured yet.                                                                                  | A guard counts runtime dependencies per package against a written ceiling. |
 

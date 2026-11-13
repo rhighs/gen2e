@@ -2,7 +2,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { checkTask, loadCorpus } from "../evals/run";
 
-const corpus = loadCorpus(path.join(__dirname, "..", "evals", "corpus.json"));
+const corpus = loadCorpus(path.join(import.meta.dirname, "..", "evals", "corpus.json"));
 
 test("every eval task has a reference solution", () => {
   expect(corpus.tasks.filter((t) => !t.reference).map((t) => t.id)).toEqual([]);

@@ -2,9 +2,12 @@
   "name": "@rhighs/gen2e-logger",
   "version": "1.0.3",
   "description": "simple, minimal and dependency-free logger supporting terminal colors",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "files": [
-    "dist"
+    "src"
   ],
   "repository": {
     "type": "git",
@@ -13,13 +16,8 @@
   },
   "homepage": "https://github.com/rhighs/gen2e/tree/main/packages/gen2e-logger#readme",
   "bugs": "https://github.com/rhighs/gen2e/issues",
-  "main": "dist/index.js",
-  "devDependencies": {
-    "@types/node": "^22.20.5",
-    "typescript": "^6.0.3"
-  },
+  "devDependencies": {},
   "scripts": {
-    "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "test": "bun test --isolate --preload ../../test-setup.ts tests/unit",
     "typecheck": "tsc --noEmit",
     "release": "bun publish --access public --tolerate-republish"
@@ -30,6 +28,6 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=22.12"
+    "bun": ">=1.4.4"
   }
 }

@@ -30,9 +30,6 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
-      - name: Build
-        run: bun run build
-
       - name: Install chromium
         working-directory: packages/gen2e
         run: bunx playwright install --with-deps chromium

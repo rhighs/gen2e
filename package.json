@@ -7,10 +7,9 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=22.12"
+    "bun": ">=1.4.4"
   },
   "scripts": {
-    "build": "bun run --filter './packages/*' build",
     "typecheck": "tsc -p . && bun run --filter './packages/*' typecheck",
     "test": "bun run --filter './packages/*' test",
     "test:integration": "bun run --filter './packages/gen2e-llm' test:integration",
@@ -19,7 +18,7 @@
     "eval:replay": "bun packages/gen2e/tests/evals/run.ts --replay",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "gate": "bun run check && bun run build && bun run typecheck && bun run test && bun run test:e2e:scripted",
+    "gate": "bun run check && bun run typecheck && bun run test && bun run test:e2e:scripted",
     "release": "bun run gate && bun run --filter './packages/*' release",
     "test:e2e:scripted": "bun run --filter ./packages/gen2e test:e2e:scripted"
   },
@@ -35,8 +34,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.6.5",
     "@types/bun": "1.4.4",
-    "@types/node": "22.20.5",
     "typescript": "6.0.3"
   },
-  "packageManager": "bun@1.4.4"
+  "packageManager": "bun@1.4.4",
+  "type": "module"
 }

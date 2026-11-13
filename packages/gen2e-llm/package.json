@@ -2,9 +2,12 @@
   "name": "@rhighs/gen2e-llm",
   "version": "1.0.11",
   "description": "module used across gen2e containing LLM call primitives for various sources and models",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "files": [
-    "dist"
+    "src"
   ],
   "repository": {
     "type": "git",
@@ -13,7 +16,6 @@
   },
   "homepage": "https://github.com/rhighs/gen2e/tree/main/packages/gen2e-llm#readme",
   "bugs": "https://github.com/rhighs/gen2e/issues",
-  "main": "dist/index.js",
   "dependencies": {
     "@ai-sdk/openai": "^4.0.109",
     "@rhighs/gen2e-logger": "workspace:^",
@@ -23,12 +25,9 @@
   },
   "devDependencies": {
     "@ai-sdk/provider": "4.0.36",
-    "@types/esprima": "4.0.6",
-    "@types/node": "^22.20.5",
-    "typescript": "^6.0.3"
+    "@types/esprima": "4.0.6"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "test": "bun test --isolate --preload ../../test-setup.ts tests/unit",
     "test:integration": "bun test tests/integration",
     "typecheck": "tsc --noEmit",
@@ -40,6 +39,6 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=22.12"
+    "bun": ">=1.4.4"
   }
 }

@@ -63,10 +63,10 @@ Commit the directory. Later runs and CI execute this file without calling a mode
 
 ## Quickstart
 
-gen2e needs Node 22.12 or newer.
+gen2e runs on [Bun](https://bun.com) 1.4 or newer.
 
 ```bash
-npm install -D @rhighs/gen2e @playwright/test
+bun add -d @rhighs/gen2e @playwright/test
 export OPENAI_API_KEY="sk-..."
 ```
 
@@ -85,7 +85,7 @@ test(
 ```
 
 ```bash
-npx playwright test
+bun --bun playwright test
 ```
 
 The first run generates, runs and caches each step. The next run replays `.static/` and makes no model calls.
