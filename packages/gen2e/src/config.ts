@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { type Gen2ELLMAgentModel, isLanguageModel } from "@rhighs/gen2e-llm";
+import { setStaticBasePath } from "@rhighs/gen2e-store";
 import type {
   Gen2EConfig,
   Gen2EScreenshotUsagePolicy,
@@ -99,6 +100,14 @@ const envVars = (): Gen2EVars => {
   return raw ? (JSON.parse(raw) as Gen2EVars) : {};
 };
 
-const loaded = loadConfig() ?? {};
+let cached: Gen2EConfig | undefined;
 
-export default { ...loaded, vars: { ...loaded.vars, ...envVars() } } satisfies Gen2EConfig;
+// Loaded on first use: a config file that imports gen2e would otherwise see this module half-initialized.
+export const config = (): Gen2EConfig => {
+  if (!cached) {
+    const loaded = loadConfig() ?? {};
+    cached = { ...loaded, vars: { ...loaded.vars, ...envVars() } };
+    setStaticBasePath(cached.staticStorePath);
+  }
+  return cached;
+};

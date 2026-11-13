@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFile, writeFile } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { staticBasePath } from "../static";
+import { staticBasePath } from "@rhighs/gen2e-store";
 import type { IOWriter, StaticData } from "./interface";
 
 const filesDir = (): string => path.join(staticBasePath(), "data");

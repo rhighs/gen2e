@@ -1,11 +1,11 @@
 import path from "node:path";
 import { defineConfig } from "@playwright/test";
-import cfg from "../config";
+import { config } from "../config";
 import { readPlan } from "./plan";
 
 const root = process.cwd();
 const plan = readPlan();
-const pw = cfg.playwright ?? {};
+const pw = config().playwright ?? {};
 const exact = (f: string) => new RegExp(`^${f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
 const servers = pw.webServer ? [pw.webServer].flat() : [];
 

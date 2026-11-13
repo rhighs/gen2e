@@ -4,7 +4,7 @@ import path from "node:path";
 import { chromium } from "@playwright/test";
 import type { StaticGenStep } from "@rhighs/gen2e-core";
 import { FSStaticStore } from "@rhighs/gen2e-store";
-import cfg from "./config";
+import { config } from "./config";
 import { bindAI } from "./gen";
 import { type PlainStep, parsePlain, plainTitle, runPlainStep, stepTask } from "./runner/plain";
 import { PLAN_ENV, type RunPlan } from "./runner/plan";
@@ -79,7 +79,7 @@ const isPlain = (f: string) => f.endsWith(".gen2e");
 const discover = (paths: string[]): RunPlan => {
   const root = process.cwd();
   const found = new Set<string>();
-  for (const pattern of cfg.tests ?? DEFAULT_TESTS) {
+  for (const pattern of config().tests ?? DEFAULT_TESTS) {
     for (const f of new Bun.Glob(pattern).scanSync({ cwd: root, absolute: true })) {
       if (!f.split(path.sep).includes("node_modules")) {
         found.add(f);
@@ -131,7 +131,7 @@ const run = (argv: string[]) => {
   const args = parseArgs(argv, ["--var"]);
   const plan = discover(args.paths);
   if (!plan.plain.length && !plan.specs.length) {
-    fail(`no tests found (looked for ${(cfg.tests ?? DEFAULT_TESTS).join(", ")})`);
+    fail(`no tests found (looked for ${(config().tests ?? DEFAULT_TESTS).join(", ")})`);
   }
 
   ensureChromium();
@@ -140,9 +140,9 @@ const run = (argv: string[]) => {
     ...JSON.parse(process.env.GEN2E_VARS ?? "{}"),
     ...parseVars(args.flags["--var"]),
   };
-  const config = path.join(import.meta.dir, "runner", "playwright.config.ts");
+  const pwConfig = path.join(import.meta.dir, "runner", "playwright.config.ts");
   const res = Bun.spawnSync(
-    [process.execPath, "--bun", playwrightCli(), "test", "-c", config, ...args.rest],
+    [process.execPath, "--bun", playwrightCli(), "test", "-c", pwConfig, ...args.rest],
     {
       stdio: ["inherit", "inherit", "inherit"],
       env: { ...process.env, [PLAN_ENV]: JSON.stringify(plan), GEN2E_VARS: JSON.stringify(vars) },
@@ -162,7 +162,7 @@ const record = async (argv: string[]) => {
 
   const title = plainTitle(file);
   const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage({ baseURL: cfg.playwright?.use?.baseURL });
+  const page = await browser.newPage({ baseURL: config().playwright?.use?.baseURL });
   const ai = bindAI(page, { title });
 
   const runStep = async (step: PlainStep, echo = true): Promise<boolean> => {
@@ -170,7 +170,7 @@ const record = async (argv: string[]) => {
       console.log(`> ${step.text}`);
     }
     try {
-      await runPlainStep(step, page, ai, cfg.vars);
+      await runPlainStep(step, page, ai, config().vars);
       return true;
     } catch (err) {
       console.error(`  failed: ${err instanceof Error ? err.message : String(err)}`);

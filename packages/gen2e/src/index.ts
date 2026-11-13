@@ -13,11 +13,21 @@ export {
   type StaticStore,
   wrapIdent,
 } from "@rhighs/gen2e-core";
+export { defineConfig } from "./config";
 export * from "./errors";
 export { expect, test } from "./fixture";
 export * from "./gen";
 export { GEN2E_PROMPT_VERSION } from "./playwright-gen";
-export * from "./static/store/fs";
+export {
+  type BundleableStaticStore,
+  type BundleEntry,
+  exportStoreToDir,
+  FSStaticStore,
+  InMemoryStaticStore,
+  importDirIntoStore,
+  preload,
+  type StaticStoreBundle,
+} from "@rhighs/gen2e-store";
 export type { Gen2EStepTelemetry } from "./telemetry";
 export type * from "./types";
 

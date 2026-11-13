@@ -15,7 +15,7 @@ import { type Gen2ELLMAgentModel, type Gen2ELLMAgentUsageStats, modelId } from "
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 import { FSStaticStore } from "@rhighs/gen2e-store";
 import { z } from "zod";
-import globalConfig from "./config";
+import { config } from "./config";
 import env from "./env";
 import { Gen2EAssertionError, Gen2EGenError } from "./errors";
 import { FSWriter } from "./io";
@@ -348,6 +348,7 @@ const step = async (
 };
 
 const resolveLadder = (ladder: Gen2EGenOptions["ladder"]): Gen2ELadderOptions | undefined => {
+  const globalConfig = config();
   const configuredCheapModel =
     globalConfig.cheapModel ??
     (env.CHEAP_MODEL && env.CHEAP_MODEL.trim() !== "" ? env.CHEAP_MODEL : undefined);
@@ -396,22 +397,25 @@ const mergeVars = (...all: (Gen2EVars | undefined)[]): Gen2EVars | undefined => 
   return Object.keys(vars).length ? vars : undefined;
 };
 
-const stepOptions = (options: Gen2EGenOptions | undefined): Gen2EStepOptions => ({
-  debug: options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE,
-  model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
-  openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
-  baseURL: options?.baseURL ?? globalConfig.baseURL ?? env.BASE_URL,
-  policies: {
-    maxRetries: options?.policies?.maxRetries ?? globalConfig.policies?.maxRetries ?? 3,
-    screenshot: options?.policies?.screenshot ?? globalConfig.policies?.screenshot ?? "model",
-    visualDebugLevel:
-      options?.policies?.visualDebugLevel ?? globalConfig.policies?.visualDebugLevel ?? "medium",
-  },
-  saveContext: options?.saveContext ?? false,
-  replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
-  ladder: resolveLadder(options?.ladder),
-  vars: mergeVars(globalConfig.vars, options?.vars),
-});
+const stepOptions = (options: Gen2EGenOptions | undefined): Gen2EStepOptions => {
+  const globalConfig = config();
+  return {
+    debug: options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE,
+    model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
+    openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
+    baseURL: options?.baseURL ?? globalConfig.baseURL ?? env.BASE_URL,
+    policies: {
+      maxRetries: options?.policies?.maxRetries ?? globalConfig.policies?.maxRetries ?? 3,
+      screenshot: options?.policies?.screenshot ?? globalConfig.policies?.screenshot ?? "model",
+      visualDebugLevel:
+        options?.policies?.visualDebugLevel ?? globalConfig.policies?.visualDebugLevel ?? "medium",
+    },
+    saveContext: options?.saveContext ?? false,
+    replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
+    ladder: resolveLadder(options?.ladder),
+    vars: mergeVars(globalConfig.vars, options?.vars),
+  };
+};
 
 const activeStore = (ctx: Gen2EGenContext, store: StaticStore | null | undefined) =>
   store === null || !ctx.useStatic || !env.USE_STATIC_STORE ? null : (store ?? FSStaticStore);

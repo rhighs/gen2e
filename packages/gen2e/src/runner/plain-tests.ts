@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { test } from "@playwright/test";
-import cfg from "../config";
+import { config } from "../config";
 import { bindAI } from "../gen";
 import type { Page } from "../types";
 import { parsePlain, plainTitle, runPlainStep } from "./plain";
@@ -26,7 +26,7 @@ for (const file of readPlan().plain) {
   declareIn(file)(test, title, async ({ page }) => {
     const ai = bindAI(page, { title });
     for (const step of steps) {
-      await test.step(step.text, () => runPlainStep(step, page, ai, cfg.vars), {
+      await test.step(step.text, () => runPlainStep(step, page, ai, config().vars), {
         box: true,
         location: { file, line: step.line, column: 1 },
       });

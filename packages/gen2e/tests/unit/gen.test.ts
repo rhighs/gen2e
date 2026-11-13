@@ -38,7 +38,7 @@ mock.module("../../src/env", () => ({
 }));
 
 mock.module("../../src/config", () => ({
-  default: { ladder: false },
+  config: () => ({ ladder: false }),
 }));
 
 const mockGetSnapshot = getSnapshot as jest.Mock<typeof getSnapshot>;
