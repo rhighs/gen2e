@@ -34,7 +34,7 @@ export type Gen2EInterpreterSandboxEvalResult =
   | { type: "error"; reason: string };
 
 export class RecordingInterpreter {
-  private events: Record<Gen2EInterpreterEvent, Gen2EInterpreterEventCallback> | {} = {};
+  private events: Partial<Record<Gen2EInterpreterEvent, Gen2EInterpreterEventCallback>> = {};
   private options: Gen2EInterpreterOptions = {};
   private agent: Gen2ELLMCodeGenAgent;
   private mode: Gen2EInterpreterMode = "gen2e";
@@ -154,9 +154,7 @@ export class RecordingInterpreter {
   }
 
   private _call_event(e: Gen2EInterpreterEvent, ...args: any[]): void {
-    if (e in this.events) {
-      this.events[e](...args);
-    }
+    this.events[e]?.(...args);
   }
 
   private async gen2e(task: string, codeContext?: string): Promise<string | undefined> {

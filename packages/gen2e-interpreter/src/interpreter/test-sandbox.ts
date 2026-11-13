@@ -102,7 +102,7 @@ export const sandboxEval = async (
     );
   };
 
-  _test.step = async (stepTitle, step: (...args: any[]) => Promise<any> | any) => {
+  _test.step = async (stepTitle: string, step: (...args: any[]) => Promise<any> | any) => {
     if (env.SANDBOX_DEBUG) {
       logger.debug('calling test step for task: "', stepTitle, '"');
     }

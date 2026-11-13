@@ -63,16 +63,19 @@ describe("gen function", () => {
   const mockPage = {
     url: () => "https://example.com",
   } as Page;
-  const staticStore = {};
+  const staticStore: Record<string, StaticGenStep> = {};
   const mockStaticStore: StaticStore = {
     makeIdent: jest.fn((_title, task) => task),
     fetchStatic: (ident) => staticStore[ident],
     makeStatic: (ident: string, content: StaticGenStep): void => {
-      staticStore[ident] = content.expression;
+      staticStore[ident] = content;
     },
   };
 
   beforeEach(() => {
+    for (const k of Object.keys(staticStore)) {
+      delete staticStore[k];
+    }
     jest.clearAllMocks();
     mockGetSnapshot.mockReset();
     mockGetSnapshot.mockResolvedValue({ dom: "<html></html>" });
@@ -110,12 +113,12 @@ describe("gen function", () => {
 
   test("should execute static code if available", async () => {
     const evalCode = jest.fn().mockResolvedValue(undefined);
-    staticStore["task 1"] = codeSample;
+    staticStore["task 1"] = { expression: codeSample };
 
     await gen("task 1", { page: mockPage }, {}, { store: mockStaticStore }, evalCode);
 
     expect(evalCode).toHaveBeenCalledWith(codeSample, mockPage);
-    delete staticStore["task 1"];
+    expect(mockGeneratePlaywrightCode).not.toHaveBeenCalled();
   });
 
   test("should generate new code if static code is not available", async () => {

@@ -99,7 +99,9 @@ function makeTools(
 This function returns the list of page objects without the one you have deleted. You can delete multiple page objects at time.`,
     function: async (params: any): Promise<string> => {
       logger.debug("deleting page objects", params.pageObjects);
-      await Promise.all(params.pageObjects.map(({ filepath }) => api.rm(filepath)));
+      await Promise.all(
+        params.pageObjects.map(({ filepath }: { filepath: string }) => api.rm(filepath)),
+      );
       pageObjects = await api.list();
       const result = pageObjects.map(({ filename, objects, ..._rest }) => ({
         filename,

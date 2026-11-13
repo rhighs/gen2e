@@ -117,7 +117,10 @@ NOTE: code that depends on anything besides \`page\` and '\test' and 'gen' shoul
         await evalGen2EExpression(result.result, gen, this.page!);
       }
     } catch (error) {
-      this.logger.error("calling generateGen2EExpr(...) gave", error.message);
+      this.logger.error(
+        "calling generateGen2EExpr(...) gave",
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 }

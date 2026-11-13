@@ -31,7 +31,7 @@ export const evalGen2EExpression = async (
     }
   } catch (error) {
     if (EVALERR_DBG) {
-      _logger.error("eval() error", error.message, error.stack);
+      _logger.error("eval() error", error);
     }
   }
 };

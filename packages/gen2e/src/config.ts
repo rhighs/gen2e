@@ -1,8 +1,15 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
-import type { Gen2EConfig, Gen2EGenPolicies } from "./types";
+import type { Gen2EConfig, Gen2EScreenshotUsagePolicy, Gen2EVisualDebugLevel } from "./types";
+
+const SCREENSHOT_POLICIES: readonly Gen2EScreenshotUsagePolicy[] = [
+  "force",
+  "model",
+  "onfail",
+  "off",
+];
+const VISUAL_DEBUG_LEVELS: readonly Gen2EVisualDebugLevel[] = ["none", "medium", "high"];
 
 const configPath = (configname = "gen2e.config") =>
   ["ts", "js", "cjs", "mjs"]
@@ -16,9 +23,10 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
     return undefined;
   }
 
-  let exportedConfig = {};
+  let exportedConfig: Record<string, unknown> = {};
   try {
-    exportedConfig = require(filepath).default;
+    const mod: unknown = require(filepath).default;
+    exportedConfig = mod && typeof mod === "object" ? (mod as Record<string, unknown>) : {};
   } catch (error) {
     if (logger) {
       logger.error("loading config module error", error);
@@ -26,38 +34,48 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
     }
   }
 
-  const unwrapAs = (
-    prop: string,
-    typename: "boolean" | "string" | "undefined" | "object" | "function" | "number" = "string",
-    obj: object = exportedConfig,
-  ) => (obj ? (typeof obj[prop] === typename ? obj[prop] : undefined) : undefined);
-
-  // A model is the id served by the configured OpenAI-compatible endpoint.
-  const unwrapModel = (): Gen2ELLMAgentModel | undefined => {
-    const model = exportedConfig ? (exportedConfig as { model?: unknown }).model : undefined;
-    if (typeof model === "string") {
-      return model;
-    }
-    return undefined;
+  const str = (o: Record<string, unknown>, k: string): string | undefined => {
+    const v = o[k];
+    return typeof v === "string" ? v : undefined;
   };
 
+  const bool = (o: Record<string, unknown>, k: string): boolean | undefined => {
+    const v = o[k];
+    return typeof v === "boolean" ? v : undefined;
+  };
+
+  const num = (o: Record<string, unknown>, k: string): number | undefined => {
+    const v = o[k];
+    return typeof v === "number" ? v : undefined;
+  };
+
+  const oneOf = <T extends string>(
+    o: Record<string, unknown>,
+    k: string,
+    allowed: readonly T[],
+  ) => {
+    const v = o[k];
+    return allowed.find((a) => a === v);
+  };
+
+  const rawPolicies = exportedConfig.policies;
+  const policies: Record<string, unknown> =
+    rawPolicies && typeof rawPolicies === "object" ? (rawPolicies as Record<string, unknown>) : {};
+
   return {
-    debug: unwrapAs("debug", "boolean"),
-    openaiApiKey: unwrapAs("openaiApiKey"),
-    baseURL: unwrapAs("baseURL"),
-    model: unwrapModel(),
-    staticStorePath: unwrapAs("staticStorePath"),
-    policies: ((): Gen2EGenPolicies => {
-      const obj = unwrapAs("policies", "object");
-      return {
-        maxRetries: unwrapAs("maxRetries", "number", obj),
-        screenshot: unwrapAs("screenshot", "string", obj),
-        visualDebugLevel: unwrapAs("visualDebugLevel", "string", obj),
-      };
-    })(),
-    replayOnly: unwrapAs("replayOnly", "boolean"),
-    cheapModel: unwrapAs("cheapModel"),
-    ladder: unwrapAs("ladder", "boolean"),
+    debug: bool(exportedConfig, "debug"),
+    openaiApiKey: str(exportedConfig, "openaiApiKey"),
+    baseURL: str(exportedConfig, "baseURL"),
+    model: str(exportedConfig, "model"),
+    staticStorePath: str(exportedConfig, "staticStorePath"),
+    policies: {
+      maxRetries: num(policies, "maxRetries"),
+      screenshot: oneOf(policies, "screenshot", SCREENSHOT_POLICIES),
+      visualDebugLevel: oneOf(policies, "visualDebugLevel", VISUAL_DEBUG_LEVELS),
+    },
+    replayOnly: bool(exportedConfig, "replayOnly"),
+    cheapModel: str(exportedConfig, "cheapModel"),
+    ladder: bool(exportedConfig, "ladder"),
   };
 }
 

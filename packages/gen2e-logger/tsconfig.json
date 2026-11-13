@@ -8,10 +8,11 @@
     "noEmit": true,
     "noImplicitReturns": true,
     "noUnusedParameters": false,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
     "strict": true,
     "target": "ES2022",
-    "useUnknownInCatchVariables": false,
+    "useUnknownInCatchVariables": true,
     "skipLibCheck": true,
     "types": ["node", "bun"]
   },

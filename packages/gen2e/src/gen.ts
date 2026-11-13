@@ -278,7 +278,7 @@ const evalLoop = async (
       };
     } catch (error) {
       attempts.push(expression);
-      errors.push(error);
+      errors.push(error instanceof Error ? error : new Error(String(error)));
 
       // The eval may have moved the DOM. Re-capture only when it did, or when
       // the screenshot policy now needs an image the current capture lacks.
