@@ -13,12 +13,12 @@ describe("evalGen2EExpression", () => {
     expect(gen).toHaveBeenCalledWith("task", { page });
   });
 
-  test("swallows errors thrown by the expression", async () => {
+  test("rejects with the error thrown by the expression", async () => {
     const gen = jest.fn().mockResolvedValue(undefined);
 
     await expect(
       evalGen2EExpression("await gen('task', { page }); throw new Error('x');", gen, page),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow("x");
   });
 
   test("does nothing without a page", async () => {
