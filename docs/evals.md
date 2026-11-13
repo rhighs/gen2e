@@ -7,7 +7,7 @@ The repo includes an eval harness. It measures how well gen2e generates steps fo
 ```bash
 export OPENAI_API_KEY="..."
 export GEN2E_EVAL_MODEL="gpt-4o-mini"
-npm run eval
+bun run eval
 ```
 
 Model mode generates each step with the model you pinned. Each repetition writes to its own cache (`.static-eval/<runId>`, or `rep-<n>` when `EVAL_RUNS > 1`) and to a JSONL telemetry file. At the end it prints a table and writes `eval-report.json`.
@@ -26,7 +26,7 @@ The run exits non-zero in two cases: a task's pass@1 is below `EVAL_MIN_PASS`, o
 ## Replay mode
 
 ```bash
-EVAL_STATIC_PATH=.static-eval/<runId> npm run eval:replay
+EVAL_STATIC_PATH=.static-eval/<runId> bun run eval:replay
 ```
 
 Replay mode never calls a model. It counts cache hits and misses. If a cached entry fails when it runs, replay mode quarantines it and the run exits non-zero. An empty cache gives an all-misses report and exits 0.

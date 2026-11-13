@@ -1,6 +1,7 @@
+import { beforeEach, describe, expect, it, jest, mock } from "bun:test";
 import { type Gen2ELoggerArgsFmt, type Gen2ELoggerRuntimeCallInfo, makeLogger } from "../../src";
 
-jest.mock("../../src/callstack", () => ({
+mock.module("../../src/callstack", () => ({
   runtimeExecutionInfo: (_depth: number): Gen2ELoggerRuntimeCallInfo => ({
     funcName: "testFunc",
     filepath: "/path/to/file.ts",

@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import {
   Gen2EGenError,
   type Gen2EGenOptions,
@@ -9,36 +10,38 @@ import {
 import { createPlaywrightCodeGenAgent, generatePlaywrightCode } from "../../src/playwright-gen";
 import { getDomRevision, getSnapshot } from "../../src/snapshot";
 
-jest.mock("../../src/snapshot", () => ({
+mock.module("../../src/snapshot", () => ({
   getSnapshot: jest.fn().mockReturnValue({ dom: "<html><!-- mock dom --></html>" }),
   getDomRevision: jest.fn().mockReturnValue({ navigations: 0, mutations: 0 }),
   installDomRevisionTracker: jest.fn(),
 }));
 
-jest.mock("../../src/playwright-gen", () => ({
+mock.module("../../src/playwright-gen", () => ({
   createPlaywrightCodeGenAgent: jest.fn(),
   generatePlaywrightCode: jest.fn(),
   GEN2E_PROMPT_VERSION: "test-prompt-version",
 }));
 
-jest.mock("../../src/env", () => ({
-  OPENAI_MODEL: "davinci",
-  DEBUG_MODE: false,
-  LOG_STEP: false,
-  USE_STATIC_STORE: true,
-  REPLAY_ONLY: false,
-  STALE_CACHE: "regen",
-  CHEAP_MODEL: "",
+mock.module("../../src/env", () => ({
+  default: {
+    OPENAI_MODEL: "davinci",
+    DEBUG_MODE: false,
+    LOG_STEP: false,
+    USE_STATIC_STORE: true,
+    REPLAY_ONLY: false,
+    STALE_CACHE: "regen",
+    CHEAP_MODEL: "",
+  },
 }));
 
-const mockCreatePlaywrightCodeGenAgent = createPlaywrightCodeGenAgent as jest.MockedFunction<
+const mockCreatePlaywrightCodeGenAgent = createPlaywrightCodeGenAgent as jest.Mock<
   typeof createPlaywrightCodeGenAgent
 >;
-const mockGeneratePlaywrightCode = generatePlaywrightCode as jest.MockedFunction<
+const mockGeneratePlaywrightCode = generatePlaywrightCode as jest.Mock<
   typeof generatePlaywrightCode
 >;
-const mockGetSnapshot = getSnapshot as jest.MockedFunction<typeof getSnapshot>;
-const mockGetDomRevision = getDomRevision as jest.MockedFunction<typeof getDomRevision>;
+const mockGetSnapshot = getSnapshot as jest.Mock<typeof getSnapshot>;
+const mockGetDomRevision = getDomRevision as jest.Mock<typeof getDomRevision>;
 
 const codeSample = '(async () => {return async () => (await page.goto("https://example.com"));})';
 const mockPage = {

@@ -1,7 +1,9 @@
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { APIRequestContext, BrowserContext } from "@playwright/test";
+import { wrapIdent } from "@rhighs/gen2e-core";
 import {
   FSStaticStore,
   Gen2EGenError,
@@ -15,45 +17,46 @@ import {
 import env from "../../src/env";
 import { createPlaywrightCodeGenAgent, generatePlaywrightCode } from "../../src/playwright-gen";
 import { getDomRevision, getSnapshot } from "../../src/snapshot";
-import { wrapIdent } from "../../src/static/ident";
 
-jest.mock("../../src/snapshot", () => ({
+mock.module("../../src/snapshot", () => ({
   getSnapshot: jest.fn().mockReturnValue({ dom: "<html><!-- mock dom --></html>" }),
   getDomRevision: jest.fn().mockReturnValue({ navigations: 0, mutations: 0 }),
   installDomRevisionTracker: jest.fn(),
 }));
 
-jest.mock("../../src/playwright-gen", () => ({
+mock.module("../../src/playwright-gen", () => ({
   createPlaywrightCodeGenAgent: jest.fn(),
   generatePlaywrightCode: jest.fn(),
   GEN2E_PROMPT_VERSION: "test-prompt-version",
 }));
 
-jest.mock("../../src/env", () => ({
-  OPENAI_MODEL: "davinci",
-  DEBUG_MODE: false,
-  LOG_STEP: false,
-  USE_STATIC_STORE: true,
-  REPLAY_ONLY: false,
-  STALE_CACHE: "regen",
-  CHEAP_MODEL: "",
+mock.module("../../src/env", () => ({
+  default: {
+    OPENAI_MODEL: "davinci",
+    DEBUG_MODE: false,
+    LOG_STEP: false,
+    USE_STATIC_STORE: true,
+    REPLAY_ONLY: false,
+    STALE_CACHE: "regen",
+    CHEAP_MODEL: "",
+  },
 }));
 
 // The config file disables the ladder by default; individual tests opt in
 // through the `ladder` option or `env.CHEAP_MODEL`.
-jest.mock("../../src/config", () => ({
+mock.module("../../src/config", () => ({
   __esModule: true,
   default: { ladder: false },
 }));
 
-const mockCreatePlaywrightCodeGenAgent = createPlaywrightCodeGenAgent as jest.MockedFunction<
+const mockCreatePlaywrightCodeGenAgent = createPlaywrightCodeGenAgent as jest.Mock<
   typeof createPlaywrightCodeGenAgent
 >;
-const mockGeneratePlaywrightCode = generatePlaywrightCode as jest.MockedFunction<
+const mockGeneratePlaywrightCode = generatePlaywrightCode as jest.Mock<
   typeof generatePlaywrightCode
 >;
-const mockGetSnapshot = getSnapshot as jest.MockedFunction<typeof getSnapshot>;
-const mockGetDomRevision = getDomRevision as jest.MockedFunction<typeof getDomRevision>;
+const mockGetSnapshot = getSnapshot as jest.Mock<typeof getSnapshot>;
+const mockGetDomRevision = getDomRevision as jest.Mock<typeof getDomRevision>;
 
 describe("gen function", () => {
   const codeSample = '(async () => {return async () => (await page.goto("https://example.com"));})';
@@ -94,14 +97,14 @@ describe("gen function", () => {
     expect(mockCreatePlaywrightCodeGenAgent).toHaveBeenCalledWith(
       env.OPENAI_MODEL,
       expect.objectContaining({ promptVersion: "test-prompt-version" }),
-      {
+      expect.objectContaining({
         fmt: expect.any(Function),
         sinks: expect.any(Object),
         info: expect.any(Function),
         warn: expect.any(Function),
         debug: expect.any(Function),
         error: expect.any(Function),
-      },
+      }),
     );
   });
 

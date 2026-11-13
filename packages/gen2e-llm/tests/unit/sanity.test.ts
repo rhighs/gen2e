@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, jest, mock } from "bun:test";
 import * as esprima from "esprima";
 import { sanitizeCodeOutput, validateJSCode, validateJSONString } from "../../src";
 
@@ -40,7 +41,7 @@ describe("sanitizeCodeOutput", () => {
   });
 });
 
-jest.mock("esprima", () => ({
+mock.module("esprima", () => ({
   parseScript: jest.fn(),
 }));
 

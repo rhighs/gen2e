@@ -1,3 +1,4 @@
+import { describe, expect, test } from "bun:test";
 import { isModelSupported, isRetryableModelError, modelId, modelSupportsImage } from "../../src";
 
 describe("model helpers", () => {

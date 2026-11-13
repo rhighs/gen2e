@@ -14,7 +14,7 @@ export default defineConfig({
   },
   webServer: {
     url: "http://127.0.0.1:9999",
-    command: "npm run test-server",
+    command: "bun run test-server",
     ignoreHTTPSErrors: true,
     reuseExistingServer: !process.env.CI,
     stdout: "ignore",

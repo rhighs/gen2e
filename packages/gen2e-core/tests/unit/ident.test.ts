@@ -1,4 +1,5 @@
-import { defaultMakeIdent, hashBasedIdent } from "../../../src/static/ident";
+import { describe, expect, test } from "bun:test";
+import { defaultMakeIdent, hashBasedIdent } from "../../src/ident";
 
 describe("hashBasedIdent", () => {
   const testTitle = "executes query";

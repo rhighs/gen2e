@@ -1,58 +1,36 @@
-import fs from "node:fs";
-import Jimp from "jimp";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { Jimp } from "jimp";
 import { loadImageWithLabel } from "../../src/image";
 
-jest.mock("node:fs", () => ({
-  promises: {
-    readFile: jest.fn(),
-  },
-}));
-
-jest.mock("jimp", () => ({
-  read: jest.fn(),
-  loadFont: jest.fn(),
-  FONT_SANS_32_BLACK: "path/to/font",
-  MIME_JPEG: "image/jpeg",
-}));
-
 describe("loadImageWithLabel", () => {
-  const mockedReadFile = fs.promises.readFile as jest.MockedFunction<typeof fs.promises.readFile>;
-  const mockedJimpRead = Jimp.read as jest.MockedFunction<typeof Jimp.read>;
-  const mockedJimpLoadFont = Jimp.loadFont as jest.MockedFunction<typeof Jimp.loadFont>;
+  let dir: string;
 
-  it("should load an image, label it, and return a buffer", async () => {
-    const sampleImagePath = "path/to/sample.jpg";
-    const sampleLabel = "Sample Label";
-    const sampleImageBuffer = Buffer.from("sample image buffer");
-
-    mockedReadFile.mockResolvedValue(sampleImageBuffer);
-
-    const mockJimpInstance = {
-      print: jest.fn().mockReturnThis(),
-      getBufferAsync: jest.fn().mockResolvedValue(sampleImageBuffer),
-    };
-    mockedJimpRead.mockResolvedValue(mockJimpInstance as any);
-
-    mockedJimpLoadFont.mockResolvedValue("mocked-font" as any);
-
-    const result = await loadImageWithLabel(sampleImagePath, sampleLabel);
-
-    expect(mockedReadFile).toHaveBeenCalledWith(sampleImagePath);
-    expect(mockedJimpRead).toHaveBeenCalledWith(sampleImageBuffer);
-    expect(mockedJimpLoadFont).toHaveBeenCalledWith(Jimp.FONT_SANS_32_BLACK);
-    expect(mockJimpInstance.print).toHaveBeenCalledWith("mocked-font", 10, 10, sampleLabel);
-    expect(mockJimpInstance.getBufferAsync).toHaveBeenCalledWith(Jimp.MIME_JPEG);
-    expect(result).toBe(sampleImageBuffer);
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(tmpdir(), "gen2e-po-image-"));
   });
 
-  it("should throw an error if readFile fails", async () => {
-    const sampleImagePath = "path/to/sample.jpg";
-    const sampleLabel = "Sample Label";
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
 
-    mockedReadFile.mockRejectedValue(new Error("File not found"));
+  test("returns a jpeg of the same size with the label drawn on it", async () => {
+    const src = path.join(dir, "page.png");
+    const blank = new Jimp({ width: 320, height: 120, color: 0xffffffff });
+    writeFileSync(src, await blank.getBuffer("image/png"));
 
-    await expect(loadImageWithLabel(sampleImagePath, sampleLabel)).rejects.toThrow(
-      "File not found",
-    );
+    const out = await Jimp.read(await loadImageWithLabel(src, "Starting page"));
+
+    expect(out.mime).toBe("image/jpeg");
+    expect(out.width).toBe(320);
+    expect(out.height).toBe(120);
+    expect(out.getPixelColor(0, 0)).toBeGreaterThan(0xf0f0f0ff);
+    expect(Array.from(out.bitmap.data).some((v) => v < 128)).toBe(true);
+  });
+
+  test("rejects when the file does not exist", async () => {
+    await expect(loadImageWithLabel(path.join(dir, "missing.png"), "x")).rejects.toThrow("ENOENT");
   });
 });

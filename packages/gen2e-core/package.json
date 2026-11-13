@@ -14,15 +14,15 @@
   "homepage": "https://github.com/rhighs/gen2e/tree/master/packages/gen2e-core#readme",
   "bugs": "https://github.com/rhighs/gen2e/issues",
   "main": "dist/index.js",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "devDependencies": {
     "@types/node": "^20.19.43",
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json"
+    "build": "tsc --project tsconfig.build.json",
+    "test": "bun test --isolate --preload ../../test-setup.ts tests/unit",
+    "typecheck": "tsc --noEmit",
+    "release": "bun publish --access public --tolerate-republish"
   },
   "keywords": [
     "gen2e",
@@ -30,5 +30,8 @@
     "cache"
   ],
   "author": "Roberto Montalti",
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
 }

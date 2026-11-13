@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { StaticStore } from "@rhighs/gen2e";
 import { pwCompile } from "../../../src";
 

@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { createCodeGenAgent, type Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import {
   createGen2ECodeGenAgent,
@@ -5,12 +6,12 @@ import {
   generateGen2ECode,
 } from "../../../src";
 
-jest.mock("@rhighs/gen2e-llm", () => ({
+mock.module("@rhighs/gen2e-llm", () => ({
   createCodeGenAgent: jest.fn(),
 }));
 
 const mockAgent = jest.fn();
-const mockCreateCodeGenAgent = createCodeGenAgent as jest.MockedFunction<typeof createCodeGenAgent>;
+const mockCreateCodeGenAgent = createCodeGenAgent as jest.Mock<typeof createCodeGenAgent>;
 
 describe("Gen2E Code Generation", () => {
   beforeEach(() => {

@@ -17,24 +17,24 @@
   "bin": {
     "gen2e-cli": "bin/gen2e-cli.js"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "dependencies": {
     "@playwright/test": "^1.44.0",
-    "@rhighs/gen2e-interpreter": "^1.1.9",
-    "@rhighs/gen2e-logger": "^1.0.3",
-    "@rhighs/gen2e-po": "^1.0.5",
+    "@rhighs/gen2e": "workspace:^",
+    "@rhighs/gen2e-interpreter": "workspace:^",
+    "@rhighs/gen2e-llm": "workspace:^",
+    "@rhighs/gen2e-logger": "workspace:^",
+    "@rhighs/gen2e-po": "workspace:^",
     "commander": "^12.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
-    "tsx": "^3.12.7",
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "start": "tsx ./src/index.ts",
-    "build": "tsc --project tsconfig.build.json"
+    "start": "bun ./src/index.ts",
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "release": "bun publish --access public --tolerate-republish"
   },
   "keywords": [
     "ai",
@@ -44,5 +44,8 @@
     "e2e"
   ],
   "author": "Roberto Montalti",
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
 }

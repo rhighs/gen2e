@@ -1,3 +1,4 @@
+import { describe, expect, jest, test } from "bun:test";
 import type { Page } from "@playwright/test";
 import { getDomRevision, getSnapshot, installDomRevisionTracker } from "../../src/snapshot";
 

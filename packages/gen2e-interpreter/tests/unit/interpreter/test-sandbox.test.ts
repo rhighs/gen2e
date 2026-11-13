@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import type {
   GenType,
   Page,
@@ -7,11 +8,11 @@ import type {
 } from "@rhighs/gen2e";
 import { gen2eSanitize, sandboxEval } from "../../../src";
 
-jest.mock("../../../src/ast/gen2e-sanitize", () => ({
+mock.module("../../../src/ast/gen2e-sanitize", () => ({
   gen2eSanitize: jest.fn().mockImplementation((source) => source),
 }));
 
-jest.mock("../../../src/env", () => ({
+mock.module("../../../src/env", () => ({
   SANDBOX_DEBUG: false,
 }));
 

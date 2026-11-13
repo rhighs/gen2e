@@ -1,17 +1,10 @@
-import fs from "node:fs";
-import Jimp from "jimp";
-
-const { readFile } = fs.promises;
+import { readFile } from "node:fs/promises";
+import { Jimp, loadFont } from "jimp";
+import { SANS_32_BLACK } from "jimp/fonts";
 
 export const loadImageWithLabel = async (path: string, label: string): Promise<Buffer> => {
-  const labelImage = async (label: string, image: Buffer): Promise<Buffer> => {
-    const jimage = await Jimp.read(image);
-    const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK);
-    jimage.print(font, 10, 10, label);
-    const buffer = await jimage.getBufferAsync(Jimp.MIME_JPEG);
-    return buffer;
-  };
-
-  const buffer = await readFile(path);
-  return labelImage(label, buffer);
+  const image = await Jimp.read(await readFile(path));
+  const font = await loadFont(SANS_32_BLACK);
+  image.print({ font, x: 10, y: 10, text: label });
+  return image.getBuffer("image/jpeg");
 };

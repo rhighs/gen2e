@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { encoding_for_model, type TiktokenModel } from "tiktoken";
 import {
   _MARGIN,
@@ -7,7 +8,7 @@ import {
   maxCharactersApprox,
 } from "../../../src/runner";
 
-jest.mock("tiktoken", () => ({
+mock.module("tiktoken", () => ({
   encoding_for_model: jest.fn(),
 }));
 

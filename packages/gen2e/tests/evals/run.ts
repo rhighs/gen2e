@@ -10,8 +10,8 @@
  * whose cached expression fails at evaluation time.
  *
  * Run from the repository root:
- *   npm run eval            # model mode
- *   npm run eval:replay     # replay mode
+ *   bun run eval            # model mode
+ *   bun run eval:replay     # replay mode
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -167,15 +167,14 @@ const FIXTURE_PORT = 9999;
 const DEFAULT_CORPUS = path.resolve(__dirname, "corpus.json");
 const PACKAGE_DIR = path.resolve(__dirname, "..", "..");
 const SERVER_SCRIPT = path.resolve(__dirname, "..", "bin", "start-test-server.ts");
-const REPO_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
 const TASK_KINDS = new Set<string>(["query", "action", "assertion", "multi-step"]);
 const SCREENSHOT_POLICIES: Gen2EScreenshotUsagePolicy[] = ["force", "model", "onfail", "off"];
 
 const USAGE = `gen2e eval harness
 
 Usage:
-  npm run eval [-- <flags>]          model mode (requires GEN2E_EVAL_MODEL and OPENAI_API_KEY)
-  npm run eval:replay [-- <flags>]   replay mode (no API key, never generates)
+  bun run eval [-- <flags>]          model mode (requires GEN2E_EVAL_MODEL and OPENAI_API_KEY)
+  bun run eval:replay [-- <flags>]   replay mode (no API key, never generates)
 
 Flags:
   --replay                run in replay mode
@@ -510,14 +509,6 @@ const isFixtureReachable = async (url: string): Promise<boolean> => {
   }
 };
 
-const resolveTsxCli = (): string => {
-  try {
-    return require.resolve("tsx/cli");
-  } catch (_error) {
-    return path.join(REPO_ROOT, "node_modules", ".bin", "tsx");
-  }
-};
-
 /**
  * Starts the fixture app as a child process on its own port, or reuses an
  * already reachable instance. The returned `stop` is a no-op when reused.
@@ -528,7 +519,7 @@ const ensureFixtureServer = async (port: number): Promise<FixtureServer> => {
     return { baseUrl, stop: () => {} };
   }
 
-  const child = spawn(process.execPath, [resolveTsxCli(), SERVER_SCRIPT], {
+  const child = spawn(process.execPath, [SERVER_SCRIPT], {
     cwd: PACKAGE_DIR,
     env: { ...process.env },
     stdio: ["ignore", "pipe", "pipe"],
@@ -931,7 +922,7 @@ export const run = async (options: EvalRunOptions = {}): Promise<EvalReport> => 
   }
   if (mode === "model" && (process.env.OPENAI_API_KEY ?? "").trim() === "") {
     throw new Error(
-      "OPENAI_API_KEY is required in model mode; use `npm run eval:replay` to replay an existing cache without a key",
+      "OPENAI_API_KEY is required in model mode; use `bun run eval:replay` to replay an existing cache without a key",
     );
   }
   const model = pinnedModel !== "" ? pinnedModel : env.OPENAI_MODEL;

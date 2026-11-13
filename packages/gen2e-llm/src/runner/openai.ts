@@ -101,7 +101,7 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
 
       const finalContent = await runner.finalContent();
       const usage = await runner.totalUsage();
-      this.updateUsage({ ...usage });
+      this.updateUsage(usage);
 
       if (!finalContent) {
         return { type: "error", reason: "got empty final result" };
@@ -144,7 +144,11 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
     return task;
   }
 
-  private updateUsage(usage: { [key: string]: number }) {
+  private updateUsage(usage: {
+    completion_tokens: number;
+    prompt_tokens: number;
+    total_tokens: number;
+  }) {
     this.usage = {
       completionTokens: usage.completion_tokens,
       promptTokens: usage.prompt_tokens,

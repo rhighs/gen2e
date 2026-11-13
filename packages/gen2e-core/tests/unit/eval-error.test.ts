@@ -1,7 +1,8 @@
-import { classifyEvalError } from "../../src/eval-error";
+import { describe, expect, test } from "bun:test";
+import { classifyEvalError, type Gen2EEvalErrorClass } from "../../src/eval-error";
 
 describe("classifyEvalError", () => {
-  test.each([
+  test.each<[string, Gen2EEvalErrorClass]>([
     ["strict mode violation: locator('a') resolved to 2 elements", "locator-drift"],
     [
       "locator.click: Timeout 30000ms exceeded. Call log: - waiting for locator('button')",

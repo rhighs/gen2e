@@ -1,14 +1,8 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import {
-  Gen2ECacheMissError as Gen2eCacheMissError,
-  Gen2EError as Gen2eError,
-  FSStaticStore as Gen2eFSStaticStore,
-  type StaticStore as Gen2eStaticStore,
-} from "@rhighs/gen2e";
 import { wrapIdent } from "@rhighs/gen2e-core";
-import { runStoreContractTests } from "../../../gen2e/tests/support/store-contract";
 import {
   exportStoreToDir,
   FSStaticStore,
@@ -16,6 +10,7 @@ import {
   importDirIntoStore,
   STATIC_BUNDLE_FILE,
 } from "../../src";
+import { runStoreContractTests } from "../support/store-contract";
 
 describe("static store adapters", () => {
   let basePath: string;
@@ -44,6 +39,17 @@ describe("static store adapters", () => {
   });
 
   runStoreContractTests("InMemoryStaticStore", () => new InMemoryStaticStore());
+
+  test("quarantine moves the entry out of the steps directory", () => {
+    FSStaticStore.makeStatic("poisoned", { expression: "bad()" });
+
+    FSStaticStore.quarantine?.("poisoned", "invalid expression");
+
+    expect(readdirSync(path.join(basePath, "steps"))).toEqual([]);
+    const quarantined = readdirSync(path.join(basePath, "quarantine"));
+    expect(quarantined).toHaveLength(1);
+    expect(quarantined[0]).toMatch(/^[a-f0-9]+\.\d+\.gen\.step$/);
+  });
 
   describe("cache bundles", () => {
     test("exports and re-imports a file system store", () => {
@@ -103,11 +109,9 @@ describe("static store adapters", () => {
 
     const requirePreloadedStore = (): typeof FSStaticStore => {
       process.env.GEN2E_PRELOAD_ENABLED = "1";
-      let store!: typeof FSStaticStore;
-      jest.isolateModules(() => {
-        store = require("../../src").FSStaticStore;
-      });
-      return store;
+      const fsModule = require.resolve("../../src/fs");
+      delete require.cache[fsModule];
+      return require(fsModule).FSStaticStore;
     };
 
     test("overwrite refreshes an entry that was preloaded at import time", () => {
@@ -133,20 +137,6 @@ describe("static store adapters", () => {
       );
 
       expect(preloadedStore.fetchStatic("preload-import")).toEqual({ expression: "new()" });
-    });
-  });
-
-  describe("compatibility re-exports from @rhighs/gen2e", () => {
-    const acceptStore = (store: Gen2eStaticStore): Gen2eStaticStore => store;
-
-    test("still exposes FSStaticStore, StaticStore and Gen2ECacheMissError", () => {
-      expect(acceptStore(Gen2eFSStaticStore)).toBe(Gen2eFSStaticStore);
-      expect(typeof Gen2eFSStaticStore.fetchStatic).toBe("function");
-      expect(typeof Gen2eFSStaticStore.makeStatic).toBe("function");
-
-      const miss = new Gen2eCacheMissError("ident-1");
-      expect(miss).toBeInstanceOf(Gen2eError);
-      expect(miss.ident).toBe("ident-1");
     });
   });
 });

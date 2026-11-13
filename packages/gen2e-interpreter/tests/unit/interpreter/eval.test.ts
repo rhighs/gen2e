@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, jest, test } from "bun:test";
 import type { Page } from "@rhighs/gen2e";
 import { evalGen2EExpression } from "../../../src";
 

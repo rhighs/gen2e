@@ -1,9 +1,16 @@
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { FSStaticStore, Gen2ECacheMissError, gen, type Page, type StaticStore } from "../../../src";
-import { defaultMakeIdentFromContext, wrapIdent } from "../../../src/static/ident";
-import { runStoreContractTests } from "../../support/store-contract";
+import { defaultMakeIdentFromContext } from "@rhighs/gen2e-core";
+import {
+  FSStaticStore,
+  Gen2ECacheMissError,
+  Gen2EError,
+  gen,
+  type Page,
+  type StaticStore,
+} from "../../../src";
 
 describe("static store contract", () => {
   let basePath: string;
@@ -24,23 +31,14 @@ describe("static store contract", () => {
     rmSync(basePath, { recursive: true, force: true });
   });
 
-  runStoreContractTests("FSStaticStore", () => FSStaticStore, {
-    seedRaw: (ident, raw) => {
-      const stepsDir = path.join(basePath, "steps");
-      mkdirSync(stepsDir, { recursive: true });
-      writeFileSync(path.join(stepsDir, `${wrapIdent(ident)}.gen.step`), raw);
-    },
-  });
+  test("re-exports FSStaticStore, StaticStore and Gen2ECacheMissError", () => {
+    const acceptStore = (store: StaticStore): StaticStore => store;
 
-  test("quarantine moves the entry out of the steps directory", () => {
-    FSStaticStore.makeStatic("poisoned", { expression: "bad()" });
+    expect(acceptStore(FSStaticStore)).toBe(FSStaticStore);
 
-    FSStaticStore.quarantine?.("poisoned", "invalid expression");
-
-    expect(readdirSync(path.join(basePath, "steps"))).toEqual([]);
-    const quarantined = readdirSync(path.join(basePath, "quarantine"));
-    expect(quarantined).toHaveLength(1);
-    expect(quarantined[0]).toMatch(/^[a-f0-9]+\.\d+\.gen\.step$/);
+    const miss = new Gen2ECacheMissError("ident-1");
+    expect(miss).toBeInstanceOf(Gen2EError);
+    expect(miss.ident).toBe("ident-1");
   });
 
   describe("defaultMakeIdentFromContext", () => {

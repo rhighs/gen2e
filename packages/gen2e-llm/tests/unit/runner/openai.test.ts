@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import {
   fitsContext,
   type Gen2ELLMAgentRunnerInit,
@@ -8,7 +9,7 @@ import {
 
 const mockDebug = jest.fn();
 
-jest.mock("@rhighs/gen2e-logger", () => ({
+mock.module("@rhighs/gen2e-logger", () => ({
   makeLogger: () => ({
     config: jest.fn(),
     fmt: jest.fn(),
@@ -19,7 +20,10 @@ jest.mock("@rhighs/gen2e-logger", () => ({
   }),
 }));
 
-jest.mock("../../../src/runner/openai-token");
+mock.module("../../../src/runner/openai-token", () => ({
+  fitsContext: jest.fn(),
+  maxCharactersApprox: jest.fn(),
+}));
 
 const makeOpenAIMock = () => {
   const runnerMock = {

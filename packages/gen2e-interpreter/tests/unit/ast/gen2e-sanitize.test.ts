@@ -1,3 +1,4 @@
+import { describe, expect, test } from "bun:test";
 import { gen2eSanitize } from "../../../src";
 
 describe("gen2eSanitize", () => {

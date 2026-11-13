@@ -1,3 +1,4 @@
+import { describe, expect, jest, test } from "bun:test";
 import { type Gen2ETransformer, type Gen2ETransformFunction, makeTransformer } from "../../../src";
 
 describe("makeTransformer", () => {

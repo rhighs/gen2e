@@ -1,34 +1,33 @@
 # Contributing
 
-## Setup
-
-You need Node 20 or newer.
+We use [Bun](https://bun.com) to install, build and test, at the version pinned in `packageManager`. The published packages target Node 20 or newer.
 
 ```bash
-npm install
-npm run build
+bun install
+bun run gate
 ```
 
-## Checks
+`bun run gate` runs Biome, the type check, the build and the unit tests, in that order. CI runs the same command. A pull request is merged only when it passes.
 
-```bash
-npm test                  # unit tests, all packages
-npm run test:integration  # needs a real API key; skipped without one
-npm run check             # biome: lint, format, imports
-npm run check:fix         # apply safe fixes
-```
+| Command | What it runs |
+|---|---|
+| `bun run check:fix` | Applies Biome's safe fixes. |
+| `bun run test:integration` | The LLM integration tests. They need `OPENAI_API_KEY` and are skipped without it. |
+| `bun run test:e2e` | The Playwright suite against the fixture app. It needs a model key and Chromium (`bunx playwright install chromium`). |
+| `bun run eval:replay` | The eval corpus, served from a cache. See [docs/evals.md](docs/evals.md). |
 
-CI runs the format check, the lint, the build and the tests on every push and pull request. A pull request is merged only when CI passes.
+`gen2e.config.ts` at the repo root configures local and eval runs: screenshots are off and there are two retries.
 
-`gen2e.config.ts` at the repo root configures local runs and eval runs: it turns screenshots off and sets two retries.
+## Tests
 
-## End-to-end tests
+Unit tests run with `bun test --isolate`. Each file gets a fresh module registry, because `mock.module` would otherwise leak into the other files. `test-setup.ts` clears every mock after each test.
 
-```bash
-cd packages/gen2e
-npm run test:e2e
-```
+When you mock a module that has a default export, return `{ default: ... }` from the factory. Bun patches the bindings that are already loaded, so a factory without `default` leaves the default export unchanged.
+
+## Releasing
+
+Bump the versions of the packages you changed, then run `bun run release`. It runs the gate and calls `bun publish` in every package. Versions that already exist on npm are skipped. `workspace:^` dependencies are rewritten to the published versions.
 
 ## Layout
 
-The packages are in `packages/*` and are published with Lerna. Dependencies go one way: `core`, `logger` → `store`, `llm` → `gen2e` → `interpreter` → `po` → `cli`.
+Dependencies go one way: `core` and `logger` → `store` and `llm` → `gen2e` → `interpreter` → `po` → `cli`.

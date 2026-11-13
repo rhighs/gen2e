@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from "bun:test";
 import { runtimeExecutionInfo } from "../../src";
 
 describe("String.prototype.strip", () => {

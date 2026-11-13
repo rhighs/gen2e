@@ -1,10 +1,11 @@
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { createCodeGenAgent, type Gen2ELLMAgentModel, Gen2ELLMGenericError } from "../../src";
 
 const mockRunnerRun = jest.fn();
 const mockRunnerGetUsage = jest.fn();
 const mockRunnerOptions: Array<Record<string, unknown>> = [];
 
-jest.mock("../../src/runner/openai", () => ({
+mock.module("../../src/runner/openai", () => ({
   Gen2EOpenAIRunner: jest.fn().mockImplementation((options: Record<string, unknown>) => {
     mockRunnerOptions.push(options);
     return {

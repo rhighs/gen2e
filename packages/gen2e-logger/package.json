@@ -14,23 +14,19 @@
   "homepage": "https://github.com/rhighs/gen2e/tree/master/packages/gen2e-logger#readme",
   "bugs": "https://github.com/rhighs/gen2e/issues",
   "main": "dist/index.js",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
     "@types/node": "^20.19.43",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.1.4",
-    "ts-node": "^10.9.2",
-    "tsx": "^3.12.7",
     "typescript": "^5.9.3"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "start": "tsx ./examples/example.ts",
-    "test": "jest"
+    "test": "bun test --isolate --preload ../../test-setup.ts tests/unit",
+    "typecheck": "tsc --noEmit",
+    "release": "bun publish --access public --tolerate-republish"
   },
   "author": "Roberto Montalti",
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
 }

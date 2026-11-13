@@ -6,7 +6,7 @@ export type TokenLimitInfo = {
 };
 
 export const tokenLimits = (model: TiktokenModel): TokenLimitInfo => {
-  const modelContext: { [key in TiktokenModel]: TokenLimitInfo } = {
+  const modelContext: Partial<Record<TiktokenModel, TokenLimitInfo>> = {
     "gpt-3.5-turbo": {
       context: 16385,
       maxOut: 4096,
@@ -233,8 +233,9 @@ export const tokenLimits = (model: TiktokenModel): TokenLimitInfo => {
     },
   };
 
-  if (model in modelContext && modelContext[model].context > 0) {
-    return modelContext[model];
+  const limits = modelContext[model];
+  if (limits && limits.context > 0) {
+    return limits;
   }
 
   return {

@@ -59,11 +59,12 @@ export type Gen2EGenOptions = {
 };
 
 export type Test = TestType<any, any>;
-export type TestArgs = PlaywrightTestArgs & { gen: GenStepFunction };
+export type GenFixtures = Pick<PlaywrightTestArgs, "page" | "context" | "request">;
+export type TestArgs = GenFixtures & { gen: GenStepFunction };
 export type TestInfo = PlayrightTestInfo;
 
 export type PlaywrightTestFunction = (
-  args: PlaywrightTestArgs,
+  args: GenFixtures,
   testInfo: PlayrightTestInfo,
 ) => Promise<void> | void;
 

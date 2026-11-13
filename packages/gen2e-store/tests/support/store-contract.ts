@@ -1,3 +1,4 @@
+import { describe, expect, test } from "bun:test";
 import type { StaticGenStep, StaticStore } from "@rhighs/gen2e-core";
 
 /**
@@ -95,6 +96,16 @@ export const runStoreContractTests = (
       store.quarantine("poisoned", "invalid expression");
 
       expect(store.fetchStatic("poisoned")).toBeUndefined();
+    });
+
+    test("quarantine of a missing entry is a no-op", () => {
+      const store = makeStore();
+      if (typeof store.quarantine !== "function") {
+        return;
+      }
+
+      expect(() => store.quarantine?.("missing", "invalid expression")).not.toThrow();
+      expect(store.fetchStatic("missing")).toBeUndefined();
     });
 
     describe("versioned ident stability", () => {
