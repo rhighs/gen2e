@@ -61,11 +61,15 @@ export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
           }
         }
 
-        if (member.type === "MethodDefinition" && member.key.type === "Identifier") {
+        if (
+          n.ClassMethod.check(member) &&
+          member.kind === "method" &&
+          n.Identifier.check(member.key)
+        ) {
           const methodName = member.key.name;
-          const params = member.value.params.map((param) => j(param).toSource());
-          const returnType = member.value.returnType
-            ? j(member.value.returnType).toSource()
+          const params = member.params.map((param) => j(param).toSource());
+          const returnType = n.TSTypeAnnotation.check(member.returnType)
+            ? j(member.returnType.typeAnnotation).toSource()
             : "void";
           methods.push({
             name: methodName,
