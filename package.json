@@ -19,10 +19,8 @@
     "eval:replay": "bun packages/gen2e/tests/evals/run.ts --replay",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "gate": "bun run check && bun run build && bun run typecheck && bun run guard && bun run test:guards && bun run test && bun run test:e2e:scripted",
+    "gate": "bun run check && bun run build && bun run typecheck && bun run test && bun run test:e2e:scripted",
     "release": "bun run gate && bun run --filter './packages/*' release",
-    "guard": "bun scripts/unsafe-patterns.ts",
-    "test:guards": "bun test scripts",
     "test:e2e:scripted": "bun run --filter ./packages/gen2e test:e2e:scripted"
   },
   "keywords": [

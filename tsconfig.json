@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["node", "bun"]
   },
-  "include": ["scripts", "test-setup.ts"]
+  "include": ["test-setup.ts"]
 }

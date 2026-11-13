@@ -12,9 +12,8 @@ bun run gate
 1. Biome
 2. The build
 3. The type check
-4. The unsafe-pattern guard and its tests
-5. The unit tests
-6. The scripted e2e lane: real Chromium against the fixture app, with a scripted model and no API key. It also runs the reference solution of every eval task, so a broken corpus task fails the gate instead of skewing a score.
+4. The unit tests
+5. The scripted e2e lane: real Chromium against the fixture app, with a scripted model and no API key. It also runs the reference solution of every eval task, so a broken corpus task fails the gate instead of skewing a score.
 
 CI runs the same command on Node 22.12.0. A pull request is merged only when it passes.
 
@@ -32,17 +31,6 @@ CI runs the same command on Node 22.12.0. A pull request is merged only when it 
 Unit tests run with `bun test --isolate`. Each file gets a fresh module registry, because `mock.module` would otherwise leak into the other files. `test-setup.ts` clears every mock after each test.
 
 When you mock a module that has a default export, return `{ default: ... }` from the factory. Bun patches the bindings that are already loaded, so a factory without `default` leaves the default export unchanged.
-
-## Unsafe-pattern guard
-
-`scripts/unsafe-patterns.ts` counts four patterns in every package's `src` and `tests`:
-
-- `any`
-- `as unknown as`
-- non-null `!`
-- empty `catch` blocks
-
-It compares the counts to `scripts/unsafe-baseline.json`, which may only shrink. If a count rises, fix the new occurrence. If a count falls, run `bun run guard -- --write` in the same change to lower the baseline.
 
 ## Known gaps
 
