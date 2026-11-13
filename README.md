@@ -67,10 +67,9 @@ Commit the directory. Later runs and CI execute this file without calling a mode
 ```bash
 npm install -D @rhighs/gen2e @playwright/test
 export OPENAI_API_KEY="sk-..."
-# optional: any OpenAI-compatible endpoint
-export OPENAI_BASE_URL="https://your-endpoint/v1"
-export GEN2E_MODEL="gpt-4o-mini"
 ```
+
+To use another OpenAI-compatible endpoint, also set `OPENAI_BASE_URL` and `GEN2E_MODEL`.
 
 ```ts
 import { expect, test } from "@playwright/test";
@@ -87,9 +86,10 @@ test(
 ```
 
 ```bash
-npx playwright test   # first run: generates, runs and caches each step
-npx playwright test   # second run: replays from .static, no model calls
+npx playwright test
 ```
+
+The first run generates, runs and caches each step. The next run replays `.static/` and makes no model calls.
 
 [Writing tests](docs/writing-tests.md) covers actions, queries, assertions and per-call options.
 

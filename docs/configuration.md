@@ -4,11 +4,11 @@ Each value is resolved in this order: per-call option, then `gen2e.config.ts`, t
 
 ## Models and endpoints
 
-gen2e works with OpenAI and with any endpoint that implements the OpenAI API. You set three things: a base URL (optional, OpenAI is the default), an API key, and a model id.
+gen2e works with OpenAI and with any endpoint that implements the OpenAI API. You set three things: an API key, a model id, and a base URL. Leave out the base URL to use OpenAI.
 
 ```bash
 export OPENAI_API_KEY="your-key"
-export OPENAI_BASE_URL="https://your-endpoint.internal/v1"   # omit for OpenAI
+export OPENAI_BASE_URL="https://your-endpoint.internal/v1"
 export GEN2E_MODEL="gpt-4o-mini"
 ```
 
@@ -36,11 +36,14 @@ export default {
   cheapModel: "gpt-4o-mini",
   policies: {
     maxRetries: 3,
-    screenshot: "model",        // "model" | "force" | "onfail" | "off"
-    visualDebugLevel: "medium", // "none" | "medium" | "high"
+    screenshot: "model",
+    visualDebugLevel: "medium",
   },
 } satisfies Gen2EConfig;
 ```
+
+- `screenshot` is one of `model`, `force`, `onfail` or `off`.
+- `visualDebugLevel` is one of `none`, `medium` or `high`.
 
 ## Environment variables
 

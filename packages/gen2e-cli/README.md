@@ -1,94 +1,22 @@
-# Gen2E CLI
+# @rhighs/gen2e-cli
 
-A simple CLI program allowing interfacing with the Gen2E interpreter via both __interpret__ and ***REPL*** mode. Via CLI arguments, you can convert a `.gen2e` file into straight Playwright code or `gen2e` IL.
+The `gen2e-cli` command reads a `.gen2e` file with one English instruction per line and compiles it to a Playwright spec. It also has a live recorder, a REPL and page-object generation.
 
-## What is a `.gen2e` file?
-
-This type of file is really just a list of phrases in plain English. Each phrase is put into a new line and tells the AI agent what actions it must perform to achieve your final goal.
-
-e.g.
+```bash
+npm install -g @rhighs/gen2e-cli
+export OPENAI_API_KEY="sk-..."
 ```
-# Perform a google search
 
+```text
 Navigate to google.com
-Click on "accept all" if a modal about privacy is present
-Type "Where the aliens at?" in the search bar and press enter on the keyboard
+Click on "accept all" if a privacy modal is present
+Type "Where the aliens at?" in the search bar and press enter
 ```
 
-These three simple tasks will be converted each to a gen2e library expression; which in turn will be evaluated by the gen2e agent and converted into Playwright test code.
-
-The output format for the default command can be selected via params `gen2e` or `playwright` using `--imode <param>`.
-
-## Commands
-
-### Default command
-
-The default command interprets the tasks specified in a `.gen2e` file and outputs either gen2e IL or Playwright code based on the `--imode` parameter.
-
-#### Usage
-
-```sh
-gen2e-cli generate <file> [options]
+```bash
+gen2e-cli generate search.gen2e --imode playwright --model gpt-4o-mini --out tests/search.spec.ts
 ```
 
-#### Important options
+The other commands are `recorder`, `repl` and `po-gen`. Run `gen2e-cli <command> --help` to see their flags. The full documentation is in [docs/cli.md](https://github.com/rhighs/gen2e/blob/master/docs/cli.md).
 
-- `--imode <imode>`: Interpreter output mode, either `gen2e` IL or plain generated Playwright code.
-- `--debug`: Enables debug mode, showing debug logs and more.
-- `--openai-api-key <openaiApiKey>`: API key for OpenAI or an OpenAI-compatible endpoint.
-- `--base-url <baseURL>`: Base URL for OpenAI-compatible endpoints.
-- `--model <model>`: Model id served by the OpenAI-compatible endpoint.
-- `--gen2e-model <gen2eModel>`: Model to use for gen2e source code generation.
-- `--pw-model <pwModel>`: Model to use for Playwright source code generation.
-- `--stats`: Show interpreter stats report, number of tokens being used, and total LLM calls.
-- `--verbose`: Show the generated expression at each step in stderr (has no effect with debug mode enabled).
-
-#### Example
-
-```sh
-gen2e-cli generate tasks.gen2e --imode playwright --openai-api-key YOUR_API_KEY --model gpt-4o-mini
-```
-
-Against an OpenAI-compatible endpoint (export `OPENAI_BASE_URL` and `OPENAI_API_KEY`, or pass `--base-url`):
-
-```sh
-gen2e-cli generate tasks.gen2e --imode playwright --model your-model-id --base-url "https://your-endpoint.internal/v1"
-```
-
-### REPL command
-
-The REPL command starts an interactive session for generating gen2e expressions with a live browser view. This is useful for debugging and iteratively developing tests.
-
-#### Usage
-
-```sh
-gen2e-cli repl [options]
-```
-
-#### Important options
-
-- `--debug`: Enables debug mode, showing debug logs and more.
-- `--openai-api-key <openaiApiKey>`: API key for OpenAI or an OpenAI-compatible endpoint.
-- `--base-url <baseURL>`: Base URL for OpenAI-compatible endpoints.
-- `--model <model>`: Model id served by the OpenAI-compatible endpoint.
-- `--browser <browser>`: Playwright browser to use (e.g., `chromium`, `firefox`).
-- `--headless`: Start browser in headless mode.
-- `--verbose`: Show more REPL activity logging.
-
-#### Example
-
-```sh
-gen2e-cli repl --openai-api-key YOUR_API_KEY --model gpt-4o-mini --browser chromium
-```
-
-### Other commands
-
-For a complete list of commands and options, use the `--help` flag:
-
-```sh
-gen2e-cli --help
-```
-
-## Demo showcase
-
-WIP
+MIT licensed.

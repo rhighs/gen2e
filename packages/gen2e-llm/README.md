@@ -17,10 +17,10 @@ import { createCodeGenAgent } from "@rhighs/gen2e-llm";
 
 const agent = createCodeGenAgent(
   "You write Playwright expressions. Return code only.",
-  "gpt-4o-mini", // any model id served by the endpoint
+  "gpt-4o-mini",
   {
     openaiApiKey: process.env.MY_ENDPOINT_KEY,
-    baseURL: "https://my-endpoint.internal/v1", // omit for OpenAI
+    baseURL: "https://my-endpoint.internal/v1",
   },
 );
 
@@ -43,11 +43,13 @@ Builder options:
 ```ts
 type Gen2ELLMAgentBuilderOptions = {
   debug?: boolean;
-  openaiApiKey?: string; // falls back to OPENAI_API_KEY
-  baseURL?: string;      // falls back to OPENAI_BASE_URL, then OpenAI
-  promptVersion?: string; // reported in usage stats for cache invalidation
+  openaiApiKey?: string;
+  baseURL?: string;
+  promptVersion?: string;
 };
 ```
+
+`openaiApiKey` falls back to `OPENAI_API_KEY`. `baseURL` falls back to `OPENAI_BASE_URL`, then to OpenAI. `promptVersion` is reported in usage stats and is part of the cache key.
 
 Models can also be switched per task through `task.options.model`. The initial runner is created when the agent is built; runners for model overrides are created on demand and cached per model id.
 
@@ -64,8 +66,8 @@ Models can also be switched per task through `task.options.model`. The initial r
 
 Every agent gets built-in tools before generation finishes:
 
-- `format_validation_tool` — rejects markdown-wrapped output.
-- `code_validation_tool` — parses the output with `esprima` (JavaScript) or `JSON.parse` (JSON).
+- `format_validation_tool` - rejects markdown-wrapped output.
+- `code_validation_tool` - parses the output with `esprima` (JavaScript) or `JSON.parse` (JSON).
 
 Custom tools passed to `createCodeGenAgent` are traced (`callCount()`), and their `parse` function receives the JSON stringified model arguments before `function` is called.
 
@@ -80,4 +82,4 @@ Custom tools passed to `createCodeGenAgent` are traced (`callCount()`), and thei
 
 ## License
 
-MIT © Roberto Montalti
+MIT licensed.

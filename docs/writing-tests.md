@@ -2,7 +2,11 @@
 
 ## Actions, queries and assertions
 
-Each `gen` call is one step. The model returns a single Playwright expression, and its return value becomes the return value of `gen`.
+Each `gen` call is one step. The model returns a single Playwright expression, and `gen` returns whatever that expression returns:
+
+- An **action**, such as a click, returns nothing.
+- A **query** returns a value.
+- For an **assertion**, query the value and assert on it with `expect`.
 
 ```ts
 import { expect, test } from "@playwright/test";
@@ -13,14 +17,11 @@ test(
   gen.test(async ({ page, gen }) => {
     await page.goto("https://example.com");
 
-    // action: the return value is ignored
     await gen("click the link that says 'Documentation'", { page, test });
 
-    // query: returns a value
     const title = await gen("get the page title", { page, test });
     expect(title).toBe("Docs");
 
-    // assertion: ask for the value, then assert outside gen
     const links = await gen("count the links in the nav bar", { page, test });
     expect(Number(links)).toBe(3);
   }),
