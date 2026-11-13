@@ -59,6 +59,14 @@ describe("loadConfig", () => {
     });
   });
 
+  test("accepts an AI SDK model instance", () => {
+    writeConfig(
+      'exports.default = { model: { specificationVersion: "v4", provider: "p", modelId: "m" } };',
+    );
+
+    expect(loadConfig()?.model).toMatchObject({ provider: "p", modelId: "m" });
+  });
+
   test("treats a module without a default export as an empty config", () => {
     writeConfig("module.exports = { model: 'gpt-4o-mini' };");
 

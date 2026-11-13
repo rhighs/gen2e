@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { type Gen2ELLMAgentModel, isLanguageModel } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 import type { Gen2EConfig, Gen2EScreenshotUsagePolicy, Gen2EVisualDebugLevel } from "./types";
 
@@ -9,6 +10,7 @@ const SCREENSHOT_POLICIES: readonly Gen2EScreenshotUsagePolicy[] = [
   "onfail",
   "off",
 ];
+
 const VISUAL_DEBUG_LEVELS: readonly Gen2EVisualDebugLevel[] = ["none", "medium", "high"];
 
 const configPath = (configname = "gen2e.config") =>
@@ -39,6 +41,11 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
     return typeof v === "string" ? v : undefined;
   };
 
+  const modelOf = (o: Record<string, unknown>, k: string): Gen2ELLMAgentModel | undefined => {
+    const v = o[k];
+    return isLanguageModel(v) ? v : str(o, k);
+  };
+
   const bool = (o: Record<string, unknown>, k: string): boolean | undefined => {
     const v = o[k];
     return typeof v === "boolean" ? v : undefined;
@@ -66,7 +73,7 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
     debug: bool(exportedConfig, "debug"),
     openaiApiKey: str(exportedConfig, "openaiApiKey"),
     baseURL: str(exportedConfig, "baseURL"),
-    model: str(exportedConfig, "model"),
+    model: modelOf(exportedConfig, "model"),
     staticStorePath: str(exportedConfig, "staticStorePath"),
     policies: {
       maxRetries: num(policies, "maxRetries"),
@@ -74,7 +81,7 @@ export function loadConfig(logger?: Gen2ELogger): Gen2EConfig | undefined {
       visualDebugLevel: oneOf(policies, "visualDebugLevel", VISUAL_DEBUG_LEVELS),
     },
     replayOnly: bool(exportedConfig, "replayOnly"),
-    cheapModel: str(exportedConfig, "cheapModel"),
+    cheapModel: modelOf(exportedConfig, "cheapModel"),
     ladder: bool(exportedConfig, "ladder"),
   };
 }
