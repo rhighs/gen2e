@@ -4,13 +4,14 @@
   "description": "Write Playwright tests in plain English",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "engines": {
     "bun": ">=1.4.4"
   },
   "scripts": {
-    "typecheck": "tsc -p . && bun run --filter './packages/*' typecheck",
+    "typecheck": "tsc -p . && bun run --filter './packages/*' --filter './examples/*' typecheck",
     "test": "bun run --filter './packages/*' test",
     "test:integration": "bun run --filter './packages/gen2e-llm' test:integration",
     "test:e2e": "bun run --filter './packages/gen2e' test:e2e",

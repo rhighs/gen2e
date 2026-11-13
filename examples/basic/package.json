@@ -1,0 +1,13 @@
+{
+  "name": "gen2e-example-basic",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "gen2e",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@rhighs/gen2e": "workspace:*",
+    "zod": "^4.6.7"
+  }
+}

@@ -10,6 +10,13 @@
         "typescript": "6.0.3",
       },
     },
+    "examples/basic": {
+      "name": "gen2e-example-basic",
+      "devDependencies": {
+        "@rhighs/gen2e": "workspace:*",
+        "zod": "^4.6.7",
+      },
+    },
     "packages/gen2e": {
       "name": "@rhighs/gen2e",
       "version": "1.2.6",
@@ -146,6 +153,8 @@
     "esprima": ["esprima@4.0.1", "", { "bin": { "esparse": "./bin/esparse.js", "esvalidate": "./bin/esvalidate.js" } }, "sha512-eGuFFw7Upda+g4p+QHvnW0RyTX/SVeJBDM/gCtMARO0cLuT2HcEKnTPvhjV6aGeqrCB/sbNop0Kszm0jsaWU4A=="],
 
     "eventsource-parser": ["eventsource-parser@3.1.1", "", {}, "sha512-EKN1vKAMcZ8MlYMpaNuxN6R9yakzH6uajHcHVTqWJzvu5pWw9DyhbP35HH8MVBQ+dZjAfDxk+A8NiR9KWaXiyQ=="],
+
+    "gen2e-example-basic": ["gen2e-example-basic@workspace:examples/basic"],
 
     "hono": ["hono@4.13.16", "", {}, "sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A=="],
 

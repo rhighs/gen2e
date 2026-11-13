@@ -1,0 +1,6 @@
+# Add two todos and finish one
+open /
+add a todo called {{first}}
+add a todo called "walk the dog"
+mark {{first}} as done
+assert the counter says 1 item left
