@@ -35,13 +35,13 @@ Replay mode never calls a model. It counts cache hits and misses. If a cached en
 
 `.github/workflows/nightly.yml` builds the project and runs replay mode. It also runs model mode when the `OPENAI_API_KEY` secret is set. Then it uploads `eval-report*.json`.
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `GEN2E_EVAL_MODEL` | none | The pinned model id. Model mode requires it, and replay mode must use the same id. |
-| `EVAL_RUNS` | `1` | Repetitions per task. |
-| `EVAL_MIN_PASS` | `0` | The lowest pass@1 a task may have before the run fails. |
-| `EVAL_MAX_ATTEMPTS` | `3` | Attempts per step (the `k` in success within `k`). |
-| `EVAL_SCREENSHOT` | `off` | The screenshot policy. |
-| `EVAL_STATIC_PATH` | run-scoped | Where model mode writes the cache, and which cache replay mode reads. |
-| `EVAL_REPORT` | `eval-report.json` | Where the report is written. |
-| `EVAL_TELEMETRY_PATH` | `<runDir>/telemetry.jsonl` | Where the telemetry JSONL is written. |
+| Variable              | Default                    | Purpose                                                                            |
+| --------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| `GEN2E_EVAL_MODEL`    | none                       | The pinned model id. Model mode requires it, and replay mode must use the same id. |
+| `EVAL_RUNS`           | `1`                        | Repetitions per task.                                                              |
+| `EVAL_MIN_PASS`       | `0`                        | The lowest pass@1 a task may have before the run fails.                            |
+| `EVAL_MAX_ATTEMPTS`   | `3`                        | Attempts per step (the `k` in success within `k`).                                 |
+| `EVAL_SCREENSHOT`     | `off`                      | The screenshot policy.                                                             |
+| `EVAL_STATIC_PATH`    | run-scoped                 | Where model mode writes the cache, and which cache replay mode reads.              |
+| `EVAL_REPORT`         | `eval-report.json`         | Where the report is written.                                                       |
+| `EVAL_TELEMETRY_PATH` | `<runDir>/telemetry.jsonl` | Where the telemetry JSONL is written.                                              |

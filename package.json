@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "scripts": {
     "build": "bun run --filter './packages/*' build",
@@ -32,7 +32,7 @@
   "author": "Roberto Montalti",
   "license": "MIT",
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
+    "@biomejs/biome": "2.6.5",
     "@types/bun": "1.4.4"
   },
   "packageManager": "bun@1.4.4"

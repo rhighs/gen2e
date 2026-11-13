@@ -1,7 +1,7 @@
 {
   "name": "@rhighs/gen2e-cli",
   "version": "1.1.10",
-  "description": "CLI implementation interfacing @rhighs/gen2e-interpreter",
+  "description": "Compile plain English instruction files to Playwright specs",
   "files": [
     "dist",
     "bin"
@@ -24,17 +24,18 @@
     "@rhighs/gen2e-llm": "workspace:^",
     "@rhighs/gen2e-logger": "workspace:^",
     "@rhighs/gen2e-po": "workspace:^",
-    "commander": "^12.0.0"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
+    "@types/node": "^22.20.5",
     "typescript": "^5.9.3"
   },
   "scripts": {
     "start": "bun ./src/index.ts",
     "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "release": "bun publish --access public --tolerate-republish"
+    "release": "bun publish --access public --tolerate-republish",
+    "test": "bun test --isolate --preload ../../test-setup.ts tests/unit"
   },
   "keywords": [
     "ai",
@@ -47,5 +48,8 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

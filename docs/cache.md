@@ -10,7 +10,11 @@ The static store is what makes gen2e cheap enough to run in CI. Each solved step
 {
   "expression": "(async () => { await page.locator(\"[data-testid=\\\"search-input\\\"]\").fill(\"gen2e\") })",
   "context": { "task": "type \"gen2e\" in the search box", "testTitle": "search" },
-  "meta": { "generatedAt": "2026-10-02T15:34:44.200Z", "model": "gpt-4o-mini", "promptVersion": "2026-10-02.1" }
+  "meta": {
+    "generatedAt": "2026-10-02T15:34:44.200Z",
+    "model": "gpt-4o-mini",
+    "promptVersion": "2026-10-02.1"
+  }
 }
 ```
 

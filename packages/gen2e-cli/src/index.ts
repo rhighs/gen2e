@@ -13,7 +13,7 @@ import { makeREPL } from "./repl";
 
 const logger = makeLogger("GEN2E-CLI");
 
-program.name(pjson.name).description(pjson.description).version(pjson.version);
+program.name("gen2e-cli").description(pjson.description).version(pjson.version);
 
 program
   .command("generate")
@@ -46,13 +46,13 @@ program
     "show the generated expression at each step in stderr (has no effect with debug mode enabled)",
   )
   .option(
-    "-sp, --screenshot <screenshot>",
+    "--screenshot <screenshot>",
     "screenshotting policy to use when inspecting web pages, only used for playwright mode",
     /^(force|onfail|model|off)$/,
     "onfail",
   )
   .option(
-    "-vd, --visual-debug <visualDebug>",
+    "--visual-debug <visualDebug>",
     "visual debug cue, determines quantity of visual info per page screenshot (no-outlines, outlines, outlines + tagnames)",
     /^(medium|high|none)$/,
     "medium",
@@ -190,13 +190,13 @@ program
     "show the generated expression at each step in stderr (has no effect with debug mode enabled)",
   )
   .option(
-    "-sp, --screenshot <screenshot>",
+    "--screenshot <screenshot>",
     "screenshotting policy to use when inspecting web pages, only used for playwright mode",
     /^(force|onfail|model|off)$/,
     "onfail",
   )
   .option(
-    "-vd, --visual-debug <visualDebug>",
+    "--visual-debug <visualDebug>",
     "visual debug cue, determines quantity of visual info per page screenshot (no-outlines, outlines, outlines + tagnames)",
     /^(medium|high|none)$/,
     "medium",

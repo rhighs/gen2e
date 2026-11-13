@@ -1,6 +1,6 @@
 # Contributing
 
-We use [Bun](https://bun.com) to install, build and test, at the version pinned in `packageManager`. The published packages target Node 20 or newer.
+We use [Bun](https://bun.com) to install, build and test, at the version pinned in `packageManager`. The published packages target Node 22 or newer.
 
 ```bash
 bun install
@@ -9,12 +9,12 @@ bun run gate
 
 `bun run gate` runs Biome, the type check, the build and the unit tests, in that order. CI runs the same command. A pull request is merged only when it passes.
 
-| Command | What it runs |
-|---|---|
-| `bun run check:fix` | Applies Biome's safe fixes. |
-| `bun run test:integration` | The LLM integration tests. They need `OPENAI_API_KEY` and are skipped without it. |
-| `bun run test:e2e` | The Playwright suite against the fixture app. It needs a model key and Chromium (`bunx playwright install chromium`). |
-| `bun run eval:replay` | The eval corpus, served from a cache. See [docs/evals.md](docs/evals.md). |
+| Command                    | What it runs                                                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `bun run check:fix`        | Applies Biome's safe fixes.                                                                                           |
+| `bun run test:integration` | The LLM integration tests. They need `OPENAI_API_KEY` and are skipped without it.                                     |
+| `bun run test:e2e`         | The Playwright suite against the fixture app. It needs a model key and Chromium (`bunx playwright install chromium`). |
+| `bun run eval:replay`      | The eval corpus, served from a cache. See [docs/evals.md](docs/evals.md).                                             |
 
 `gen2e.config.ts` at the repo root configures local and eval runs: screenshots are off and there are two retries.
 

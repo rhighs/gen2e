@@ -21,12 +21,12 @@ To compile it to a Playwright spec:
 gen2e-cli generate search.gen2e --imode playwright --model gpt-4o-mini --out tests/search.spec.ts
 ```
 
-| Command | What it does |
-|---|---|
+| Command           | What it does                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
 | `generate <file>` | Compiles a `.gen2e` file to Playwright code (`--imode playwright`) or to gen2e IL (`--imode gen2e`). |
-| `recorder` | Opens a live browser and records instructions one at a time. |
-| `repl` | An interactive session with a live browser. |
-| `po-gen <dir>` | Generates page objects from recorder dumps. |
+| `recorder`        | Opens a live browser and records instructions one at a time.                                         |
+| `repl`            | An interactive session with a live browser.                                                          |
+| `po-gen <dir>`    | Generates page objects from recorder dumps.                                                          |
 
 Common flags:
 

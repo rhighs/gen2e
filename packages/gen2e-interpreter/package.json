@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@types/jscodeshift": "^0.11.11",
-    "@types/node": "^20.19.43",
+    "@types/node": "^22.20.5",
     "typescript": "^5.9.3"
   },
   "scripts": {
@@ -47,5 +47,8 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

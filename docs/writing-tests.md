@@ -48,14 +48,14 @@ await gen(
 );
 ```
 
-| Option | Purpose |
-|---|---|
-| `model`, `baseURL`, `openaiApiKey` | The endpoint and model for this step. See [Configuration](configuration.md). |
-| `policies.maxRetries` | How many retries after a failed validation or a failed run. The default is 3. |
-| `policies.screenshot` | `model`, `force`, `onfail` or `off`. |
-| `ladder` | `true`, `false` or `{ cheapModel, cheapScreenshot }`. With the ladder on, attempt 0 uses the cheap model and only the DOM. |
-| `replayOnly` | Only read the cache. A cache miss throws `Gen2ECacheMissError`. |
-| `debug` | Log the prompt, the attempts and the result. |
+| Option                             | Purpose                                                                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `model`, `baseURL`, `openaiApiKey` | The endpoint and model for this step. See [Configuration](configuration.md).                                               |
+| `policies.maxRetries`              | How many retries after a failed validation or a failed run. The default is 3.                                              |
+| `policies.screenshot`              | `model`, `force`, `onfail` or `off`.                                                                                       |
+| `ladder`                           | `true`, `false` or `{ cheapModel, cheapScreenshot }`. With the ladder on, attempt 0 uses the cheap model and only the DOM. |
+| `replayOnly`                       | Only read the cache. A cache miss throws `Gen2ECacheMissError`.                                                            |
+| `debug`                            | Log the prompt, the attempts and the result.                                                                               |
 
 To turn off the cache for one block of tests, set `gen.useStatic = false`. To turn it off everywhere, call `staticStoreEnabled(false)`.
 
