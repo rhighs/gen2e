@@ -6,7 +6,7 @@ import {
 import {
   type Gen2EGenOptions,
   type Gen2ELLMCallHooks,
-  type Gen2EPlaywriteCodeEvalFunc,
+  type Gen2EPlaywrightCodeEvalFunc,
   type GenStepFunction,
   type GenType,
   gen as genObject,
@@ -27,7 +27,7 @@ export const sandboxEval = async (
   store: StaticStore,
   llmCallHooks?: Gen2ELLMCallHooks,
   modelOptions?: Gen2EGenOptions,
-  evalPwCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
+  evalPwCode: Gen2EPlaywrightCodeEvalFunc = (code: string, page: Page) =>
     new Function("code", "page", "return Promise.resolve()")(code, page),
   gen: GenType = genObject,
   _logger?: Gen2ELogger,
@@ -77,6 +77,7 @@ export const sandboxEval = async (
       },
       {
         title: testTitle,
+        titlePath: [testTitle],
       } as TestInfo,
     );
   };

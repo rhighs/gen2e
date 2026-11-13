@@ -3,7 +3,6 @@ import {
   defaultMakeIdentFromContext,
   estimateCostUsd,
   Gen2ECacheMissError,
-  Gen2EError,
   Gen2EStaleCacheError,
   type Gen2EStepTelemetry,
   type StaticGenStep,
@@ -36,12 +35,11 @@ import type {
   Gen2EGenPolicies,
   Gen2ELadderOptions,
   Gen2ELLMCallHooks,
-  Gen2EPlaywriteCodeEvalFunc,
+  Gen2EPlaywrightCodeEvalFunc,
   GenStepFunction,
   GenType,
   Page,
   PlaywrightTestFunction,
-  Test,
   TestFunction,
 } from "./types";
 
@@ -49,7 +47,7 @@ type Gen2EStepInit = {
   task: string;
   page: Page;
   title: string;
-  evalCode: Gen2EPlaywriteCodeEvalFunc;
+  evalCode: Gen2EPlaywrightCodeEvalFunc;
   logger: Gen2ELogger;
   store?: StaticStore | null;
   hooks?: Gen2ELLMCallHooks;
@@ -189,8 +187,7 @@ const step = async (
       endpoint: { apiKey: options.openaiApiKey, baseURL: options.baseURL },
       maxEvals: options.policies?.maxRetries ?? 3,
       screenshot: options.policies?.screenshot ?? "model",
-      visualInfoLevel:
-        options.policies?.visualDebugLevel ?? globalConfig.policies?.visualDebugLevel ?? "medium",
+      visualInfoLevel: options.policies?.visualDebugLevel ?? "medium",
       ladder: options.ladder,
       snapshot: savedContext,
       snapshotRevision: savedContextRevision,
@@ -354,8 +351,31 @@ const resolveLadder = (ladder: Gen2EGenOptions["ladder"]): Gen2ELadderOptions | 
 const genContext: Gen2EGenContext = {
   useStatic: env.USE_STATIC_STORE,
   logger: loggerInstance,
-  screenshot: "model",
 };
+
+const defaultEvalCode: Gen2EPlaywrightCodeEvalFunc = (code: string, page: Page) =>
+  new Function("page", `return (async () => { const result = await ${code}(); return result })()`)(
+    page,
+  );
+
+const stepOptions = (options: Gen2EGenOptions | undefined): Gen2EStepOptions => ({
+  debug: options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE,
+  model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
+  openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
+  baseURL: options?.baseURL ?? globalConfig.baseURL ?? env.BASE_URL,
+  policies: {
+    maxRetries: options?.policies?.maxRetries ?? globalConfig.policies?.maxRetries ?? 3,
+    screenshot: options?.policies?.screenshot ?? globalConfig.policies?.screenshot ?? "model",
+    visualDebugLevel:
+      options?.policies?.visualDebugLevel ?? globalConfig.policies?.visualDebugLevel ?? "medium",
+  },
+  saveContext: options?.saveContext ?? false,
+  replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
+  ladder: resolveLadder(options?.ladder),
+});
+
+const activeStore = (ctx: Gen2EGenContext, store: StaticStore | null | undefined) =>
+  store === null || !ctx.useStatic || !env.USE_STATIC_STORE ? null : (store ?? FSStaticStore);
 
 const _gen: GenType = (
   async function (
@@ -370,51 +390,27 @@ const _gen: GenType = (
       store?: StaticStore | null;
       logger?: Gen2ELogger;
     },
-    evalCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
-      new Function(
-        "page",
-        `return (async () => { const result = await ${code}(); return result })()`,
-      )(page),
+    evalCode: Gen2EPlaywrightCodeEvalFunc = defaultEvalCode,
   ): Promise<any> {
     if (!config?.page) {
       throw Error("The gen() function is missing the required `{ page }` argument.");
     }
-    const page = config.page;
-    const isDebug = options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE;
+
     if (init?.logger) {
       this.logger.config(init.logger);
-    }
-    const logger = this.logger;
-
-    const store = init?.store === undefined ? FSStaticStore : init.store;
-    if (store === null) {
-      logger.warn("found explicitly null static store init config, disabling static store...");
-      this.useStatic = false;
     }
 
     return await step(
       {
         task,
         title: "",
-        page,
-        store: this.useStatic && env.USE_STATIC_STORE ? store : null,
+        page: config.page,
+        store: activeStore(this, init?.store),
         hooks: init?.hooks,
-        logger,
+        logger: this.logger,
         evalCode,
       },
-      {
-        debug: isDebug,
-        model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
-        openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
-        baseURL: options?.baseURL ?? globalConfig.baseURL ?? env.BASE_URL,
-        policies: {
-          maxRetries: options?.policies?.maxRetries ?? globalConfig.policies?.maxRetries ?? 3,
-          screenshot: options?.policies?.screenshot ?? globalConfig.policies?.screenshot ?? "model",
-        },
-        saveContext: options?.saveContext ?? false,
-        replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
-        ladder: resolveLadder(options?.ladder),
-      },
+      stepOptions(options),
     );
   } as GenType
 ).bind(genContext);
@@ -431,84 +427,35 @@ _gen.test = function (
   if (init?.logger) {
     this.logger.config(init.logger);
   }
+
   const logger = this.logger;
 
   return async ({ page, context, request }, testInfo): Promise<void> => {
-    const { title } = testInfo;
+    // The full path (file, describe blocks, title) keeps same-named tests in different places apart.
+    const title = testInfo.titlePath.join(" › ");
 
-    const store = init?.store === undefined ? FSStaticStore : init.store;
-    if (store === null) {
-      logger.warn("found explicitly null static store init config, disabling static store...");
-      this.useStatic = false;
-    }
-
-    const gen: GenStepFunction = async (
-      task: string,
-      config: {
-        page: Page;
-        test: Test;
-      },
-      options?: Gen2EGenOptions,
-      evalCode: Gen2EPlaywriteCodeEvalFunc = (code: string, page: Page) =>
-        new Function(
-          "page",
-          `return (async () => { const result = await ${code}(); return result })()`,
-        )(page),
-    ): Promise<any> => {
+    const gen: GenStepFunction = async (task, config, options, evalCode = defaultEvalCode) => {
       if (!config?.page) {
         throw Error("The gen() function is missing the required `{ page }` argument.");
       }
 
-      const { test, page } = config;
-      const isDebug = options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE;
-
-      return await test.step(task, async () => {
-        return await step(
+      return await config.test.step(task, () =>
+        step(
           {
             task,
             title,
-            page,
-            store: this.useStatic && env.USE_STATIC_STORE ? store : null,
+            page: config.page,
+            store: activeStore(this, init?.store),
             hooks: init?.hooks,
             logger,
             evalCode,
           },
-          {
-            debug: isDebug,
-            model: options?.model ?? globalConfig.model ?? env.OPENAI_MODEL,
-            openaiApiKey: options?.openaiApiKey ?? globalConfig.openaiApiKey,
-            baseURL: options?.baseURL ?? globalConfig.baseURL ?? env.BASE_URL,
-            policies: {
-              maxRetries: options?.policies?.maxRetries ?? globalConfig.policies?.maxRetries ?? 3,
-              screenshot:
-                options?.policies?.screenshot ?? globalConfig.policies?.screenshot ?? "model",
-            },
-            saveContext: options?.saveContext ?? false,
-            replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
-            ladder: resolveLadder(options?.ladder),
-          },
-        );
-      });
+          stepOptions(options),
+        ),
+      );
     };
 
-    try {
-      const result = await testFunction(
-        {
-          page,
-          gen,
-          context: context,
-          request: request,
-        },
-        testInfo,
-      );
-      return result;
-    } catch (err) {
-      // Consumers match on library error types and metadata, so these are not wrapped.
-      if (err instanceof Gen2EError) {
-        throw err;
-      }
-      throw new Error(`gen.test failed with error: ${err}`, { cause: err });
-    }
+    await testFunction({ page, gen, context, request }, testInfo);
   };
 };
 

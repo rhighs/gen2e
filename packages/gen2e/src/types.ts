@@ -1,9 +1,4 @@
-import type {
-  Page,
-  TestInfo as PlayrightTestInfo,
-  PlaywrightTestArgs,
-  TestType,
-} from "@playwright/test";
+import type { Page, PlaywrightTestArgs, TestInfo as PwTestInfo, TestType } from "@playwright/test";
 import type { StaticStore } from "@rhighs/gen2e-core";
 import type { Gen2ELLMAgentHooks, Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
@@ -45,21 +40,20 @@ export type GenFixtures = Pick<PlaywrightTestArgs, "page" | "context" | "request
 
 export type TestArgs = GenFixtures & { gen: GenStepFunction };
 
-export type TestInfo = PlayrightTestInfo;
+export type TestInfo = PwTestInfo;
 
 export type PlaywrightTestFunction = (
   args: GenFixtures,
-  testInfo: PlayrightTestInfo,
+  testInfo: PwTestInfo,
 ) => Promise<void> | void;
 
 export type TestFunction = (args: TestArgs, testInfo: TestInfo) => Promise<void> | void;
 
-export type Gen2EPlaywriteCodeEvalFunc = (code: string, p: Page) => Promise<any> | any;
+export type Gen2EPlaywrightCodeEvalFunc = (code: string, p: Page) => Promise<any> | any;
 
 export interface Gen2EGenContext {
   logger: Gen2ELogger;
   useStatic: boolean;
-  screenshot?: Gen2EScreenshotUsagePolicy;
 }
 
 export interface GenType extends GenFunction, Gen2EGenContext {
@@ -84,7 +78,7 @@ export type GenFunction = (
     hooks?: Gen2ELLMCallHooks;
     logger?: Gen2ELogger;
   },
-  evalCode?: Gen2EPlaywriteCodeEvalFunc,
+  evalCode?: Gen2EPlaywrightCodeEvalFunc,
 ) => Promise<any>;
 
 export type Gen2EConfig = {
@@ -112,5 +106,5 @@ export type GenStepFunction = (
   task: string,
   config: { page: Page; test: Test },
   options?: Gen2EGenOptions,
-  evalCode?: Gen2EPlaywriteCodeEvalFunc,
+  evalCode?: Gen2EPlaywrightCodeEvalFunc,
 ) => Promise<any>;

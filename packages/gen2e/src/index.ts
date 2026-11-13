@@ -15,10 +15,9 @@ export {
 } from "@rhighs/gen2e-core";
 export * from "./errors";
 export * from "./gen";
-export * from "./io";
-export * from "./playwright-gen";
+export { GEN2E_PROMPT_VERSION } from "./playwright-gen";
 export * from "./static/store/fs";
-export * from "./telemetry";
+export type { Gen2EStepTelemetry } from "./telemetry";
 export type * from "./types";
 
 export const stepLoggingEnabled = (f: boolean) => (consts.default.LOG_STEP = f);

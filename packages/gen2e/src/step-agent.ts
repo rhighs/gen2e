@@ -21,7 +21,7 @@ import { type DomRevision, getDomRevision, getSnapshot, type WebSnapshotResult }
 import type {
   Gen2ELadderOptions,
   Gen2ELLMCallHooks,
-  Gen2EPlaywriteCodeEvalFunc,
+  Gen2EPlaywrightCodeEvalFunc,
   Gen2EScreenshotUsagePolicy,
   Gen2EVisualDebugLevel,
   Page,
@@ -30,7 +30,7 @@ import type {
 export type Gen2EStepAgentInit = {
   task: string;
   page: Page;
-  evalCode: Gen2EPlaywriteCodeEvalFunc;
+  evalCode: Gen2EPlaywrightCodeEvalFunc;
   model: Gen2ELLMAgentModel;
   endpoint: Gen2EModelEndpoint;
   maxEvals: number;

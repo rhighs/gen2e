@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
+import { beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -112,10 +112,6 @@ describe("gen", () => {
     mockGetSnapshot.mockResolvedValue({ dom: "<html></html>" });
   });
 
-  afterEach(() => {
-    gen.useStatic = true;
-  });
-
   test("runs the cached expression without calling the model", async () => {
     const model = solving();
     const { store } = cachedStore(expression);
@@ -163,6 +159,15 @@ describe("gen", () => {
     expect(makeSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
     makeSpy.mockRestore();
+  });
+
+  test("a null store affects only that call", async () => {
+    const { store, makeStatic } = memoryStore();
+
+    await gen("task a", { page }, { model: solving() }, { store: null }, jest.fn());
+    await gen("task b", { page }, { model: solving() }, { store }, jest.fn());
+
+    expect(makeStatic).toHaveBeenCalledTimes(1);
   });
 
   test("saveContext writes the DOM and screenshot next to the cached step", async () => {
@@ -247,26 +252,19 @@ describe("gen", () => {
 
   describe("gen.test", () => {
     const testStep = { step: (_t: string, fn: () => Promise<unknown>) => fn() } as Test;
+    const info = (titlePath: string[]) =>
+      ({ title: titlePath.at(-1), titlePath }) as Parameters<ReturnType<typeof gen.test>>[1];
 
-    test("rejects when a step fails", async () => {
-      const wrapper = gen.test(
-        async ({ page, gen: step }) => {
-          await step(
-            "task",
-            { page, test: testStep },
-            { model: failing(), policies: { maxRetries: 1 } },
-            () => Promise.reject(new Error("boom")),
-          );
-        },
-        { store: memoryStore().store },
-      );
+    test("rethrows the test's own errors unchanged", async () => {
+      const own = new Error("expect(received).toBe(expected)");
+      const wrapper = gen.test(async () => {
+        throw own;
+      });
 
-      await expect(
-        wrapper(fixtures, { title: "t" } as Parameters<typeof wrapper>[1]),
-      ).rejects.toThrow();
+      await expect(wrapper(fixtures, info(["a.spec.ts", "t"]))).rejects.toBe(own);
     });
 
-    test("rethrows library errors unwrapped", async () => {
+    test("rethrows library errors unchanged", async () => {
       const wrapper = gen.test(
         async ({ page, gen: step }) => {
           await step("task", { page, test: testStep }, {}, () =>
@@ -276,9 +274,32 @@ describe("gen", () => {
         { store: cachedStore("cached()").store },
       );
 
-      await expect(
-        wrapper(fixtures, { title: "t" } as Parameters<typeof wrapper>[1]),
-      ).rejects.toBeInstanceOf(Gen2EStaleCacheError);
+      await expect(wrapper(fixtures, info(["a.spec.ts", "t"]))).rejects.toBeInstanceOf(
+        Gen2EStaleCacheError,
+      );
+    });
+
+    test("keys the cache on the full title path", async () => {
+      const titles: string[] = [];
+      const store: StaticStore = {
+        makeIdent: (title, task) => {
+          titles.push(title);
+          return `${title}/${task}`;
+        },
+        fetchStatic: () => ({ expression }),
+        makeStatic: jest.fn(),
+      };
+      const wrapper = gen.test(
+        async ({ page, gen: step }) => {
+          await step("task", { page, test: testStep }, {}, jest.fn());
+        },
+        { store },
+      );
+
+      await wrapper(fixtures, info(["a.spec.ts", "login", "works"]));
+      await wrapper(fixtures, info(["b.spec.ts", "works"]));
+
+      expect(titles).toEqual(["a.spec.ts › login › works", "b.spec.ts › works"]);
     });
   });
 
