@@ -63,6 +63,7 @@ export type Gen2EAgentRunOptions = {
     turn: number;
     messages: readonly ModelMessage[];
   }) => Promise<Gen2EAgentTurnPlan | undefined> | Gen2EAgentTurnPlan | undefined;
+  transformMessages?: (messages: readonly ModelMessage[]) => ModelMessage[];
   beforeToolCall?: (
     call: Gen2EAgentToolCall,
   ) => Promise<Gen2EAgentToolResult | undefined> | Gen2EAgentToolResult | undefined;
@@ -189,7 +190,7 @@ export const runAgent = async (opts: Gen2EAgentRunOptions): Promise<Gen2EAgentRu
       res = await generateText({
         model,
         instructions: opts.instructions,
-        messages,
+        messages: opts.transformMessages ? opts.transformMessages(messages) : messages,
         tools: toolSet,
         toolChoice: opts.toolChoice,
         temperature: opts.temperature,

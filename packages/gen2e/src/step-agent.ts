@@ -1,5 +1,6 @@
 import {
   defineTool,
+  findForbiddenJS,
   fitToContext,
   type Gen2EAgentToolResult,
   type Gen2ELLMAgentModel,
@@ -14,9 +15,9 @@ import {
   validateJSCode,
 } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
-import type { ModelMessage, UserContent } from "ai";
+import type { ModelMessage, ToolContent, UserContent } from "ai";
 import { z } from "zod";
-import { GEN2E_SYSTEM_MESSAGE, stepPrompt } from "./playwright-gen";
+import { DOM_HEADER, GEN2E_SYSTEM_MESSAGE, stepPrompt } from "./playwright-gen";
 import { type DomRevision, getDomRevision, getSnapshot, type WebSnapshotResult } from "./snapshot";
 import type {
   Gen2ELadderOptions,
@@ -67,6 +68,70 @@ const shouldScreenshot = (
     return false;
   }
   return policy === "model" || (policy === "onfail" && failures > 0);
+};
+
+const DOM_UPDATE = "\nThe page changed. Current DOM:\n";
+
+const DOM_OMITTED = "[an older copy of the DOM was removed; the latest one is further down]";
+
+const hasDom = (m: ModelMessage): boolean => {
+  if (m.role === "user" && Array.isArray(m.content)) {
+    return m.content.some((p) => p.type === "text" && p.text.includes(DOM_HEADER));
+  }
+  if (m.role === "tool") {
+    return m.content.some(
+      (p) =>
+        p.type === "tool-result" &&
+        "value" in p.output &&
+        String(p.output.value).includes(DOM_UPDATE),
+    );
+  }
+  return false;
+};
+
+const withoutDom = (m: ModelMessage): ModelMessage => {
+  if (m.role === "user" && Array.isArray(m.content)) {
+    return {
+      ...m,
+      content: m.content.map((p) =>
+        p.type === "text" && p.text.includes(DOM_HEADER)
+          ? { ...p, text: `${p.text.slice(0, p.text.indexOf(DOM_HEADER))}${DOM_OMITTED}` }
+          : p,
+      ),
+    };
+  }
+  if (m.role === "tool") {
+    const content: ToolContent = m.content.map((p) => {
+      if (
+        p.type !== "tool-result" ||
+        p.output.type !== "error-text" ||
+        !p.output.value.includes(DOM_UPDATE)
+      ) {
+        return p;
+      }
+      const value = p.output.value;
+      return {
+        ...p,
+        output: {
+          ...p.output,
+          value: `${value.slice(0, value.indexOf(DOM_UPDATE))}\n${DOM_OMITTED}`,
+        },
+      };
+    });
+    return { ...m, content };
+  }
+  return m;
+};
+
+// Each re-capture repeats the whole DOM; only the latest copy is worth its tokens.
+export const keepLatestDom = (messages: readonly ModelMessage[]): ModelMessage[] => {
+  let last = -1;
+  messages.forEach((m, i) => {
+    if (hasDom(m)) {
+      last = i;
+    }
+  });
+  return messages.map((m, i) => (i < last && hasDom(m) ? withoutDom(m) : m));
 };
 
 const screenshotMessage = (screenshot: Buffer): ModelMessage => ({
@@ -151,6 +216,14 @@ export const runStepAgent = async (init: Gen2EStepAgentInit): Promise<Gen2EStepA
         return { output: "The code does not parse as JavaScript.", isError: true };
       }
 
+      const forbidden = findForbiddenJS(body);
+      if (forbidden) {
+        return {
+          output: `\`${forbidden}\` is not allowed. Only use the \`page\` variable.`,
+          isError: true,
+        };
+      }
+
       const expression = `(async () => { ${body} })`;
       attempts++;
       try {
@@ -174,7 +247,9 @@ export const runStepAgent = async (init: Gen2EStepAgentInit): Promise<Gen2EStepA
           pendingScreenshot = snapshot.screenshot;
         }
 
-        const dom = moved ? `\nThe page changed. Current DOM:\n${snapshot.dom}` : "";
+        const dom = moved
+          ? `${DOM_UPDATE}${fitToContext(next.model, snapshot.dom, GEN2E_SYSTEM_MESSAGE)}`
+          : "";
         return { output: `${msg.slice(0, 2000)}${dom}`, isError: true };
       }
     },
@@ -200,6 +275,7 @@ export const runStepAgent = async (init: Gen2EStepAgentInit): Promise<Gen2EStepA
     messages: [{ role: "user", content }],
     tools: [runExpression],
     toolChoice: "required",
+    transformMessages: keepLatestDom,
     maxTurns: init.maxEvals * 2 + 1,
     temperature: 0,
     prepareTurn: () => {

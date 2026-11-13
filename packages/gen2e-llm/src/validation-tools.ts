@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { validateJSCode, validateJSONString } from "./sanity";
+import { findForbiddenJS, validateJSCode, validateJSONString } from "./sanity";
 import { defineTool, type Gen2EAgentTool } from "./tool";
 
 const codeInput = z.object({
@@ -34,8 +34,18 @@ export const codeValidationTool = (lang: "javascript" | "json"): Gen2EAgentTool 
     description: `Parses the ${lang} you are about to return. Call it before answering. If it reports an error, fix the code and call it again.`,
     inputSchema: codeInput,
     execute: ({ code }) => {
-      const valid = lang === "json" ? validateJSONString(code) : validateJSCode(code);
-      return valid ? { output: "code ok" } : { output: `invalid ${lang}`, isError: true };
+      if (lang === "json") {
+        return validateJSONString(code)
+          ? { output: "code ok" }
+          : { output: "invalid json", isError: true };
+      }
+      if (!validateJSCode(code)) {
+        return { output: "invalid javascript", isError: true };
+      }
+      const forbidden = findForbiddenJS(code);
+      return forbidden
+        ? { output: `\`${forbidden}\` is not allowed in generated code`, isError: true }
+        : { output: "code ok" };
     },
   });
 

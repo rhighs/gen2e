@@ -111,6 +111,37 @@ describe("runStepAgent", () => {
     expect(mockGetSnapshot).toHaveBeenCalledTimes(1);
   });
 
+  test("refuses code that reaches for Node without running it", async () => {
+    const model = scriptedModel([submit("return process.env.SECRET"), submit("await ok()")]);
+    const evalCode = jest.fn().mockResolvedValue("ok");
+
+    const res = await run({ model, evalCode });
+
+    expect(res).toMatchObject({ type: "success", attempts: 1 });
+    expect(evalCode).toHaveBeenCalledTimes(1);
+    expect(promptText(model, 1)).toContain("`process` is not allowed");
+  });
+
+  test("keeps only the latest DOM in the conversation", async () => {
+    let n = 0;
+    mockGetSnapshot.mockImplementation(async () => ({ dom: `<html>dom-${++n}</html>` }));
+    mockGetDomRevision.mockImplementation(async () => ({ navigations: 0, mutations: n }));
+    const model = scriptedModel([submit("await a()"), submit("await b()"), submit("await c()")]);
+    const evalCode = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("x"))
+      .mockRejectedValueOnce(new Error("y"))
+      .mockResolvedValue("ok");
+
+    await run({ model, evalCode });
+
+    const last = promptText(model, 2);
+    expect(last).toContain("dom-3");
+    expect(last).not.toContain("dom-1");
+    expect(last).not.toContain("dom-2");
+    expect(last).toContain("an older copy of the DOM was removed");
+  });
+
   test("starts on the cheap model and escalates to the primary after a failure", async () => {
     const cheap = scriptedModel([submit("await a()")], "cheap");
     const primary = scriptedModel([submit("await b()")], "primary");

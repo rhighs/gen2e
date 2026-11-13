@@ -156,6 +156,21 @@ describe("runAgent", () => {
     expect(promptText(second, 0)).toContain("fresh context");
   });
 
+  test("transformMessages rewrites what the model sees, not the run history", async () => {
+    const model = scriptedModel([textTurn("done")]);
+
+    const res = await runAgent({
+      model,
+      instructions: "sys",
+      messages: user("secret original"),
+      transformMessages: () => user("rewritten"),
+    });
+
+    expect(promptText(model, 0)).toContain("rewritten");
+    expect(promptText(model, 0)).not.toContain("secret original");
+    expect(JSON.stringify(res.messages)).toContain("secret original");
+  });
+
   test("does not call the model when the signal is already aborted", async () => {
     const model = scriptedModel([textTurn("never")]);
     const ctrl = new AbortController();

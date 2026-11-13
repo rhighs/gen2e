@@ -4,7 +4,7 @@ import { type Gen2EAgentRunResult, runAgent } from "./agent-loop";
 import { fitsContext, maxCharactersApprox } from "./context-window";
 import { Gen2ELLMGenericError } from "./errors";
 import { isModelSupported, isRetryableError, modelId, resolveModel } from "./model";
-import { sanitizeCodeOutput, validateJSCode } from "./sanity";
+import { findForbiddenJS, sanitizeCodeOutput, validateJSCode } from "./sanity";
 import type { Gen2EAgentTool } from "./tool";
 import type {
   Gen2ELLMAgent,
@@ -214,14 +214,20 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
     await hooks?.onUsage?.(usageStats);
 
     const sanitizedExpr = sanitizeCodeOutput(expression);
-    if (
-      (defaultLang === "javascript" || defaultLang === "typescript") &&
-      !validateJSCode(sanitizedExpr)
-    ) {
-      return {
-        type: "error",
-        errorMessage: `llm runner failed generation a valid javascript expression, got ${sanitizedExpr}`,
-      };
+    if (defaultLang === "javascript" || defaultLang === "typescript") {
+      if (!validateJSCode(sanitizedExpr)) {
+        return {
+          type: "error",
+          errorMessage: `llm runner failed generation a valid javascript expression, got ${sanitizedExpr}`,
+        };
+      }
+      const forbidden = findForbiddenJS(sanitizedExpr);
+      if (forbidden) {
+        return {
+          type: "error",
+          errorMessage: `generated code uses \`${forbidden}\`, which is not allowed`,
+        };
+      }
     }
 
     if (isDebug) {

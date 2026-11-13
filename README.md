@@ -90,7 +90,7 @@ npx playwright test
 
 The first run generates, runs and caches each step. The next run replays `.static/` and makes no model calls.
 
-`gen` returns whatever the step's code returns: use it for actions, or ask for a value and assert on it with `expect`. Outside a test, call `gen(task, { page })`; nothing is cached then.
+`gen` returns whatever the step's code returns: use it for actions, or ask for a value and assert on it with `expect`. Outside a test, call `gen(task, { page })`; steps are cached by task and page origin.
 
 ## Models
 
@@ -142,6 +142,14 @@ Each step is one agent run (`runAgent` in `@rhighs/gen2e-llm`, built on the AI S
 2. It calls `run_expression` with Playwright code. Code that does not parse is sent back without running.
 3. The code runs on the page. On success the run ends and the code is cached.
 4. On failure the error goes back to the agent, with the current DOM if the page changed, until `maxRetries` runs have failed.
+
+## Limits and trust
+
+- Each step runs code written by a model inside your test process, with the same access as your tests. gen2e refuses code that touches `process`, `require`, `globalThis`, `Function` or `constructor`, and tells the model that page content is data, not instructions. That reduces the risk; it is not a sandbox. Run gen2e against sites you trust, and keep secrets out of task text.
+- The page DOM, and screenshots when the policy allows them, are sent to your model provider.
+- A cached step is plain JavaScript in `.static/`. Review it like any other code you commit.
+
+Report security issues as described in [SECURITY.md](SECURITY.md).
 
 ## Packages
 

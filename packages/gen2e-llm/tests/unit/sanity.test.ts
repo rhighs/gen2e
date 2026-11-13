@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sanitizeCodeOutput, validateJSCode, validateJSONString } from "../../src";
+import { findForbiddenJS, sanitizeCodeOutput, validateJSCode, validateJSONString } from "../../src";
 
 describe("sanitizeCodeOutput", () => {
   test.each([
@@ -32,5 +32,26 @@ describe("validateJSONString", () => {
     ["", false],
   ])("%p is %p", (input, expected) => {
     expect(validateJSONString(input)).toBe(expected);
+  });
+});
+
+describe("findForbiddenJS", () => {
+  test.each([
+    ["process.env.SECRET", "process"],
+    ["require('fs')", "require"],
+    ["globalThis.fetch('x')", "globalThis"],
+    ["new Function('return 1')()", "Function"],
+    ["page.constructor.constructor('return this')()", "constructor"],
+    ["page['constructor']", "constructor"],
+  ])("flags %s", (code, name) => {
+    expect(findForbiddenJS(code)).toBe(name);
+  });
+
+  test("accepts ordinary Playwright code", () => {
+    expect(
+      findForbiddenJS(
+        "await page.locator('#a').click(); return await page.evaluate(() => document.title)",
+      ),
+    ).toBeUndefined();
   });
 });
