@@ -1,28 +1,37 @@
 # @rhighs/gen2e
 
-You write Playwright test steps in plain English. A model turns each step into one Playwright expression, gen2e runs it against the live page, and the expression is cached on disk. Later runs replay the cache without calling a model.
+Write Playwright tests in plain English. A model turns each step into Playwright code, gen2e runs it against the live page, and the code is cached on disk. Later runs replay the cache without calling a model.
 
 ```bash
-npm install -D @rhighs/gen2e @playwright/test
+bun add -d @rhighs/gen2e
 export OPENAI_API_KEY="sk-..."
 ```
 
-```ts
-import { expect, test } from "@playwright/test";
-import { gen } from "@rhighs/gen2e";
+`login.gen2e`, one step per line:
 
-test(
-  "reads the heading",
-  gen.test(async ({ page, gen }) => {
-    await page.goto("https://example.com");
-    const heading = await gen("get the header text", { page, test });
-    expect(heading).toBe("Example Domain");
-  }),
-);
+```
+open https://example.com/login
+type {{user}} in the email field
+click sign in
+assert the dashboard greets {{user}}
 ```
 
-To use another OpenAI-compatible endpoint, set `OPENAI_BASE_URL` and `GEN2E_MODEL`. Any AI SDK model can be passed as `model` too.
+Or a spec, `login.gen2e.ts`:
 
-Models, configuration and caching are documented in the [repository README](https://github.com/rhighs/gen2e#readme).
+```ts
+import { test } from "@rhighs/gen2e";
+
+test("signs in", async ({ ai, page }) => {
+  await page.goto("https://example.com/login");
+  await ai("sign in as {{user}}", { vars: { user: "ada@example.com" } });
+  await ai.assert("the dashboard greets ada");
+});
+```
+
+```bash
+bunx gen2e
+```
+
+Commands, configuration and caching are documented in the [repository README](https://github.com/rhighs/gen2e#readme).
 
 MIT licensed.
