@@ -48,4 +48,4 @@ Bump the versions of the packages you changed, then run `bun run release`. It ru
 
 ## Layout
 
-Dependencies go one way: `core` and `logger` → `store` and `llm` → `gen2e` → `interpreter` → `cli`.
+Dependencies go one way: `core` and `logger` → `store` and `llm` → `gen2e`.
