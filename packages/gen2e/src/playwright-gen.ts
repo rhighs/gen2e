@@ -87,10 +87,34 @@ export const GEN2E_PROMPT_VERSION = "2026-11-13.2";
 
 export const DOM_HEADER = "This is the DOM of the page:";
 
-export const stepPrompt = (task: string, dom: string): string => `\
+export type Gen2EStepPromptExtras = {
+  returns?: string;
+  vars?: string[];
+};
+
+const extrasText = ({ returns, vars }: Gen2EStepPromptExtras): string => {
+  const parts: string[] = [];
+  if (vars?.length) {
+    parts.push(
+      `The task refers to variables as {{name}}. Read them from \`vars\` (for example \`vars.${vars[0]}\`) and never write their values into the code. Available: ${vars.join(", ")}.`,
+    );
+  }
+  if (returns) {
+    parts.push(
+      `Your code must return a value matching this JSON schema:\n\`\`\`json\n${returns}\n\`\`\``,
+    );
+  }
+  return parts.length ? `${parts.join("\n\n")}\n\n` : "";
+};
+
+export const stepPrompt = (
+  task: string,
+  dom: string,
+  extras: Gen2EStepPromptExtras = {},
+): string => `\
 This is your task: ${task}
 
-${DOM_HEADER}
+${extrasText(extras)}${DOM_HEADER}
 \`\`\`html
 ${dom}
 \`\`\``;

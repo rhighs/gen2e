@@ -52,7 +52,7 @@ describe("runStepAgent", () => {
       evalResult: "clicked",
       attempts: 1,
     });
-    expect(evalCode).toHaveBeenCalledWith(wrapped("await page.click('#go')"), page);
+    expect(evalCode).toHaveBeenCalledWith(wrapped("await page.click('#go')"), page, undefined);
     expect(promptText(model, 0)).toContain("<html>dom</html>");
   });
 

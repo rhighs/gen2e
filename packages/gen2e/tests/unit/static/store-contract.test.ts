@@ -88,7 +88,7 @@ describe("static store contract", () => {
         "ok",
       );
 
-      expect(evalCode).toHaveBeenCalledWith("await page.title()", page);
+      expect(evalCode).toHaveBeenCalledWith("await page.title()", page, undefined);
       expect(makeStatic).not.toHaveBeenCalled();
     });
   });

@@ -1,5 +1,11 @@
 import { describe, expect, jest, mock, test } from "bun:test";
-import type { GenType, Page, StaticStore, TestFunction } from "@rhighs/gen2e";
+import type {
+  Gen2EPlaywrightCodeEvalFunc,
+  GenType,
+  Page,
+  StaticStore,
+  TestFunction,
+} from "@rhighs/gen2e";
 import { sandboxEval } from "../../../src";
 
 mock.module("../../../src/env", () => ({
@@ -20,11 +26,19 @@ describe("sandboxEval", () => {
       fn(
         {
           ...fixtures,
-          gen: async (task, _config, _options, evalCode) =>
-            evalCode?.(
-              store.fetchStatic(store.makeIdent(info.title, task))?.expression ?? "",
-              fixtures.page,
-            ),
+          gen: Object.assign(
+            async (
+              task: string,
+              _config: unknown,
+              _options: unknown,
+              evalCode?: Gen2EPlaywrightCodeEvalFunc,
+            ) =>
+              evalCode?.(
+                store.fetchStatic(store.makeIdent(info.title, task))?.expression ?? "",
+                fixtures.page,
+              ),
+            { extract: jest.fn(), assert: jest.fn() },
+          ),
         },
         info,
       ),

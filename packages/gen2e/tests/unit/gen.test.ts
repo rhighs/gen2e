@@ -4,8 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { APIRequestContext, BrowserContext } from "@playwright/test";
 import { wrapIdent } from "@rhighs/gen2e-core";
+import { z } from "zod";
 import {
   FSStaticStore,
+  Gen2EAssertionError,
   Gen2EGenError,
   Gen2EStaleCacheError,
   gen,
@@ -17,7 +19,7 @@ import {
 import env from "../../src/env";
 import { GEN2E_PROMPT_VERSION } from "../../src/playwright-gen";
 import { getSnapshot } from "../../src/snapshot";
-import { scriptedModel, toolTurn } from "../support/scripted-model";
+import { promptText, scriptedModel, toolTurn } from "../support/scripted-model";
 
 mock.module("../../src/snapshot", () => ({
   getSnapshot: jest.fn(),
@@ -209,6 +211,95 @@ describe("gen", () => {
     }
 
     expect(model.doGenerateCalls).toHaveLength(1);
+  });
+
+  describe("extract, assert and vars", () => {
+    const answers = (...codes: string[]) =>
+      scriptedModel(codes.map((code) => toolTurn({ name: "run_expression", input: { code } })));
+    const user = z.object({ name: z.string(), age: z.number() });
+
+    test("extract returns the parsed value and shows the schema to the model", async () => {
+      const model = answers("return { name: 'ada', age: 36 }");
+
+      const res = await gen.extract("read the user", { page }, user, { model }, { store: null });
+
+      expect(res).toEqual({ name: "ada", age: 36 });
+      expect(promptText(model, 0)).toContain('\\"age\\"');
+    });
+
+    test("extract sends a value that does not match the schema back to the model", async () => {
+      const model = answers("return { name: 'ada' }", "return { name: 'ada', age: 36 }");
+
+      const res = await gen.extract("read the user", { page }, user, { model }, { store: null });
+
+      expect(res.age).toBe(36);
+      expect(promptText(model, 1)).toContain("does not match the schema");
+    });
+
+    test("a replayed extract whose value no longer matches fails instead of healing", async () => {
+      const { store, makeStatic } = cachedStore("(async () => { return { name: 'ada' } })");
+
+      const err = await gen.extract("read the user", { page }, user, {}, { store }).catch((e) => e);
+
+      expect(err).toBeInstanceOf(Gen2EStaleCacheError);
+      expect(err.meta.errorClass).toBe("assertion");
+      expect(makeStatic).not.toHaveBeenCalled();
+    });
+
+    test("extract and gen with the same task use different cache entries", async () => {
+      const titles: string[] = [];
+      const store: StaticStore = {
+        makeIdent: (_title, task) => {
+          titles.push(task);
+          return task;
+        },
+        fetchStatic: () => undefined,
+        makeStatic: jest.fn(),
+      };
+
+      await gen("read the user", { page }, { model: answers("return 1") }, { store }, jest.fn());
+      await gen.extract(
+        "read the user",
+        { page },
+        z.number(),
+        { model: answers("return 1") },
+        { store },
+      );
+
+      expect(titles[0]).toBe("read the user");
+      expect(titles[1]).toStartWith("read the user\n[returns ");
+    });
+
+    test("assert passes on true, throws Gen2EAssertionError on false and never retries a false", async () => {
+      const holds = answers("return true");
+      const fails = answers("return false", "return true");
+
+      await gen.assert("the title is set", { page }, { model: holds }, { store: null });
+      const err = await gen
+        .assert("the title is set", { page }, { model: fails }, { store: null })
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(Gen2EAssertionError);
+      expect(fails.doGenerateCalls).toHaveLength(1);
+    });
+
+    test("vars reach the code but never the prompt or the cache key", async () => {
+      const model = answers("return vars.password.length");
+      const { store, entries } = memoryStore();
+
+      const res = await gen(
+        "type {{password}} in the password field",
+        { page },
+        { model, vars: { password: "hunter22" } },
+        { store },
+      );
+
+      expect(res).toBe(8);
+      expect(promptText(model, 0)).toContain("password");
+      expect(promptText(model, 0)).not.toContain("hunter22");
+      expect(Object.keys(entries)).toEqual(["ident-type {{password}} in the password field"]);
+      expect(JSON.stringify(entries)).not.toContain("hunter22");
+    });
   });
 
   describe("cached steps that fail", () => {

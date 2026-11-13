@@ -2,7 +2,8 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { gen } from "../../src";
+import { z } from "zod";
+import { Gen2EAssertionError, gen } from "../../src";
 import { promptText, scriptedModel, toolTurn } from "../support/scripted-model";
 
 const submit = (code: string) => toolTurn({ name: "run_expression", input: { code } });
@@ -65,6 +66,51 @@ test(
         ).length,
       }));
       expect(leftovers).toEqual({ tagged: 0, styles: 0 });
+    },
+    { store: null },
+  ),
+);
+
+test(
+  "extract, assert and vars work against the real page",
+  gen.test(
+    async ({ page, gen }) => {
+      const header = await gen.extract(
+        "read the header and the click count",
+        { page, test },
+        z.object({ header: z.string(), count: z.coerce.number() }),
+        {
+          model: scriptedModel([
+            submit(
+              "return { header: await page.locator('h1').innerText(), count: await page.getByTestId('current-count').innerText() }",
+            ),
+          ]),
+        },
+      );
+      expect(header).toEqual({ header: "Hello, Gen2E!", count: 0 });
+
+      await gen(
+        "type {{query}} in the search box",
+        { page, test },
+        {
+          vars: { query: "secret cats" },
+          model: scriptedModel([submit("await page.getByTestId('search-input').fill(vars.query)")]),
+        },
+      );
+      await expect(page.getByTestId("search-input")).toHaveValue("secret cats");
+
+      const failed = await gen
+        .assert(
+          "the header says goodbye",
+          { page, test },
+          {
+            model: scriptedModel([
+              submit("return (await page.locator('h1').innerText()).includes('Goodbye')"),
+            ]),
+          },
+        )
+        .catch((e) => e);
+      expect(failed).toBeInstanceOf(Gen2EAssertionError);
     },
     { store: null },
   ),

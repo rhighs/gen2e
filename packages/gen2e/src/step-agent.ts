@@ -24,6 +24,7 @@ import type {
   Gen2ELLMCallHooks,
   Gen2EPlaywrightCodeEvalFunc,
   Gen2EScreenshotUsagePolicy,
+  Gen2EVars,
   Gen2EVisualDebugLevel,
   Page,
 } from "./types";
@@ -44,6 +45,13 @@ export type Gen2EStepAgentInit = {
   saveScreenshots?: boolean;
   logger: Gen2ELogger;
   hooks?: Gen2ELLMCallHooks;
+  vars?: Gen2EVars;
+  returns?: Gen2EStepReturns;
+};
+
+export type Gen2EStepReturns = {
+  jsonSchema: string;
+  validate: (value: unknown) => string | undefined;
 };
 
 export type Gen2EStepAgentResult = {
@@ -227,8 +235,12 @@ export const runStepAgent = async (init: Gen2EStepAgentInit): Promise<Gen2EStepA
       const expression = `(async () => { ${body} })`;
       attempts++;
       try {
-        evalResult = await evalCode(expression, page);
-        return { output: expression, terminate: true };
+        evalResult = await evalCode(expression, page, init.vars);
+        const mismatch = init.returns?.validate(evalResult);
+        if (!mismatch) {
+          return { output: expression, terminate: true };
+        }
+        throw new Error(`The code ran but its return value does not match the schema: ${mismatch}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push(msg);
@@ -259,7 +271,14 @@ export const runStepAgent = async (init: Gen2EStepAgentInit): Promise<Gen2EStepA
   const content: UserContent = [
     {
       type: "text",
-      text: fitToContext(first.model, stepPrompt(init.task, snapshot.dom), GEN2E_SYSTEM_MESSAGE),
+      text: fitToContext(
+        first.model,
+        stepPrompt(init.task, snapshot.dom, {
+          returns: init.returns?.jsonSchema,
+          vars: init.vars ? Object.keys(init.vars) : undefined,
+        }),
+        GEN2E_SYSTEM_MESSAGE,
+      ),
     },
   ];
   if (first.useScreenshot && snapshot.screenshot) {

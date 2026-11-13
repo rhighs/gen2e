@@ -90,7 +90,31 @@ npx playwright test
 
 The first run generates, runs and caches each step. The next run replays `.static/` and makes no model calls.
 
-`gen` returns whatever the step's code returns: use it for actions, or ask for a value and assert on it with `expect`. Outside a test, call `gen(task, { page })`; steps are cached by task and page origin.
+`gen` returns whatever the step's code returns. For typed values, natural-language checks and secrets, use these:
+
+```ts
+import { z } from "zod";
+
+const cart = await gen.extract(
+  "read the cart total and item count",
+  { page, test },
+  z.object({ total: z.number(), items: z.number() }),
+);
+
+await gen.assert("the cart shows a free-shipping badge", { page, test });
+
+await gen(
+  "log in as {{user}} with {{password}}",
+  { page, test },
+  { vars: { user: "ada", password: process.env.PASSWORD } },
+);
+```
+
+- `gen.extract` checks the value against the schema while the agent works, and again on every cached replay, so a changed page shape fails loudly instead of returning junk.
+- `gen.assert` throws `Gen2EAssertionError` when the check is false. Assertions are never regenerated from the cache, so a real regression stays a failure.
+- `{{name}}` placeholders keep values out of the prompt, the cache and telemetry. The model only sees the names and writes `vars.name`, so one cached step works for any value.
+
+Outside a test, call `gen(task, { page })` (and `gen.extract`, `gen.assert`); steps are cached by task and page origin.
 
 ## Models
 

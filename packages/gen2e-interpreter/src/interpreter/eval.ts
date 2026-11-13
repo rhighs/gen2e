@@ -1,9 +1,9 @@
-import type { GenFunction, Page } from "@rhighs/gen2e";
+import type { Page } from "@rhighs/gen2e";
 
 export const evalGen2EExpression = async (
   genExpr: string,
   // biome-ignore lint/correctness/noUnusedFunctionParameters: `gen` is referenced by the expression evaluated below
-  gen: GenFunction,
+  gen: (task: string, config: { page: Page }) => Promise<unknown>,
   page: Page,
 ) => {
   if (!page) {

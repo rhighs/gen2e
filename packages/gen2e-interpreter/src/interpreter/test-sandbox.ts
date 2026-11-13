@@ -37,16 +37,18 @@ export const sandboxEval = async (
     logger.config(_logger);
   }
 
-  const _gen_custom_eval =
-    (__gen: GenStepFunction) =>
-    async (...args: Parameters<GenStepFunction>): ReturnType<GenStepFunction> => {
-      const [task, config, _options, _] = args;
-      if (env.SANDBOX_DEBUG) {
-        logger.debug("calling __gen() with args", args);
-      }
+  const _gen_custom_eval = (__gen: GenStepFunction): GenStepFunction =>
+    Object.assign(
+      async (...args: Parameters<GenStepFunction>): ReturnType<GenStepFunction> => {
+        const [task, config] = args;
+        if (env.SANDBOX_DEBUG) {
+          logger.debug("calling __gen() with args", args);
+        }
 
-      return __gen(task, config, modelOptions, evalPwCode);
-    };
+        return __gen(task, config, modelOptions, evalPwCode);
+      },
+      { extract: __gen.extract, assert: __gen.assert },
+    );
 
   const _gen_test = (testFunction: TestFunction): PlaywrightTestFunction =>
     gen.test(

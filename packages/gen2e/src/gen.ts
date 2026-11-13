@@ -14,9 +14,10 @@ import {
 import { type Gen2ELLMAgentModel, type Gen2ELLMAgentUsageStats, modelId } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 import { FSStaticStore } from "@rhighs/gen2e-store";
+import { z } from "zod";
 import globalConfig from "./config";
 import env from "./env";
-import { Gen2EGenError } from "./errors";
+import { Gen2EAssertionError, Gen2EGenError } from "./errors";
 import { FSWriter } from "./io";
 import loggerInstance from "./logger";
 import { GEN2E_PROMPT_VERSION } from "./playwright-gen";
@@ -27,7 +28,7 @@ import {
   installDomRevisionTracker,
   type WebSnapshotResult,
 } from "./snapshot";
-import { runStepAgent } from "./step-agent";
+import { type Gen2EStepReturns, runStepAgent } from "./step-agent";
 import { recordStepTelemetry } from "./telemetry";
 import type {
   Gen2EGenContext,
@@ -36,10 +37,12 @@ import type {
   Gen2ELadderOptions,
   Gen2ELLMCallHooks,
   Gen2EPlaywrightCodeEvalFunc,
+  Gen2EVars,
   GenStepFunction,
   GenType,
   Page,
   PlaywrightTestFunction,
+  Test,
   TestFunction,
 } from "./types";
 
@@ -51,6 +54,7 @@ type Gen2EStepInit = {
   logger: Gen2ELogger;
   store?: StaticStore | null;
   hooks?: Gen2ELLMCallHooks;
+  returns?: Gen2EStepReturns;
 };
 
 type Gen2EStepOptions = {
@@ -62,7 +66,19 @@ type Gen2EStepOptions = {
   ladder?: Gen2ELadderOptions;
   openaiApiKey?: string;
   baseURL?: string;
+  vars?: Gen2EVars;
 };
+
+const returnsFor = (schema: z.ZodType): Gen2EStepReturns => ({
+  jsonSchema: JSON.stringify(z.toJSONSchema(schema, { unrepresentable: "any" })),
+  validate: (value) => {
+    const res = schema.safeParse(value);
+    return res.success ? undefined : z.prettifyError(res.error);
+  },
+});
+
+const assertTask = (task: string): string =>
+  `Check whether this holds on the page: ${task}. Return true if it holds and false if it does not.`;
 
 const tryFetch = (
   store: StaticStore,
@@ -95,7 +111,7 @@ const tryFetch = (
 };
 
 const step = async (
-  { task, title, page, store, evalCode, logger, hooks }: Gen2EStepInit,
+  { task, title, page, store, evalCode, logger, hooks, returns }: Gen2EStepInit,
   options: Gen2EStepOptions,
 ) => {
   const startedAt = Date.now();
@@ -112,49 +128,65 @@ const step = async (
   try {
     await installDomRevisionTracker(page);
     const pageUrl = page.url();
+    const keyTask = returns ? `${task}\n[returns ${returns.jsonSchema}]` : task;
     const cacheKey: StaticKeyContext = {
       testTitle: title,
-      task,
+      task: keyTask,
       pageUrl,
       model: modelId(options.model),
       promptVersion: GEN2E_PROMPT_VERSION,
     };
     testIdent =
       store?.makeIdentFromContext?.(cacheKey) ??
-      store?.makeIdent(title, task) ??
+      store?.makeIdent(title, keyTask) ??
       defaultMakeIdentFromContext(cacheKey);
 
     if (store) {
       const expression = tryFetch(store, testIdent, { logger, testTask: task });
       if (expression) {
+        let cachedResult: unknown;
+        let failure: { error: unknown } | undefined;
         try {
-          const cachedResult = await evalCode(`${expression}`, page);
-          cache = "hit";
+          cachedResult = await evalCode(`${expression}`, page, options.vars);
+        } catch (error) {
+          failure = { error };
+        }
+
+        // A served entry that fails is a failed hit, not a miss.
+        cache = "hit";
+
+        if (!failure) {
+          const mismatch = returns?.validate(cachedResult);
+          if (mismatch) {
+            throw new Gen2EStaleCacheError(testIdent, expression, {
+              errorClass: "assertion",
+              errorMessage: mismatch,
+            });
+          }
           outcome = "success";
           return cachedResult;
-        } catch (error) {
-          // A served entry that fails is a failed hit, not a miss.
-          cache = "hit";
-          const evalErrorClass = classifyEvalError(error);
-          const stale = new Gen2EStaleCacheError(testIdent, expression, {
-            errorClass: evalErrorClass,
-            errorMessage: error instanceof Error ? error.message : String(error),
-          });
-
-          if (options.replayOnly) {
-            throw stale;
-          }
-
-          if (evalErrorClass === "locator-drift" && env.STALE_CACHE !== "fail") {
-            logger.debug("cached expression drifted, regenerating", {
-              testIdent,
-              errorClass: evalErrorClass,
-            });
-            cache = "stale-regen";
-          } else {
-            throw stale;
-          }
         }
+
+        const evalErrorClass = classifyEvalError(failure.error);
+        const stale = new Gen2EStaleCacheError(testIdent, expression, {
+          errorClass: evalErrorClass,
+          errorMessage:
+            failure.error instanceof Error ? failure.error.message : String(failure.error),
+        });
+
+        if (
+          options.replayOnly ||
+          evalErrorClass !== "locator-drift" ||
+          env.STALE_CACHE === "fail"
+        ) {
+          throw stale;
+        }
+
+        logger.debug("cached expression drifted, regenerating", {
+          testIdent,
+          errorClass: evalErrorClass,
+        });
+        cache = "stale-regen";
       }
     }
 
@@ -195,6 +227,8 @@ const step = async (
       saveScreenshots: options.debug,
       logger,
       hooks,
+      vars: options.vars,
+      returns,
     });
 
     usageStats.push(...result.usage);
@@ -353,10 +387,12 @@ const genContext: Gen2EGenContext = {
   logger: loggerInstance,
 };
 
-const defaultEvalCode: Gen2EPlaywrightCodeEvalFunc = (code: string, page: Page) =>
-  new Function("page", `return (async () => { const result = await ${code}(); return result })()`)(
-    page,
-  );
+const defaultEvalCode: Gen2EPlaywrightCodeEvalFunc = (code, page, vars = {}) =>
+  new Function(
+    "page",
+    "vars",
+    `return (async () => { const result = await ${code}(); return result })()`,
+  )(page, vars);
 
 const stepOptions = (options: Gen2EGenOptions | undefined): Gen2EStepOptions => ({
   debug: options?.debug ?? globalConfig.debug ?? env.DEBUG_MODE,
@@ -372,94 +408,180 @@ const stepOptions = (options: Gen2EGenOptions | undefined): Gen2EStepOptions => 
   saveContext: options?.saveContext ?? false,
   replayOnly: options?.replayOnly ?? globalConfig.replayOnly ?? env.REPLAY_ONLY,
   ladder: resolveLadder(options?.ladder),
+  vars: options?.vars,
 });
 
 const activeStore = (ctx: Gen2EGenContext, store: StaticStore | null | undefined) =>
   store === null || !ctx.useStatic || !env.USE_STATIC_STORE ? null : (store ?? FSStaticStore);
 
-const _gen: GenType = (
-  async function (
-    this: GenType,
-    task: string,
-    config: {
-      page: Page;
-    },
-    options?: Gen2EGenOptions,
-    init?: {
-      hooks?: Gen2ELLMCallHooks;
-      store?: StaticStore | null;
-      logger?: Gen2ELogger;
-    },
-    evalCode: Gen2EPlaywrightCodeEvalFunc = defaultEvalCode,
-  ): Promise<any> {
-    if (!config?.page) {
-      throw Error("The gen() function is missing the required `{ page }` argument.");
-    }
+type GenInit = {
+  hooks?: Gen2ELLMCallHooks;
+  store?: StaticStore | null;
+  logger?: Gen2ELogger;
+};
 
-    if (init?.logger) {
-      this.logger.config(init.logger);
-    }
-
-    return await step(
-      {
-        task,
-        title: "",
-        page: config.page,
-        store: activeStore(this, init?.store),
-        hooks: init?.hooks,
-        logger: this.logger,
-        evalCode,
-      },
-      stepOptions(options),
-    );
-  } as GenType
-).bind(genContext);
-
-_gen.test = function (
-  this: GenType,
-  testFunction: TestFunction,
-  init?: {
-    store?: StaticStore | null;
-    hooks?: Gen2ELLMCallHooks;
-    logger?: Gen2ELogger;
-  },
-): PlaywrightTestFunction {
-  if (init?.logger) {
-    this.logger.config(init.logger);
+const runStandalone = (
+  ctx: Gen2EGenContext,
+  task: string,
+  config: { page: Page },
+  options: Gen2EGenOptions | undefined,
+  init: GenInit | undefined,
+  evalCode: Gen2EPlaywrightCodeEvalFunc,
+  returns?: Gen2EStepReturns,
+) => {
+  if (!config?.page) {
+    throw Error("The gen() function is missing the required `{ page }` argument.");
   }
 
-  const logger = this.logger;
+  if (init?.logger) {
+    ctx.logger.config(init.logger);
+  }
+
+  return step(
+    {
+      task,
+      title: "",
+      page: config.page,
+      store: activeStore(ctx, init?.store),
+      hooks: init?.hooks,
+      logger: ctx.logger,
+      evalCode,
+      returns,
+    },
+    stepOptions(options),
+  );
+};
+
+const _gen = Object.assign(
+  (
+    task: string,
+    config: { page: Page },
+    options?: Gen2EGenOptions,
+    init?: GenInit,
+    evalCode: Gen2EPlaywrightCodeEvalFunc = defaultEvalCode,
+  ) => runStandalone(genContext, task, config, options, init, evalCode),
+  {
+    extract: <S extends z.ZodType>(
+      task: string,
+      config: { page: Page },
+      schema: S,
+      options?: Gen2EGenOptions,
+      init?: GenInit,
+    ): Promise<z.output<S>> =>
+      runStandalone(
+        genContext,
+        task,
+        config,
+        options,
+        init,
+        defaultEvalCode,
+        returnsFor(schema),
+      ).then((value) => schema.parse(value)),
+    assert: async (
+      task: string,
+      config: { page: Page },
+      options?: Gen2EGenOptions,
+      init?: GenInit,
+    ): Promise<void> => {
+      const holds = await runStandalone(
+        genContext,
+        assertTask(task),
+        config,
+        options,
+        init,
+        defaultEvalCode,
+        returnsFor(z.boolean()),
+      );
+      if (holds !== true) {
+        throw new Gen2EAssertionError(task);
+      }
+    },
+    test: (testFunction: TestFunction, init?: GenInit) => genTest(genContext, testFunction, init),
+  },
+) as GenType;
+
+function genTest(
+  ctx: Gen2EGenContext,
+  testFunction: TestFunction,
+  init?: GenInit,
+): PlaywrightTestFunction {
+  if (init?.logger) {
+    ctx.logger.config(init.logger);
+  }
+
+  const logger = ctx.logger;
 
   return async ({ page, context, request }, testInfo): Promise<void> => {
     // The full path (file, describe blocks, title) keeps same-named tests in different places apart.
     const title = testInfo.titlePath.join(" › ");
 
-    const gen: GenStepFunction = async (task, config, options, evalCode = defaultEvalCode) => {
+    const run = (
+      task: string,
+      config: { page: Page; test: Test },
+      options: Gen2EGenOptions | undefined,
+      evalCode: Gen2EPlaywrightCodeEvalFunc,
+      returns?: Gen2EStepReturns,
+    ) => {
       if (!config?.page) {
         throw Error("The gen() function is missing the required `{ page }` argument.");
       }
 
-      return await config.test.step(task, () =>
+      return config.test.step(task, () =>
         step(
           {
             task,
             title,
             page: config.page,
-            store: activeStore(this, init?.store),
+            store: activeStore(ctx, init?.store),
             hooks: init?.hooks,
             logger,
             evalCode,
+            returns,
           },
           stepOptions(options),
         ),
       );
     };
 
+    const gen: GenStepFunction = Object.assign(
+      (
+        task: string,
+        config: { page: Page; test: Test },
+        options?: Gen2EGenOptions,
+        evalCode: Gen2EPlaywrightCodeEvalFunc = defaultEvalCode,
+      ) => run(task, config, options, evalCode),
+      {
+        extract: <S extends z.ZodType>(
+          task: string,
+          config: { page: Page; test: Test },
+          schema: S,
+          options?: Gen2EGenOptions,
+        ): Promise<z.output<S>> =>
+          run(task, config, options, defaultEvalCode, returnsFor(schema)).then((value) =>
+            schema.parse(value),
+          ),
+        assert: async (
+          task: string,
+          config: { page: Page; test: Test },
+          options?: Gen2EGenOptions,
+        ): Promise<void> => {
+          const holds = await run(
+            assertTask(task),
+            config,
+            options,
+            defaultEvalCode,
+            returnsFor(z.boolean()),
+          );
+          if (holds !== true) {
+            throw new Gen2EAssertionError(task);
+          }
+        },
+      },
+    );
+
     await testFunction({ page, gen, context, request }, testInfo);
   };
-};
-
-_gen.test = _gen.test.bind(genContext);
+}
 
 export const configureLogger = (logger: Gen2ELogger) => {
   genContext.logger = logger;
