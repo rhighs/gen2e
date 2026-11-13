@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "bun run --filter './packages/*' build",
-    "typecheck": "bun run --filter './packages/*' typecheck",
+    "typecheck": "tsc -p . && bun run --filter './packages/*' typecheck",
     "test": "bun run --filter './packages/*' test",
     "test:integration": "bun run --filter './packages/gen2e-llm' test:integration",
     "test:e2e": "bun run --filter './packages/gen2e' test:e2e",
@@ -19,8 +19,10 @@
     "eval:replay": "bun packages/gen2e/tests/evals/run.ts --replay",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "gate": "bun run check && bun run typecheck && bun run build && bun run test",
-    "release": "bun run gate && bun run --filter './packages/*' release"
+    "gate": "bun run check && bun run typecheck && bun run build && bun run guard && bun run test:guards && bun run test",
+    "release": "bun run gate && bun run --filter './packages/*' release",
+    "guard": "bun scripts/unsafe-patterns.ts",
+    "test:guards": "bun test scripts"
   },
   "keywords": [
     "ai",
@@ -33,7 +35,9 @@
   "license": "MIT",
   "devDependencies": {
     "@biomejs/biome": "2.6.5",
-    "@types/bun": "1.4.4"
+    "@types/bun": "1.4.4",
+    "@types/node": "22.20.5",
+    "typescript": "6.0.3"
   },
   "packageManager": "bun@1.4.4"
 }

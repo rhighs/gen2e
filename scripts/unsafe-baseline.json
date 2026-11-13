@@ -1,0 +1,50 @@
+{
+  "gen2e": {
+    "any": 9,
+    "forcedCast": 8,
+    "nonNull": 0,
+    "emptyCatch": 8
+  },
+  "gen2e-cli": {
+    "any": 1,
+    "forcedCast": 0,
+    "nonNull": 1,
+    "emptyCatch": 0
+  },
+  "gen2e-core": {
+    "any": 0,
+    "forcedCast": 0,
+    "nonNull": 0,
+    "emptyCatch": 0
+  },
+  "gen2e-interpreter": {
+    "any": 24,
+    "forcedCast": 1,
+    "nonNull": 2,
+    "emptyCatch": 0
+  },
+  "gen2e-llm": {
+    "any": 12,
+    "forcedCast": 3,
+    "nonNull": 0,
+    "emptyCatch": 0
+  },
+  "gen2e-logger": {
+    "any": 14,
+    "forcedCast": 0,
+    "nonNull": 0,
+    "emptyCatch": 0
+  },
+  "gen2e-po": {
+    "any": 7,
+    "forcedCast": 0,
+    "nonNull": 3,
+    "emptyCatch": 0
+  },
+  "gen2e-store": {
+    "any": 0,
+    "forcedCast": 0,
+    "nonNull": 0,
+    "emptyCatch": 2
+  }
+}
