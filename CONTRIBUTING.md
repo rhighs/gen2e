@@ -7,7 +7,13 @@ bun install
 bun run gate
 ```
 
-`bun run gate` runs Biome, the type check, the build and the unit tests, in that order. CI runs the same command. A pull request is merged only when it passes.
+`bun run gate` runs these checks, in order:
+
+1. Biome
+2. The type check
+3. The build
+4. The unsafe-pattern guard and its tests
+5. The unit tests CI runs the same command. A pull request is merged only when it passes.
 
 | Command                    | What it runs                                                                                                          |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -23,6 +29,30 @@ bun run gate
 Unit tests run with `bun test --isolate`. Each file gets a fresh module registry, because `mock.module` would otherwise leak into the other files. `test-setup.ts` clears every mock after each test.
 
 When you mock a module that has a default export, return `{ default: ... }` from the factory. Bun patches the bindings that are already loaded, so a factory without `default` leaves the default export unchanged.
+
+## Unsafe-pattern guard
+
+`scripts/unsafe-patterns.ts` counts four patterns in every package's `src` and `tests`:
+
+- `any`
+- `as unknown as`
+- non-null `!`
+- empty `catch` blocks
+
+It compares the counts to `scripts/unsafe-baseline.json`, which may only shrink. If a count rises, fix the new occurrence. If a count falls, run `bun run guard -- --write` in the same change to lower the baseline.
+
+## Known gaps
+
+These are the gaps between this repo and the guidelines we follow. Each one has its reason and the condition for closing it.
+
+| Gap                                                                       | Size            | Reason                                                                        | Closes when                                                                |
+| ------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `noUncheckedIndexedAccess` is off                                         | 73 errors       | Index access is used without checks across the AST and snapshot code.         | The errors are fixed and the flag is turned on.                            |
+| `exactOptionalPropertyTypes` is off                                       | 34 errors       | Option objects pass `undefined` explicitly.                                   | The errors are fixed and the flag is turned on.                            |
+| `verbatimModuleSyntax` is off, and output is CommonJS                     | 574 errors      | The packages are published as CommonJS.                                       | The packages ship as ESM.                                                  |
+| TypeScript 6, not 7                                                       | none            | `gen2e-po` calls the compiler API at runtime, and TypeScript 7 has no JS API. | `gen2e-po` stops needing the compiler API, or TypeScript 7 ships one.      |
+| zod instead of Effect Schema; errors are thrown, not returned with Effect | 4 files use zod | Tool arguments and errors predate the guideline.                              | We rewrite the LLM tool layer.                                             |
+| No runtime dependency ceiling                                             | none            | Not measured yet.                                                             | A guard counts runtime dependencies per package against a written ceiling. |
 
 ## Releasing
 

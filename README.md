@@ -64,6 +64,8 @@ Commit the directory. Later runs and CI execute this file without calling a mode
 
 ## Quickstart
 
+gen2e needs Node 22.12 or newer.
+
 ```bash
 npm install -D @rhighs/gen2e @playwright/test
 export OPENAI_API_KEY="sk-..."
