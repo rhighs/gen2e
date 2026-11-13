@@ -4,7 +4,6 @@ import { getDomRevision, getSnapshot, installDomRevisionTracker } from "../../sr
 
 type MockPage = Page & {
   waitForLoadState: jest.Mock;
-  content: jest.Mock;
   frames: jest.Mock;
   evaluate: jest.Mock;
   url: jest.Mock;
@@ -15,8 +14,11 @@ type MockPage = Page & {
 const makePage = (overrides: Record<string, unknown> = {}): MockPage =>
   ({
     waitForLoadState: jest.fn().mockResolvedValue(undefined),
-    content: jest.fn().mockResolvedValue("<html><body>hello</body></html>"),
-    frames: jest.fn().mockReturnValue([]),
+    frames: jest
+      .fn()
+      .mockReturnValue([
+        { content: jest.fn().mockResolvedValue("<html><body>hello</body></html>") },
+      ]),
     evaluate: jest.fn().mockResolvedValue(null),
     url: jest.fn().mockReturnValue("https://example.com"),
     on: jest.fn(),

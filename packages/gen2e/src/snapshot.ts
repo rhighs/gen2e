@@ -27,26 +27,7 @@ const tags: { [key: string]: false | string[] } = {
     "tbody",
     "tr",
     "td",
-    "font",
     "a",
-    "b",
-    "td",
-    "font",
-    "tr",
-    "td",
-    "font",
-    "a",
-    "b",
-    "td",
-    "font",
-    "tr",
-    "td",
-    "font",
-    "a",
-    "b",
-    "td",
-    "font",
-    "tr",
   ]),
   high: [
     "html",
@@ -325,108 +306,93 @@ export const getDomRevision = async (page: Page): Promise<DomRevision> => {
   return { navigations, mutations };
 };
 
-const resolveHTMLRoot = async (page: Page): Promise<string> => {
-  const element: Element | null = await page.evaluate(() => {
-    const x = window.innerWidth / 2;
-    const y = window.innerHeight / 2;
-    let element = document.elementFromPoint(x, y);
-    while (element?.parentElement && element.parentElement.tagName.toLowerCase() !== "body")
-      element = element.parentElement;
-    return element;
-  });
-  if (!element) {
-    return "";
-  }
-  return element.outerHTML;
-};
-
+// page.frames() includes the main frame, so this covers the page and every iframe.
 const resolvePageContent = async (page: Page, logger?: Gen2ELogger): Promise<string> => {
-  let mainPageContent = await page.content();
-  if (mainPageContent.includes("<body")) {
-    const contextRoot = await resolveHTMLRoot(page);
-    if (contextRoot !== "") {
-      mainPageContent = contextRoot;
-    }
-  }
-
-  const frames = page.frames();
-  const framesContent: string[] = [];
-  for (const f of frames) {
+  const contents: string[] = [];
+  for (const f of page.frames()) {
     try {
-      const frameContent = await f.content();
-      framesContent.push(frameContent);
+      contents.push(await f.content());
     } catch (error) {
-      if (logger) {
-        logger.debug("error trying to read frame content", { error });
-      }
+      logger?.debug("error trying to read frame content", { error });
     }
   }
-
-  const pageContent = mainPageContent + framesContent.join("\n");
-  return pageContent;
+  return contents.join("\n");
 };
 
-const outlinePage = async (page: Page): Promise<void> => {
-  const frames = page.frames();
-  const outline = {
-    content: `
-  * {
-    border: 1px solid black !important;
-  }
-  `,
-  };
+const OUTLINE_CSS = "* { border: 1px solid black !important; }";
 
-  for (const p of [...frames, page]) {
-    await p.addStyleTag(outline);
-  }
-};
+const DATA_TAG_CSS = `
+*::before {
+  content: attr(data-tag);
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: red;
+  font-size: 12px;
+  border: 1px solid black;
+  padding: 2px;
+  z-index: 9999;
+}
+* { position: relative; }
+body * { counter-reset: el-counter; }
+body *::before {
+  counter-increment: el-counter;
+  content: attr(data-tag) " " counter(el-counter);
+}`;
 
-const debugPageElementsTag = async (page: Page, tags: string[]): Promise<void> => {
-  const frames = page.frames();
-  const metaTagName = {
-    content: `
-    *::before {
-        content: attr(data-tag);
-        display: block;
-        position: absolute;
-        top: 0;
-        left: 0;
-        color: red;
-        font-size: 12px;
-        border: 1px solid black;
-        padding: 2px;
-        z-index: 9999;
-    }
+// Draws the debug styles for the screenshot and returns a function that takes them off the page again.
+const decoratePage = async (
+  page: Page,
+  dataTags: string[] | undefined,
+  logger?: Gen2ELogger,
+): Promise<() => Promise<void>> => {
+  const added: { remove: () => Promise<void> }[] = [];
 
-    * {
-      position: relative;
-    }
+  for (const f of page.frames()) {
+    try {
+      const outline = await f.addStyleTag({ content: OUTLINE_CSS });
+      added.push({
+        remove: () =>
+          outline.evaluate((el) => {
+            el.parentNode?.removeChild(el);
+          }),
+      });
 
-    body * {
-        counter-reset: el-counter;
-    }
-
-    body *::before {
-        counter-increment: el-counter;
-        content: attr(data-tag) " " counter(el-counter);
-    }
-`,
-  };
-
-  for (const p of [...frames, page]) {
-    await p.addStyleTag(metaTagName);
-    await p.evaluate(
-      (tags) =>
-        document.querySelectorAll("*").forEach((el) => {
-          if (Array.isArray(tags)) {
+      if (dataTags) {
+        const meta = await f.addStyleTag({ content: DATA_TAG_CSS });
+        added.push({
+          remove: () =>
+            meta.evaluate((el) => {
+              el.parentNode?.removeChild(el);
+            }),
+        });
+        await f.evaluate((tags) => {
+          for (const el of document.querySelectorAll("*")) {
             if (tags.includes(el.tagName)) {
               el.setAttribute("data-tag", el.tagName.toLowerCase());
             }
           }
-        }),
-      tags,
-    );
+        }, dataTags);
+        added.push({
+          remove: () =>
+            f.evaluate(() => {
+              for (const el of document.querySelectorAll("[data-tag]")) {
+                el.removeAttribute("data-tag");
+              }
+            }),
+        });
+      }
+    } catch (error) {
+      logger?.debug("could not decorate frame for the screenshot", { error });
+    }
   }
+
+  return async () => {
+    for (const a of added.reverse()) {
+      await a.remove().catch(() => undefined);
+    }
+  };
 };
 
 export const getSnapshot = async (
@@ -464,19 +430,25 @@ export const getSnapshot = async (
   };
 
   if (opts?.screenshot) {
-    if (opts.pageOutlines) {
-      await outlinePage(page);
-      if (opts.pageDataTags && Array.isArray(_tags)) {
-        await debugPageElementsTag(page, _tags);
-      }
-    }
+    const undecorate = opts.pageOutlines
+      ? await decoratePage(
+          page,
+          opts.pageDataTags && Array.isArray(_tags) ? _tags : undefined,
+          logger,
+        )
+      : async () => {};
 
-    // JPEG is the only format whose size can be capped through `quality`.
-    const buffer = await page.screenshot({
-      type: "jpeg",
-      fullPage: opts.screenshotFullPage ?? false,
-      quality: 20,
-    });
+    let buffer: Buffer;
+    try {
+      // JPEG is the only format whose size can be capped through `quality`.
+      buffer = await page.screenshot({
+        type: "jpeg",
+        fullPage: opts.screenshotFullPage ?? false,
+        quality: 20,
+      });
+    } finally {
+      await undecorate();
+    }
 
     if (opts.saveScreenShot) {
       const url = new URL(page.url());
