@@ -31,6 +31,7 @@ import {
 import { type Gen2EStepReturns, runStepAgent } from "./step-agent";
 import { recordStepTelemetry } from "./telemetry";
 import type {
+  Gen2EAI,
   Gen2EGenContext,
   Gen2EGenOptions,
   Gen2EGenPolicies,
@@ -38,12 +39,8 @@ import type {
   Gen2ELLMCallHooks,
   Gen2EPlaywrightCodeEvalFunc,
   Gen2EVars,
-  GenStepFunction,
   GenType,
   Page,
-  PlaywrightTestFunction,
-  Test,
-  TestFunction,
 } from "./types";
 
 type Gen2EStepInit = {
@@ -420,37 +417,84 @@ type GenInit = {
   logger?: Gen2ELogger;
 };
 
-const runStandalone = (
-  ctx: Gen2EGenContext,
+type Scope = {
+  title: string;
+  init?: GenInit;
+  wrap?: <T>(task: string, fn: () => Promise<T>) => Promise<T>;
+};
+
+const run = (
+  scope: Scope,
   task: string,
-  config: { page: Page },
+  page: Page,
   options: Gen2EGenOptions | undefined,
-  init: GenInit | undefined,
   evalCode: Gen2EPlaywrightCodeEvalFunc,
   returns?: Gen2EStepReturns,
-) => {
-  if (!config?.page) {
-    throw Error("The gen() function is missing the required `{ page }` argument.");
+): Promise<unknown> => {
+  if (!page) {
+    throw Error("gen2e needs a `page`.");
   }
 
-  if (init?.logger) {
-    ctx.logger.config(init.logger);
+  if (scope.init?.logger) {
+    genContext.logger.config(scope.init.logger);
   }
 
-  return step(
-    {
-      task,
-      title: "",
-      page: config.page,
-      store: activeStore(ctx, init?.store),
-      hooks: init?.hooks,
-      logger: ctx.logger,
-      evalCode,
-      returns,
-    },
-    stepOptions(options),
-  );
+  const fn = () =>
+    step(
+      {
+        task,
+        title: scope.title,
+        page,
+        store: activeStore(genContext, scope.init?.store),
+        hooks: scope.init?.hooks,
+        logger: genContext.logger,
+        evalCode,
+        returns,
+      },
+      stepOptions(options),
+    );
+  return scope.wrap ? scope.wrap(task, fn) : fn();
 };
+
+const extract = <S extends z.ZodType>(
+  scope: Scope,
+  task: string,
+  page: Page,
+  schema: S,
+  options?: Gen2EGenOptions,
+): Promise<z.output<S>> =>
+  run(scope, task, page, options, defaultEvalCode, returnsFor(schema)).then((value) =>
+    schema.parse(value),
+  );
+
+const assert = async (
+  scope: Scope,
+  task: string,
+  page: Page,
+  options?: Gen2EGenOptions,
+): Promise<void> => {
+  const holds = await run(
+    scope,
+    assertTask(task),
+    page,
+    options,
+    defaultEvalCode,
+    returnsFor(z.boolean()),
+  );
+  if (holds !== true) {
+    throw new Gen2EAssertionError(task);
+  }
+};
+
+export const bindAI = (page: Page, scope: Scope): Gen2EAI =>
+  Object.assign(
+    (task: string, options?: Gen2EGenOptions) => run(scope, task, page, options, defaultEvalCode),
+    {
+      extract: <S extends z.ZodType>(task: string, schema: S, options?: Gen2EGenOptions) =>
+        extract(scope, task, page, schema, options),
+      assert: (task: string, options?: Gen2EGenOptions) => assert(scope, task, page, options),
+    },
+  );
 
 const _gen = Object.assign(
   (
@@ -459,7 +503,7 @@ const _gen = Object.assign(
     options?: Gen2EGenOptions,
     init?: GenInit,
     evalCode: Gen2EPlaywrightCodeEvalFunc = defaultEvalCode,
-  ) => runStandalone(genContext, task, config, options, init, evalCode),
+  ) => run({ title: "", init }, task, config.page, options, evalCode),
   {
     extract: <S extends z.ZodType>(
       task: string,
@@ -467,121 +511,15 @@ const _gen = Object.assign(
       schema: S,
       options?: Gen2EGenOptions,
       init?: GenInit,
-    ): Promise<z.output<S>> =>
-      runStandalone(
-        genContext,
-        task,
-        config,
-        options,
-        init,
-        defaultEvalCode,
-        returnsFor(schema),
-      ).then((value) => schema.parse(value)),
-    assert: async (
+    ): Promise<z.output<S>> => extract({ title: "", init }, task, config.page, schema, options),
+    assert: (
       task: string,
       config: { page: Page },
       options?: Gen2EGenOptions,
       init?: GenInit,
-    ): Promise<void> => {
-      const holds = await runStandalone(
-        genContext,
-        assertTask(task),
-        config,
-        options,
-        init,
-        defaultEvalCode,
-        returnsFor(z.boolean()),
-      );
-      if (holds !== true) {
-        throw new Gen2EAssertionError(task);
-      }
-    },
-    test: (testFunction: TestFunction, init?: GenInit) => genTest(genContext, testFunction, init),
+    ): Promise<void> => assert({ title: "", init }, task, config.page, options),
   },
 ) as GenType;
-
-function genTest(
-  ctx: Gen2EGenContext,
-  testFunction: TestFunction,
-  init?: GenInit,
-): PlaywrightTestFunction {
-  if (init?.logger) {
-    ctx.logger.config(init.logger);
-  }
-
-  const logger = ctx.logger;
-
-  return async ({ page, context, request }, testInfo): Promise<void> => {
-    // The full path (file, describe blocks, title) keeps same-named tests in different places apart.
-    const title = testInfo.titlePath.join(" › ");
-
-    const run = (
-      task: string,
-      config: { page: Page; test: Test },
-      options: Gen2EGenOptions | undefined,
-      evalCode: Gen2EPlaywrightCodeEvalFunc,
-      returns?: Gen2EStepReturns,
-    ) => {
-      if (!config?.page) {
-        throw Error("The gen() function is missing the required `{ page }` argument.");
-      }
-
-      return config.test.step(task, () =>
-        step(
-          {
-            task,
-            title,
-            page: config.page,
-            store: activeStore(ctx, init?.store),
-            hooks: init?.hooks,
-            logger,
-            evalCode,
-            returns,
-          },
-          stepOptions(options),
-        ),
-      );
-    };
-
-    const gen: GenStepFunction = Object.assign(
-      (
-        task: string,
-        config: { page: Page; test: Test },
-        options?: Gen2EGenOptions,
-        evalCode: Gen2EPlaywrightCodeEvalFunc = defaultEvalCode,
-      ) => run(task, config, options, evalCode),
-      {
-        extract: <S extends z.ZodType>(
-          task: string,
-          config: { page: Page; test: Test },
-          schema: S,
-          options?: Gen2EGenOptions,
-        ): Promise<z.output<S>> =>
-          run(task, config, options, defaultEvalCode, returnsFor(schema)).then((value) =>
-            schema.parse(value),
-          ),
-        assert: async (
-          task: string,
-          config: { page: Page; test: Test },
-          options?: Gen2EGenOptions,
-        ): Promise<void> => {
-          const holds = await run(
-            assertTask(task),
-            config,
-            options,
-            defaultEvalCode,
-            returnsFor(z.boolean()),
-          );
-          if (holds !== true) {
-            throw new Gen2EAssertionError(task);
-          }
-        },
-      },
-    );
-
-    await testFunction({ page, gen, context, request }, testInfo);
-  };
-}
 
 export const configureLogger = (logger: Gen2ELogger) => {
   genContext.logger = logger;

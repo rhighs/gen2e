@@ -14,6 +14,7 @@ export {
   wrapIdent,
 } from "@rhighs/gen2e-core";
 export * from "./errors";
+export { expect, test } from "./fixture";
 export * from "./gen";
 export { GEN2E_PROMPT_VERSION } from "./playwright-gen";
 export * from "./static/store/fs";

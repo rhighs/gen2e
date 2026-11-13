@@ -1,87 +1,33 @@
-import { expect, test } from "@playwright/test";
-import { gen, stepLoggingEnabled } from "../../src";
+import { z } from "zod";
+import { expect, stepLoggingEnabled, test } from "../../src";
 
 stepLoggingEnabled(true);
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("http://127.0.0.1:9999/");
+  await page.goto("/");
 });
 
-test(
-  "executes query",
-  gen.test(async ({ page, gen }) => {
-    const headerText = await gen("get the header text", { page, test });
-    expect(headerText).toBe("Hello, Gen2E!");
-  }),
-);
+test("reads the header", async ({ ai }) => {
+  expect(await ai.extract("get the header text", z.string())).toBe("Hello, Gen2E!");
+});
 
-test(
-  "executes query, but adding a simple operation on the target data",
-  gen.test(async ({ page, gen }) => {
-    const headerText = await gen("get the first letter of the header text", {
-      page,
-      test,
-    });
-    expect(headerText).toBe("H");
-  }),
-);
+test("fills the search box", async ({ ai, page }) => {
+  await ai(`type "foo" in the search box`);
+  await expect(page.getByTestId("search-input")).toHaveValue("foo");
+});
 
-test(
-  "executes a simple action, filling a search box",
-  gen.test(async ({ page, gen }) => {
-    await gen(`Type "foo" in the search box`, { page, test });
-    await expect(page.getByTestId("search-input")).toHaveValue("foo");
-  }),
-);
+test("clicks until the counter reaches 2", async ({ ai }) => {
+  await ai("click the button until the counter value is equal to 2");
+  expect(await ai.extract("get the click count", z.coerce.number())).toBe(2);
+});
 
-test(
-  "executes click, incrementing a counter",
-  gen.test(async ({ page, gen }) => {
-    await gen("Click the button until the counter value is equal to 2", {
-      page,
-      test,
-    });
-    const count = await gen("Get the count number in click count:", {
-      page,
-      test,
-    });
-    expect(parseInt(count, 10)).toBe(2);
-  }),
-);
+test("asserts what the page shows", async ({ ai }) => {
+  await ai.assert(`the header says "Hello, Gen2E!"`);
+  await expect(ai.assert(`the header says "Flying Donkeys"`)).rejects.toThrow();
+});
 
-test(
-  "asserts (toBe), query by question and get a boolean result",
-  gen.test(async ({ page, gen }) => {
-    const searchInputHasHeaderText = await gen(
-      `Is the contents of the header equal to "Hello, Gen2E!"?`,
-      { page, test },
-    );
-    expect(searchInputHasHeaderText).toBe(true);
-  }),
-);
-
-test(
-  "asserts (not.toBe), asserting a wrong header value",
-  gen.test(async ({ page, gen }) => {
-    const searchInputHasHeaderText = await gen(
-      `Is the contents of the header equal to "Flying Donkeys"?`,
-      { page, test },
-    );
-    expect(searchInputHasHeaderText).toBe(false);
-  }),
-);
-
-test(
-  "executes query, action and assertion",
-  gen.test(async ({ page, gen }) => {
-    const headerText = await gen("get the header text", { page, test });
-    await gen(`type "${headerText}" in the search box`, { page, test });
-
-    const searchInputHasHeaderText = await gen(
-      `is the contents of the search box equal to "${headerText}"?`,
-      { page, test },
-    );
-
-    expect(searchInputHasHeaderText).toBe(true);
-  }),
-);
+test("chains an extract, an action and an assert", async ({ ai }) => {
+  const header = await ai.extract("get the header text", z.string());
+  await ai(`type "${header}" in the search box`);
+  await ai.assert(`the search box contains "${header}"`);
+});

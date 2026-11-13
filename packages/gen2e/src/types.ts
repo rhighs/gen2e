@@ -1,4 +1,4 @@
-import type { Page, PlaywrightTestArgs, TestInfo as PwTestInfo, TestType } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import type { StaticStore } from "@rhighs/gen2e-core";
 import type { Gen2ELLMAgentHooks, Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
@@ -37,21 +37,6 @@ export type Gen2EGenOptions = {
   vars?: Gen2EVars;
 };
 
-export type Test = TestType<any, any>;
-
-export type GenFixtures = Pick<PlaywrightTestArgs, "page" | "context" | "request">;
-
-export type TestArgs = GenFixtures & { gen: GenStepFunction };
-
-export type TestInfo = PwTestInfo;
-
-export type PlaywrightTestFunction = (
-  args: GenFixtures,
-  testInfo: PwTestInfo,
-) => Promise<void> | void;
-
-export type TestFunction = (args: TestArgs, testInfo: TestInfo) => Promise<void> | void;
-
 export type Gen2EVars = Record<string, string>;
 
 export type Gen2EPlaywrightCodeEvalFunc = (
@@ -65,9 +50,7 @@ export interface Gen2EGenContext {
   useStatic: boolean;
 }
 
-export interface GenType extends GenFunction, Gen2EGenContext {
-  test: GenTestFunction;
-}
+export interface GenType extends GenFunction, Gen2EGenContext {}
 
 export type { StaticGenStep, StaticGenStepRefs } from "@rhighs/gen2e-core";
 
@@ -119,31 +102,12 @@ export type Gen2EConfig = {
   ladder?: boolean;
 };
 
-export type GenTestFunction = (
-  testFunction: TestFunction,
-  init?: {
-    store?: StaticStore | null;
-    hooks?: Gen2ELLMCallHooks;
-    logger?: Gen2ELogger;
-  },
-) => PlaywrightTestFunction;
-
-export interface GenStepFunction {
-  (
-    task: string,
-    config: { page: Page; test: Test },
-    options?: Gen2EGenOptions,
-    evalCode?: Gen2EPlaywrightCodeEvalFunc,
-  ): Promise<any>;
+export interface Gen2EAI {
+  (task: string, options?: Gen2EGenOptions): Promise<unknown>;
   extract<S extends z.ZodType>(
     task: string,
-    config: { page: Page; test: Test },
     schema: S,
     options?: Gen2EGenOptions,
   ): Promise<z.output<S>>;
-  assert(
-    task: string,
-    config: { page: Page; test: Test },
-    options?: Gen2EGenOptions,
-  ): Promise<void>;
+  assert(task: string, options?: Gen2EGenOptions): Promise<void>;
 }

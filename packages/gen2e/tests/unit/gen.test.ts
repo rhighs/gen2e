@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { APIRequestContext, BrowserContext } from "@playwright/test";
 import { wrapIdent } from "@rhighs/gen2e-core";
 import { z } from "zod";
 import {
@@ -14,7 +13,6 @@ import {
   type Page,
   type StaticGenStep,
   type StaticStore,
-  type Test,
 } from "../../src";
 import env from "../../src/env";
 import { GEN2E_PROMPT_VERSION } from "../../src/playwright-gen";
@@ -85,12 +83,6 @@ const cachedStore = (cached: string) => {
     makeStatic,
   };
   return { store, makeStatic };
-};
-
-const fixtures = {
-  page,
-  context: {} as BrowserContext,
-  request: {} as APIRequestContext,
 };
 
 const withEnv = async (vars: Record<string, string>, fn: () => Promise<void>) => {
@@ -338,59 +330,6 @@ describe("gen", () => {
         expect.objectContaining({ expression }),
         { overwrite: true },
       );
-    });
-  });
-
-  describe("gen.test", () => {
-    const testStep = { step: (_t: string, fn: () => Promise<unknown>) => fn() } as Test;
-    const info = (titlePath: string[]) =>
-      ({ title: titlePath.at(-1), titlePath }) as Parameters<ReturnType<typeof gen.test>>[1];
-
-    test("rethrows the test's own errors unchanged", async () => {
-      const own = new Error("expect(received).toBe(expected)");
-      const wrapper = gen.test(async () => {
-        throw own;
-      });
-
-      await expect(wrapper(fixtures, info(["a.spec.ts", "t"]))).rejects.toBe(own);
-    });
-
-    test("rethrows library errors unchanged", async () => {
-      const wrapper = gen.test(
-        async ({ page, gen: step }) => {
-          await step("task", { page, test: testStep }, {}, () =>
-            Promise.reject(new Error("expect(received).toBe(expected)")),
-          );
-        },
-        { store: cachedStore("cached()").store },
-      );
-
-      await expect(wrapper(fixtures, info(["a.spec.ts", "t"]))).rejects.toBeInstanceOf(
-        Gen2EStaleCacheError,
-      );
-    });
-
-    test("keys the cache on the full title path", async () => {
-      const titles: string[] = [];
-      const store: StaticStore = {
-        makeIdent: (title, task) => {
-          titles.push(title);
-          return `${title}/${task}`;
-        },
-        fetchStatic: () => ({ expression }),
-        makeStatic: jest.fn(),
-      };
-      const wrapper = gen.test(
-        async ({ page, gen: step }) => {
-          await step("task", { page, test: testStep }, {}, jest.fn());
-        },
-        { store },
-      );
-
-      await wrapper(fixtures, info(["a.spec.ts", "login", "works"]));
-      await wrapper(fixtures, info(["b.spec.ts", "works"]));
-
-      expect(titles).toEqual(["a.spec.ts › login › works", "b.spec.ts › works"]);
     });
   });
 
