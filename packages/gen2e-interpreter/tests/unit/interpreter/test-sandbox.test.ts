@@ -1,101 +1,48 @@
-import { beforeEach, describe, expect, jest, mock, test } from "bun:test";
-import type {
-  GenType,
-  Page,
-  PlaywrightTestFunction,
-  StaticStore,
-  TestFunction,
-} from "@rhighs/gen2e";
-import { gen2eSanitize, sandboxEval } from "../../../src";
-
-mock.module("../../../src/ast/gen2e-sanitize", () => ({
-  gen2eSanitize: jest.fn().mockImplementation((source) => source),
-}));
+import { describe, expect, jest, mock, test } from "bun:test";
+import type { GenType, Page, StaticStore, TestFunction } from "@rhighs/gen2e";
+import { sandboxEval } from "../../../src";
 
 mock.module("../../../src/env", () => ({
-  SANDBOX_DEBUG: false,
+  default: { SANDBOX_DEBUG: false },
 }));
 
 describe("sandboxEval", () => {
-  const mockNoop = "(() => { return Promise.resolve() })";
-  const mockGen = {
-    test:
-      (testFunction: TestFunction): PlaywrightTestFunction =>
-      ({ page, context, request }, testInfo) =>
-        testFunction(
-          {
-            page,
-            gen: async (task, config, _options, evalCode) => {
-              const ident = staticStore.makeIdent(testInfo.title, task);
-              const staticCode = staticStore.fetchStatic(ident);
-              if (staticCode?.expression) {
-                console.debug(staticCode);
-                return evalCode!(staticCode.expression, page);
-              }
-
-              return await config.test.step("task", async () => {
-                const expression = `async () => {return ${mockNoop}}`;
-                staticStore.makeStatic(ident, { expression });
-                return evalCode!(expression, page);
-              });
-            },
-            context,
-            request,
-          },
-          testInfo,
-        ),
-  } as GenType;
-
-  const mockPage = {} as Page;
-  const inMemoryStatic: { [key: string]: string } = {};
-  const staticStore: StaticStore = {
-    makeIdent: (title, task) => `gen2.interpreter - [${title}](${task})`,
-    fetchStatic: (ident: string) => ({
-      ident,
-      expression: inMemoryStatic[ident],
-    }),
-    makeStatic: (ident, content) => {
-      inMemoryStatic[ident] = content.expression;
-    },
+  const page = {} as Page;
+  const expression = "(async () => { await page.goto('https://example.com'); })";
+  const store: StaticStore = {
+    makeIdent: (title, task) => `${title}/${task}`,
+    fetchStatic: (ident) => (ident === "gen test/task 1" ? { expression } : undefined),
+    makeStatic: jest.fn(),
   };
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    for (const key in inMemoryStatic) {
-      delete inMemoryStatic[key];
-    }
-  });
+  const fakeGen = {
+    test: (fn: TestFunction) => (fixtures, info) =>
+      fn(
+        {
+          ...fixtures,
+          gen: async (task, _config, _options, evalCode) =>
+            evalCode?.(
+              store.fetchStatic(store.makeIdent(info.title, task))?.expression ?? "",
+              fixtures.page,
+            ),
+        },
+        info,
+      ),
+  } as GenType;
 
-  test("should execute sanitized gen2e test source code with static code from the store", async () => {
-    const gen2eTestSource = `
-    test('gen test',
-      gen.test(async ({ page, gen }) => {
-        await gen('task 1', { page, test });
-      })
-    );
-    `;
+  test.each([
+    ["", "starts at column 0"],
+    ["\n  ", "starts after a newline"],
+  ])("runs each gen call through the injected eval when the source %#: %s", async (lead) => {
+    const evalPwCode = jest.fn().mockResolvedValue(undefined);
+    const src = `${lead}test('gen test',
+  gen.test(async ({ page, gen }) => {
+    await gen('task 1', { page, test });
+  })
+);`;
 
-    const ident = staticStore.makeIdent("gen test", "task 1");
-    const staticExpression = "(async () => { await page.goto('https://example.com'); })";
-    staticStore.makeStatic(ident, { expression: staticExpression });
-    const customEvalPwCode = jest.fn().mockResolvedValue(Promise.resolve());
+    await sandboxEval(src, page, store, undefined, undefined, evalPwCode, fakeGen);
 
-    await sandboxEval(
-      gen2eTestSource,
-      mockPage,
-      staticStore,
-      undefined,
-      undefined,
-      customEvalPwCode,
-      mockGen,
-    );
-
-    expect(gen2eSanitize).toHaveBeenCalledWith(gen2eTestSource);
-    expect(inMemoryStatic[ident]).toBe(staticExpression);
-  });
-
-  test("should handle empty gen2eTestSource", async () => {
-    await sandboxEval("", mockPage, staticStore, undefined, undefined, undefined, mockGen);
-    expect(gen2eSanitize).toHaveBeenCalledWith("");
+    expect(evalPwCode).toHaveBeenCalledWith(expression, page);
   });
 });
