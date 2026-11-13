@@ -80,7 +80,7 @@ export class Gen2EOpenAIRunner implements Gen2ELLMAgentRunner {
     }
 
     try {
-      const runner = this.openai.beta.chat.completions
+      const runner = this.openai.chat.completions
         .runTools({
           model: this.model,
           temperature: 0,

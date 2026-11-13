@@ -39,11 +39,9 @@ const makeOpenAIMock = () => {
   return {
     runnerMock,
     client: {
-      beta: {
-        chat: {
-          completions: {
-            runTools: jest.fn().mockReturnValue(runnerMock),
-          },
+      chat: {
+        completions: {
+          runTools: jest.fn().mockReturnValue(runnerMock),
         },
       },
     },
@@ -95,7 +93,7 @@ describe("Gen2EOpenAIRunner", () => {
     expect(result.type).toBe("success");
 
     // The system message must not leak into the user content.
-    const messages = client.beta.chat.completions.runTools.mock.calls[0][0].messages as Array<{
+    const messages = client.chat.completions.runTools.mock.calls[0][0].messages as Array<{
       role: string;
       content: unknown;
     }>;
@@ -133,7 +131,7 @@ describe("Gen2EOpenAIRunner", () => {
       tools: [],
     });
 
-    const messages = client.beta.chat.completions.runTools.mock.calls[0][0].messages as Array<{
+    const messages = client.chat.completions.runTools.mock.calls[0][0].messages as Array<{
       content: Array<{ type: string }>;
     }>;
     expect(messages[1].content).toEqual(
@@ -158,7 +156,7 @@ describe("Gen2EOpenAIRunner", () => {
   test("should return error result on failure", async () => {
     const failing = makeOpenAIMock();
     failing.runnerMock.finalContent.mockRejectedValueOnce(new Error("test error"));
-    client.beta.chat.completions.runTools.mockReturnValueOnce(failing.runnerMock);
+    client.chat.completions.runTools.mockReturnValueOnce(failing.runnerMock);
 
     const init: Gen2ELLMAgentRunnerInit = {
       taskPrompt: "task",

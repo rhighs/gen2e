@@ -57,7 +57,7 @@ Models can also be switched per task through `task.options.model`. The initial r
 
 `Gen2EOpenAIRunner` is the only runner:
 
-- Uses `openai.beta.chat.completions.runTools` for multi-step tool calls.
+- Uses `openai.chat.completions.runTools` for multi-step tool calls.
 - Works against OpenAI or any OpenAI-compatible base URL.
 - Trims oversized prompts using the model's context window (`openai-token`).
 - Attaches images only when the model is vision-capable (`modelSupportsImage`); screenshot policy `force` overrides.
