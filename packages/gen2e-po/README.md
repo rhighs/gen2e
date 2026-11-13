@@ -6,7 +6,7 @@ This package generates typed Playwright page objects from `gen2e-cli recorder` d
 import { Gen2EPOGenerator, loadDumps } from "@rhighs/gen2e-po";
 
 const dumps = await loadDumps("./dumps");
-const generator = new Gen2EPOGenerator({ model: "gpt-4o", staticDataDir: "./page-objects" });
+const generator = new Gen2EPOGenerator({ model: "gpt-4o", staticDataDir: "." });
 
 for (const dump of dumps) {
   const blocks = dump.blocks.flatMap((b) => b.blocks);
@@ -16,6 +16,8 @@ for (const dump of dumps) {
 }
 ```
 
-The CLI equivalent is `gen2e-cli po-gen ./dumps --root-dir ./page-objects`. The default model is `GEN2EPO_MODEL`, or `gpt-4o` when that is unset.
+Page objects are written under the working directory as `*.gen2e-po.ts` files. `staticDataDir` (CLI: `--root-dir`) is the directory the recorded screenshot and HTML paths are relative to; it defaults to the working directory.
+
+The CLI equivalent is `gen2e-cli po-gen ./dumps`. The default model is `GEN2EPO_MODEL`, or `gpt-4o` when that is unset.
 
 MIT licensed.

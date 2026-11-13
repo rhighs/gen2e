@@ -45,18 +45,18 @@ export class Gen2EPOGenerator {
   async generate(from: Gen2EPlaywrightBlock, to?: Gen2EPlaywrightBlock): Promise<void> {
     const images: Buffer[] = [];
     if (from.context?.refs?.screenshotPath) {
-      const sp = path.join(this.staticDataDir, from.context?.refs?.screenshotPath);
+      const sp = path.resolve(this.staticDataDir, from.context?.refs?.screenshotPath);
       const image = await loadImageWithLabel(sp, "Starting page");
       images.push(image);
     }
     if (to?.context?.refs?.screenshotPath) {
-      const sp = path.join(this.staticDataDir, to.context.refs.screenshotPath);
+      const sp = path.resolve(this.staticDataDir, to.context.refs.screenshotPath);
       const image = await loadImageWithLabel(sp, "Result page");
       images.push(image);
     }
 
     const fromHtml = from.context?.refs?.htmlPath
-      ? (await readFile(path.join(this.staticDataDir, from.context?.refs?.htmlPath))).toString()
+      ? (await readFile(path.resolve(this.staticDataDir, from.context?.refs?.htmlPath))).toString()
       : "";
     const t: Gen2ELLMCodeGenAgentTask = {
       task: JSON.stringify({

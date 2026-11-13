@@ -388,7 +388,11 @@ program
   .command("po-gen")
   .description("generate a page objects via test dumps")
   .argument("[dumppath]", "directory path containing test json dumps")
-  .option("-d, --root-dir <rootDir>")
+  .option(
+    "-d, --root-dir <rootDir>",
+    "directory the recorded screenshot and html paths are relative to",
+    ".",
+  )
   .option("--model <model>", "model used to generate page objects")
   .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
   .action(async (dumppath, options) => {
