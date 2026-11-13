@@ -1,6 +1,6 @@
 # @rhighs/gen2e-cli
 
-The `gen2e-cli` command reads a `.gen2e` file with one English instruction per line and compiles it to a Playwright spec. It also has a live recorder, a REPL and page-object generation.
+The `gen2e-cli` command reads a `.gen2e` file with one English instruction per line and compiles it to a Playwright spec. It also has a live recorder.
 
 ```bash
 npm install -g @rhighs/gen2e-cli
@@ -17,6 +17,6 @@ Type "Where the aliens at?" in the search bar and press enter
 gen2e-cli generate search.gen2e --imode playwright --model gpt-4o-mini --out tests/search.spec.ts
 ```
 
-The other commands are `recorder`, `repl` and `po-gen`. Run `gen2e-cli <command> --help` to see their flags.
+The other command is `recorder`. Run `gen2e-cli <command> --help` to see their flags.
 
 MIT licensed.

@@ -6,9 +6,9 @@
     "emptyCatch": 8
   },
   "gen2e-cli": {
-    "any": 1,
+    "any": 0,
     "forcedCast": 0,
-    "nonNull": 1,
+    "nonNull": 0,
     "emptyCatch": 0
   },
   "gen2e-core": {
@@ -19,7 +19,7 @@
   },
   "gen2e-interpreter": {
     "any": 24,
-    "forcedCast": 1,
+    "forcedCast": 0,
     "nonNull": 0,
     "emptyCatch": 0
   },
@@ -38,7 +38,7 @@
   "gen2e-po": {
     "any": 0,
     "forcedCast": 0,
-    "nonNull": 3,
+    "nonNull": 0,
     "emptyCatch": 0
   },
   "gen2e-store": {

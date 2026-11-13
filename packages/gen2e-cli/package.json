@@ -23,7 +23,6 @@
     "@rhighs/gen2e-interpreter": "workspace:^",
     "@rhighs/gen2e-llm": "workspace:^",
     "@rhighs/gen2e-logger": "workspace:^",
-    "@rhighs/gen2e-po": "workspace:^",
     "commander": "^15.0.0"
   },
   "devDependencies": {

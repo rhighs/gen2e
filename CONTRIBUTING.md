@@ -53,7 +53,7 @@ These are the gaps between this repo and the guidelines we follow. Each one has 
 | `noUncheckedIndexedAccess` is off                                         | 73 errors       | Index access is used without checks across the AST and snapshot code.                              | The errors are fixed and the flag is turned on.                            |
 | `exactOptionalPropertyTypes` is off                                       | 34 errors       | Option objects pass `undefined` explicitly.                                                        | The errors are fixed and the flag is turned on.                            |
 | `verbatimModuleSyntax` is off, and output is CommonJS                     | 574 errors      | The packages are published as CommonJS.                                                            | The packages ship as ESM.                                                  |
-| TypeScript 6, not 7                                                       | none            | `gen2e-po` calls the compiler API at runtime, and TypeScript 7 has no JS API.                      | `gen2e-po` stops needing the compiler API, or TypeScript 7 ships one.      |
+| TypeScript 6, not 7                                                       | none            | Not tried yet. Its last blocker, `gen2e-po`'s runtime use of the compiler API, is gone.            | We move the build to TypeScript 7.                                         |
 | zod instead of Effect Schema; errors are thrown, not returned with Effect | 5 files use zod | The AI SDK takes zod tool schemas natively; Effect would add a large dependency for a few schemas. | We adopt Effect across the packages.                                       |
 | No runtime dependency ceiling                                             | none            | Not measured yet.                                                                                  | A guard counts runtime dependencies per package against a written ceiling. |
 
@@ -63,4 +63,4 @@ Bump the versions of the packages you changed, then run `bun run release`. It ru
 
 ## Layout
 
-Dependencies go one way: `core` and `logger` → `store` and `llm` → `gen2e` → `interpreter` → `po` → `cli`.
+Dependencies go one way: `core` and `logger` → `store` and `llm` → `gen2e` → `interpreter` → `cli`.

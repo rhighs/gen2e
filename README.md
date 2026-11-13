@@ -177,16 +177,15 @@ Report security issues as described in [SECURITY.md](SECURITY.md).
 
 ## Packages
 
-| Package                                                   | What it does                                                                                               |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [`@rhighs/gen2e`](packages/gen2e)                         | The library: `gen`, `gen.test`, the step agent and the static store.                                       |
-| [`@rhighs/gen2e-cli`](packages/gen2e-cli)                 | Compiles `.gen2e` instruction files to specs. Also has a live recorder, a REPL and page-object generation. |
-| [`@rhighs/gen2e-interpreter`](packages/gen2e-interpreter) | Compiles lists of English instructions to gen2e or Playwright code.                                        |
-| [`@rhighs/gen2e-llm`](packages/gen2e-llm)                 | The AI SDK model layer and the agent loop: tools, events, usage.                                           |
-| [`@rhighs/gen2e-po`](packages/gen2e-po)                   | Generates page objects, with an agent that fixes TypeScript errors.                                        |
-| [`@rhighs/gen2e-store`](packages/gen2e-store)             | Store backends: file system, in-memory and CI cache bundles.                                               |
-| [`@rhighs/gen2e-core`](packages/gen2e-core)               | Shared contracts, cache identity, errors, pricing and telemetry.                                           |
-| [`@rhighs/gen2e-logger`](packages/gen2e-logger)           | A colored logger with no dependencies.                                                                     |
+| Package                                                   | What it does                                                         |
+| --------------------------------------------------------- | -------------------------------------------------------------------- |
+| [`@rhighs/gen2e`](packages/gen2e)                         | The library: `gen`, `gen.test`, the step agent and the static store. |
+| [`@rhighs/gen2e-cli`](packages/gen2e-cli)                 | Compiles `.gen2e` instruction files to specs, and records them live. |
+| [`@rhighs/gen2e-interpreter`](packages/gen2e-interpreter) | Compiles lists of English instructions to gen2e or Playwright code.  |
+| [`@rhighs/gen2e-llm`](packages/gen2e-llm)                 | The AI SDK model layer and the agent loop: tools, events, usage.     |
+| [`@rhighs/gen2e-store`](packages/gen2e-store)             | Store backends: file system, in-memory and CI cache bundles.         |
+| [`@rhighs/gen2e-core`](packages/gen2e-core)               | Shared contracts, cache identity, errors, pricing and telemetry.     |
+| [`@rhighs/gen2e-logger`](packages/gen2e-logger)           | A colored logger with no dependencies.                               |
 
 ## License
 

@@ -5,11 +5,9 @@ import util from "node:util";
 import type { Gen2EExpression, StaticGenStep } from "@rhighs/gen2e";
 import { recordingInterpreter } from "@rhighs/gen2e-interpreter";
 import { makeLogger } from "@rhighs/gen2e-logger";
-import { Gen2EPOGenerator, loadDumps } from "@rhighs/gen2e-po";
 import { program } from "commander";
 
 import * as pjson from "../package.json";
-import { makeREPL } from "./repl";
 
 const logger = makeLogger("GEN2E-CLI");
 
@@ -382,70 +380,6 @@ ${peek.code}`;
     }).on("close", async () => {
       await interpreter.teardown();
     });
-  });
-
-program
-  .command("po-gen")
-  .description("generate a page objects via test dumps")
-  .argument("[dumppath]", "directory path containing test json dumps")
-  .option(
-    "-d, --root-dir <rootDir>",
-    "directory the recorded screenshot and html paths are relative to",
-    ".",
-  )
-  .option("--model <model>", "model used to generate page objects")
-  .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
-  .action(async (dumppath, options) => {
-    const dpath = dumppath;
-
-    const dumps = await loadDumps(dpath);
-    const generator = new Gen2EPOGenerator({
-      debug: true,
-      staticDataDir: options.rootDir,
-      model: options.model,
-      codeGenOptions: {
-        baseURL: options.baseUrl,
-      },
-    });
-
-    for (const dump of dumps) {
-      const blocks = dump.blocks.flatMap((b) => b.blocks);
-      for (let i = 0; i < blocks.length; i++) {
-        await generator.generate(blocks[i], i + 1 < blocks.length ? blocks[i + 1] : undefined);
-      }
-    }
-  });
-
-program
-  .command("repl")
-  .description("Simple repl mode with no test generation")
-  .option("-d, --debug", "enabled debug mode, shows debug logs and more")
-  .option("--openai-api-key <openaiApiKey>", "api key for OpenAI or an OpenAI-compatible endpoint")
-  .option("--base-url <baseURL>", "base URL for OpenAI-compatible endpoints")
-  .option("--model <model>", "model id served by the OpenAI-compatible endpoint")
-  .option("--browser <browser>", "playwright browser to use (chromium, firefox)", "chromium")
-  .option("--headless", "start browser in headless mode")
-  .option("-v, --verbose", "show more REPL activity logging")
-  .action(async (options) => {
-    const verbose = !!options.verbose;
-    const isDebug = options.debug ? true : undefined;
-    const model = options.model ? String(options.model).trim() : undefined;
-    const apiKey = options.openaiApiKey ? String(options.openaiApiKey).trim() : undefined;
-    const baseURL = options.baseUrl ? String(options.baseUrl).trim() : undefined;
-
-    const REPL = makeREPL({
-      browserOptions: {
-        browser: options.browser,
-        headless: options.headless,
-      },
-      debug: isDebug,
-      model,
-      openaiApiKey: apiKey,
-      baseURL,
-      verbose,
-    });
-
-    await REPL.start();
   });
 
 program.parse(process.argv);
