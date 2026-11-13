@@ -27,7 +27,7 @@
     "typescript": "^6.0.3"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "test": "bun test --isolate --preload ../../test-setup.ts tests/unit",
     "test:integration": "bun test tests/integration",
     "typecheck": "tsc --noEmit",

@@ -26,7 +26,7 @@
     "@types/node": "^22.20.5"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "test": "bun test --isolate --preload ../../test-setup.ts --preload ./tests/node-globals.ts tests/unit",
     "typecheck": "tsc --noEmit",
     "release": "bun publish --access public --tolerate-republish"
