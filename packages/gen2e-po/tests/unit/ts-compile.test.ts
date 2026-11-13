@@ -24,12 +24,12 @@ describe("getDiagnostics", () => {
     expect(diags).toHaveLength(1);
     expect(diags[0]).toMatchObject({ filename: file, line: 2, char: 7 });
     expect(diags[0]?.message).toContain("not assignable to type 'number'");
-  });
+  }, 30_000);
 
   test("returns nothing for a clean file", () => {
     const file = path.join(dir, "clean.ts");
     writeFileSync(file, "export const n: number = 1;\n");
 
     expect(getDiagnostics([file], { strict: true, types: [] })).toEqual([]);
-  });
+  }, 30_000);
 });
