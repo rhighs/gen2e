@@ -57,6 +57,7 @@ export type Gen2EAgentRunOptions = {
   maxTurns?: number;
   temperature?: number;
   maxRetries?: number;
+  toolChoice?: "auto" | "required";
   signal?: AbortSignal;
   prepareTurn?: (state: {
     turn: number;
@@ -190,6 +191,7 @@ export const runAgent = async (opts: Gen2EAgentRunOptions): Promise<Gen2EAgentRu
         instructions: opts.instructions,
         messages,
         tools: toolSet,
+        toolChoice: opts.toolChoice,
         temperature: opts.temperature,
         maxRetries: opts.maxRetries,
         abortSignal: opts.signal,

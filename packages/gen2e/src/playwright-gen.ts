@@ -1,19 +1,14 @@
-import {
-  createCodeGenAgent,
-  type Gen2ELLMAgentBuilderOptions,
-  type Gen2ELLMAgentHooks,
-  type Gen2ELLMAgentModel,
-  type Gen2ELLMCodeGenAgent,
-} from "@rhighs/gen2e-llm";
-import type { Gen2ELogger } from "@rhighs/gen2e-logger";
-import env from "./env";
-
-const systemMessage = `
+export const GEN2E_SYSTEM_MESSAGE = `
 ==== DESCRIPTION ====
 You are a professional testing engineer and an expert end-to-end tester.
 You only use Playwright and have experience in working with HTML web applications.
 
 You follow this set of rules when proposing solutions:
+==== HOW YOU WORK ====
+- You submit code by calling the run_expression tool. It runs your code on the live page with a \`page\` variable in scope.
+- If it fails you get the error, and the current DOM when the page changed. Fix the code and call run_expression again.
+- When run_expression succeeds the task is done.
+
 ==== CORE RULES ====
 - You only write javascript code, with no dependencies except for playwright.
 - Do not show imports or unnecessary setup. Just spit out the code needed for the job.
@@ -83,88 +78,16 @@ You follow this set of rules when proposing solutions:
        }
 `;
 
-export type Gen2EPlaywrightCodeGenOptions = Gen2ELLMAgentBuilderOptions;
-
 /**
  * Manual version of the Playwright system message. Bump whenever the system
  * message changes so cached expressions are invalidated.
  */
-export const GEN2E_PROMPT_VERSION = "2026-10-02.1";
+export const GEN2E_PROMPT_VERSION = "2026-11-13.1";
 
-export const createPlaywrightCodeGenAgent = (
-  defaultModel: Gen2ELLMAgentModel = env.OPENAI_MODEL as Gen2ELLMAgentModel,
-  options?: Gen2EPlaywrightCodeGenOptions,
-  logger?: Gen2ELogger,
-) =>
-  createCodeGenAgent(
-    systemMessage,
-    defaultModel,
-    {
-      openaiApiKey: options?.openaiApiKey,
-      baseURL: options?.baseURL,
-      debug: options?.debug,
-      promptVersion: options?.promptVersion ?? GEN2E_PROMPT_VERSION,
-      fallbackModels: options?.fallbackModels,
-      maxFallbacks: options?.maxFallbacks,
-      retryBackoffMs: options?.retryBackoffMs,
-    },
-    logger,
-  );
+export const stepPrompt = (task: string, dom: string): string => `\
+This is your task: ${task}
 
-export type Gen2EPlaywrightTask = {
-  task: string;
-  domSnapshot: string;
-  pageScreenshot?: Buffer;
-  previousErrors?: string;
-  previousAttempts?: string;
-  options?: {
-    model?: Gen2ELLMAgentModel;
-  };
-};
-
-export type Gen2EPlaywrightCodeGenInit = {
-  agent: Gen2ELLMCodeGenAgent;
-  task: Gen2EPlaywrightTask;
-  hooks?: Gen2ELLMAgentHooks;
-};
-
-export type Gen2EPlaywrightCodeGenResult =
-  | {
-      type: "success";
-      result: string;
-    }
-  | {
-      type: "error";
-      errorMessage: string;
-    };
-
-export const generatePlaywrightCode = async ({
-  agent,
-  task,
-  hooks,
-}: Gen2EPlaywrightCodeGenInit): Promise<Gen2EPlaywrightCodeGenResult> => {
-  const result = await agent(
-    {
-      task: task.task,
-      codeContext: task.domSnapshot,
-      images: task.pageScreenshot ? [task.pageScreenshot] : undefined,
-      options: task.options ?? undefined,
-      previousAttempts: task.previousAttempts,
-      previousErrors: task.previousErrors,
-    },
-    hooks,
-  );
-
-  if (result.type === "error") {
-    return {
-      type: "error",
-      errorMessage: result.errorMessage,
-    };
-  }
-
-  const code = result.result;
-  return {
-    type: "success",
-    result: `(async () => { ${code} })`,
-  };
-};
+This is the DOM of the page:
+\`\`\`html
+${dom}
+\`\`\``;

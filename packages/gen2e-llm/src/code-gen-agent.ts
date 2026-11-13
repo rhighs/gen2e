@@ -79,7 +79,11 @@ const fallbackDelayMs = (baseMs: number, attempt: number): number => {
 
 const defaultAgentLogger = makeLogger("GEN2E-LLM");
 
-const fitTask = (model: Gen2ELLMAgentModel, task: string, systemMessage: string): string => {
+export const fitToContext = (
+  model: Gen2ELLMAgentModel,
+  task: string,
+  systemMessage: string,
+): string => {
   const id = typeof model === "string" ? model : model.modelId;
   if (fitsContext(id, task + systemMessage)) {
     return task;
@@ -158,7 +162,7 @@ export const createCodeGenAgent: Gen2ELLMAgentBuilder<Gen2ELLMCodeGenAgent> = (
       }
 
       used = candidate;
-      taskPrompt = fitTask(
+      taskPrompt = fitToContext(
         candidate,
         makePrompt(task.task, task.codeContext, task.previousAttempts, task.previousErrors),
         systemMessage,

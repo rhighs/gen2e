@@ -60,9 +60,13 @@ const readOverrideFile = (): Record<string, ModelPrice> => {
   }
 };
 
+const lookupPrice = (key: string): ModelPrice | undefined =>
+  readOverrideFile()[key] ?? PRICE_PER_MILLION[key];
+
 const resolvePrice = (model: string): ModelPrice | undefined => {
   const key = model.trim().toLowerCase();
-  return readOverrideFile()[key] ?? PRICE_PER_MILLION[key];
+  const bare = key.slice(key.lastIndexOf(":") + 1);
+  return lookupPrice(key) ?? lookupPrice(bare);
 };
 
 /**

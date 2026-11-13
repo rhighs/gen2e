@@ -4,13 +4,8 @@ export type { Page };
 
 import type { Page } from "@playwright/test";
 import type { StaticStore } from "@rhighs/gen2e-core";
-import type {
-  Gen2ELLMAgentHooks,
-  Gen2ELLMAgentModel,
-  Gen2ELLMCodeGenAgent,
-} from "@rhighs/gen2e-llm";
+import type { Gen2ELLMAgentHooks, Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
-import type { DomRevision, WebSnapshotResult } from "./snapshot";
 
 export type Gen2EScreenshotUsagePolicy = "force" | "model" | "onfail" | "off";
 export type Gen2EVisualDebugLevel = "none" | "medium" | "high";
@@ -73,7 +68,6 @@ export type TestFunction = (args: TestArgs, testInfo: TestInfo) => Promise<void>
 export type Gen2EPlaywriteCodeEvalFunc = (code: string, p: Page) => Promise<any> | any;
 
 export interface Gen2EGenContext {
-  agent?: Gen2ELLMCodeGenAgent;
   logger: Gen2ELogger;
   useStatic: boolean;
   screenshot?: Gen2EScreenshotUsagePolicy;
@@ -88,52 +82,6 @@ export type { StaticGenStep, StaticGenStepRefs } from "@rhighs/gen2e-core";
 export type Gen2EExpression = {
   task: string;
   expression: string;
-};
-
-export type Gen2EEvalLoopPolicies = {
-  screenshot?: Gen2EScreenshotUsagePolicy;
-  maxRetries?: number;
-};
-
-export type Gen2EEvalLoopInit = {
-  task: string;
-  page: Page;
-  policies: Gen2EEvalLoopPolicies;
-  evalCode: Gen2EPlaywriteCodeEvalFunc;
-  /**
-   * Optional snapshot captured by the caller, reused as the first capture so
-   * a step never pays for two captures.
-   */
-  snapshot?: WebSnapshotResult;
-  /**
-   * DOM revision observed right before the caller-provided snapshot was
-   * captured. When present it is used as the reuse baseline so mutations that
-   * happen while the caller captures are not folded into it.
-   */
-  snapshotRevision?: DomRevision;
-};
-
-export type Gen2EEvalLoopResult =
-  | {
-      type: "error";
-      errors: Error[];
-      attempts?: number;
-    }
-  | {
-      type: "success";
-      result: {
-        expression: string;
-        evalResult: any;
-      };
-      attempts?: number;
-    };
-
-export type Gen2EEvalLoopOptions = {
-  model?: Gen2ELLMAgentModel;
-  debug?: boolean;
-  visualInfoLevel?: "none" | "medium" | "high";
-  saveScreenshots?: boolean;
-  ladder?: Gen2ELadderOptions;
 };
 
 export type Gen2ELLMCallHooks = Gen2ELLMAgentHooks;

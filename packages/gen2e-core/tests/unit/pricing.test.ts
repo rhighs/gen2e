@@ -37,6 +37,12 @@ describe("estimateCostUsd", () => {
     ).toBeGreaterThan(0);
   });
 
+  test("prices a provider-qualified id by its bare model id", () => {
+    expect(
+      estimateCostUsd("openai.chat:gpt-4o-mini", { promptTokens: 1_000_000, completionTokens: 0 }),
+    ).toBe(estimateCostUsd("gpt-4o-mini", { promptTokens: 1_000_000, completionTokens: 0 }));
+  });
+
   test("returns undefined for unknown models", () => {
     expect(
       estimateCostUsd("unknown-model", { promptTokens: 10, completionTokens: 10 }),

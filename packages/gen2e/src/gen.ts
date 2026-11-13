@@ -12,24 +12,15 @@ import {
   type StaticStore,
   wrapIdent,
 } from "@rhighs/gen2e-core";
-import {
-  type Gen2ELLMAgentModel,
-  type Gen2ELLMAgentUsageStats,
-  modelId,
-  modelSupportsImage,
-} from "@rhighs/gen2e-llm";
+import { type Gen2ELLMAgentModel, type Gen2ELLMAgentUsageStats, modelId } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 import { FSStaticStore } from "@rhighs/gen2e-store";
 import globalConfig from "./config";
 import env from "./env";
-import { Gen2EGenError, TestStepGenResultError } from "./errors";
+import { Gen2EGenError } from "./errors";
 import { FSWriter } from "./io";
 import loggerInstance from "./logger";
-import {
-  createPlaywrightCodeGenAgent,
-  GEN2E_PROMPT_VERSION,
-  generatePlaywrightCode,
-} from "./playwright-gen";
+import { GEN2E_PROMPT_VERSION } from "./playwright-gen";
 import {
   type DomRevision,
   getDomRevision,
@@ -37,18 +28,15 @@ import {
   installDomRevisionTracker,
   type WebSnapshotResult,
 } from "./snapshot";
+import { runStepAgent } from "./step-agent";
 import { recordStepTelemetry } from "./telemetry";
 import type {
-  Gen2EEvalLoopInit,
-  Gen2EEvalLoopOptions,
-  Gen2EEvalLoopResult,
   Gen2EGenContext,
   Gen2EGenOptions,
   Gen2EGenPolicies,
   Gen2ELadderOptions,
   Gen2ELLMCallHooks,
   Gen2EPlaywriteCodeEvalFunc,
-  Gen2EScreenshotUsagePolicy,
   GenStepFunction,
   GenType,
   Page,
@@ -108,210 +96,7 @@ const tryFetch = (
   return undefined;
 };
 
-const evalLoop = async (
-  ctx: Gen2EGenContext,
-  {
-    task,
-    page,
-    policies = {
-      maxRetries: 3,
-      screenshot: "off",
-    },
-    evalCode,
-    snapshot: initialSnapshot,
-    snapshotRevision: initialSnapshotRevision,
-  }: Gen2EEvalLoopInit,
-  { debug, model, visualInfoLevel, saveScreenshots, ladder }: Gen2EEvalLoopOptions,
-  llmhooks?: Gen2ELLMCallHooks,
-): Promise<Gen2EEvalLoopResult> => {
-  if (!ctx.agent) {
-    throw new TestStepGenResultError("agent instance cannot be left undefined");
-  }
-
-  const logger = ctx.logger;
-  const retries = policies.maxRetries ?? 3;
-  const errors: Error[] = [];
-  const attempts: string[] = [];
-
-  const _spolicy = policies.screenshot ?? "model";
-  const _model = model ?? env.OPENAI_MODEL;
-
-  const shouldScreenshot = (
-    policy: Gen2EScreenshotUsagePolicy,
-    params: {
-      attempts: number;
-      model: Gen2ELLMAgentModel;
-    },
-  ): boolean => {
-    if (modelSupportsImage(params.model)) {
-      if (policy === "model") {
-        return true;
-      }
-
-      if (policy === "onfail" && params.attempts > 0) {
-        return true;
-      }
-    }
-
-    return policy === "force";
-  };
-
-  // DOM-only-first ladder: attempt 0 runs on the cheap model with screenshots
-  // off (unless the policy is "force"), later attempts escalate to the
-  // primary model and the configured policy.
-  const ladderEnabled = !!ladder;
-  const cheapModel = ladder?.cheapModel ?? _model;
-  const cheapPolicy = ladder?.cheapScreenshot ?? (_spolicy === "force" ? "force" : "off");
-
-  const attemptPlan = (attempt: number) => {
-    const attemptModel = ladderEnabled && attempt === 0 ? cheapModel : _model;
-    const attemptPolicy = ladderEnabled && attempt === 0 ? cheapPolicy : _spolicy;
-    return {
-      model: attemptModel,
-      policy: attemptPolicy,
-      useScreenshot: shouldScreenshot(attemptPolicy, { attempts: attempt, model: attemptModel }),
-    };
-  };
-
-  await installDomRevisionTracker(page);
-
-  let revision: DomRevision | undefined;
-  const capturesWithOutlines = (useScreenshot: boolean): boolean =>
-    useScreenshot && (visualInfoLevel === "medium" || visualInfoLevel === "high");
-
-  const captureSnapshot = async (useScreenshot: boolean): Promise<WebSnapshotResult> => {
-    // The capture injects outline styles and debug tags when screenshots are
-    // taken with visual debugging, and those count as mutations. Only a
-    // capture that does not mutate the dom on its own can safely read the
-    // baseline before capturing; otherwise external mutations happening while
-    // the snapshot is taken would be folded into it.
-    const beforeCapture = capturesWithOutlines(useScreenshot)
-      ? undefined
-      : await getDomRevision(page);
-
-    const captured = await getSnapshot(page, debug ? logger : undefined, {
-      debug,
-      screenshot: useScreenshot,
-      pageDataTags: useScreenshot && visualInfoLevel === "high",
-      pageOutlines: useScreenshot && (visualInfoLevel === "medium" || visualInfoLevel === "high"),
-      saveScreenShot: useScreenshot && saveScreenshots,
-
-      // FIXME: temporarily set to medium, infer usage based on difficulty of the task at hand.
-      stripLevel: "medium",
-    });
-
-    revision = beforeCapture ?? (await getDomRevision(page));
-    return captured;
-  };
-
-  // Capture once per step. A caller-provided snapshot (saveContext) is reused
-  // as-is, with its revision recorded right away.
-  let snapshot: WebSnapshotResult;
-  if (initialSnapshot) {
-    snapshot = initialSnapshot;
-    revision = initialSnapshotRevision ?? (await getDomRevision(page));
-  } else {
-    snapshot = await captureSnapshot(attemptPlan(0).useScreenshot);
-  }
-
-  for (let _r = 0; _r < retries; ++_r) {
-    const plan = attemptPlan(_r);
-
-    const result = await generatePlaywrightCode({
-      agent: ctx.agent,
-      task: {
-        task: task,
-        domSnapshot: snapshot.dom,
-        pageScreenshot: plan.useScreenshot ? snapshot.screenshot : undefined,
-        previousErrors: errors.map((e, i) => `${i}. ${e.toString().slice(0, 300)}`).join("\n"),
-        previousAttempts: attempts.map((a, i) => `${i}. ${a}`).join("\n"),
-        options: {
-          model: plan.model,
-        },
-      },
-      hooks: {
-        ...(llmhooks ?? {}),
-        onMessage: (message) => {
-          if (debug) {
-            logger.debug(`[event] on message >>> ${JSON.stringify(message, null, 4)}`);
-          }
-
-          if (llmhooks?.onMessage) {
-            llmhooks.onMessage(message);
-          }
-        },
-      },
-    });
-
-    if (result.type === "error") {
-      if (debug) {
-        ctx.logger.error(
-          `eval loop failed attempt ${_r} with screenshot policy "${_spolicy}"`,
-          result.errorMessage,
-        );
-      }
-
-      // generation-level failure: the existing capture is still valid, but the
-      // next attempt may need a screenshot the current capture lacks
-      const next = attemptPlan(_r + 1);
-      const needsScreenshot = next.useScreenshot && !snapshot.screenshot;
-      if (needsScreenshot) {
-        snapshot = await captureSnapshot(next.useScreenshot);
-      }
-      continue;
-    }
-
-    const expression = result.result;
-    if (env.LOG_STEP) {
-      ctx.logger.info("evaluating", { task, expression });
-    }
-
-    try {
-      const evalResult = await evalCode(`${expression}`, page);
-      return {
-        type: "success",
-        attempts: _r + 1,
-        result: {
-          evalResult: evalResult,
-          expression: result.result,
-        },
-      };
-    } catch (error) {
-      attempts.push(expression);
-      errors.push(error instanceof Error ? error : new Error(String(error)));
-
-      // The eval may have moved the DOM. Re-capture only when it did, or when
-      // the screenshot policy now needs an image the current capture lacks.
-      const currentRevision = await getDomRevision(page);
-      const moved =
-        revision === undefined ||
-        currentRevision.navigations !== revision.navigations ||
-        currentRevision.mutations !== revision.mutations;
-
-      const next = attemptPlan(_r + 1);
-      const needsScreenshot = next.useScreenshot && !snapshot.screenshot;
-      if (moved || needsScreenshot) {
-        snapshot = await captureSnapshot(next.useScreenshot);
-      }
-    }
-  }
-
-  if (debug) {
-    ctx.logger.error(
-      `failed generating a valid playwright expression in ${retries} attemps`,
-      errors,
-    );
-  }
-
-  return {
-    type: "error",
-    errors,
-    attempts: retries,
-  };
-};
-
 const step = async (
-  ctx: Gen2EGenContext,
   { task, title, page, store, evalCode, logger, hooks }: Gen2EStepInit,
   options: Gen2EStepOptions,
 ) => {
@@ -381,20 +166,6 @@ const step = async (
       throw new Gen2ECacheMissError(testIdent);
     }
 
-    if (!ctx.agent) {
-      logger.debug("creating agent...");
-      ctx.agent = createPlaywrightCodeGenAgent(
-        options.model,
-        {
-          openaiApiKey: options?.openaiApiKey,
-          baseURL: options?.baseURL,
-          debug: options.debug,
-          promptVersion: GEN2E_PROMPT_VERSION,
-        },
-        logger,
-      );
-    }
-
     if (env.LOG_STEP) {
       logger.info("generating playwright expression with task", { task });
     }
@@ -411,44 +182,33 @@ const step = async (
       });
     }
 
-    const result = await evalLoop(
-      ctx,
-      {
-        task,
-        page,
-        evalCode,
-        policies: options.policies,
-        snapshot: savedContext,
-        snapshotRevision: savedContextRevision,
-      },
-      {
-        debug: options.debug,
-        model: options.model,
-        saveScreenshots: options.debug,
-        visualInfoLevel:
-          options?.policies?.visualDebugLevel ??
-          globalConfig.policies?.visualDebugLevel ??
-          "medium",
-        ladder: options.ladder,
-      },
-      {
-        ...(hooks ?? {}),
-        onUsage: async (usage) => {
-          usageStats.push(usage);
-          if (hooks?.onUsage) {
-            await hooks.onUsage(usage);
-          }
-        },
-      },
-    );
+    const result = await runStepAgent({
+      task,
+      page,
+      evalCode,
+      model: options.model,
+      endpoint: { apiKey: options.openaiApiKey, baseURL: options.baseURL },
+      maxEvals: options.policies?.maxRetries ?? 3,
+      screenshot: options.policies?.screenshot ?? "model",
+      visualInfoLevel:
+        options.policies?.visualDebugLevel ?? globalConfig.policies?.visualDebugLevel ?? "medium",
+      ladder: options.ladder,
+      snapshot: savedContext,
+      snapshotRevision: savedContextRevision,
+      debug: options.debug,
+      saveScreenshots: options.debug,
+      logger,
+      hooks,
+    });
 
-    attempts = result.attempts ?? 0;
+    usageStats.push(...result.usage);
+    attempts = result.attempts;
 
     if (result.type === "error") {
       throw new Gen2EGenError(result.errors.join("\n"));
     }
 
-    const { expression, evalResult } = result.result;
+    const { expression, evalResult } = result;
 
     if (env.LOG_STEP) {
       logger.info("evaluating", { task, expression });
@@ -600,7 +360,6 @@ const resolveLadder = (ladder: Gen2EGenOptions["ladder"]): Gen2ELadderOptions | 
 };
 
 const genContext: Gen2EGenContext = {
-  agent: undefined,
   useStatic: env.USE_STATIC_STORE,
   logger: loggerInstance,
   screenshot: "model",
@@ -642,7 +401,6 @@ const _gen: GenType = (
     }
 
     return await step(
-      this,
       {
         task,
         title: "",
@@ -714,7 +472,6 @@ _gen.test = function (
 
       return await test.step(task, async () => {
         return await step(
-          this,
           {
             task,
             title,

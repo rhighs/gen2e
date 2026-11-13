@@ -1,7 +1,7 @@
 {
   "gen2e": {
-    "any": 9,
-    "forcedCast": 8,
+    "any": 8,
+    "forcedCast": 3,
     "nonNull": 0,
     "emptyCatch": 8
   },
