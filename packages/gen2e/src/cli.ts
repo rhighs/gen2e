@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { createInterface } from "node:readline/promises";
 import { chromium } from "@playwright/test";
 import type { StaticGenStep } from "@rhighs/gen2e-core";
 import { FSStaticStore } from "@rhighs/gen2e-store";
@@ -166,8 +165,10 @@ const record = async (argv: string[]) => {
   const page = await browser.newPage({ baseURL: cfg.playwright?.use?.baseURL });
   const ai = bindAI(page, { title });
 
-  const runStep = async (step: PlainStep): Promise<boolean> => {
-    console.log(`> ${step.text}`);
+  const runStep = async (step: PlainStep, echo = true): Promise<boolean> => {
+    if (echo) {
+      console.log(`> ${step.text}`);
+    }
     try {
       await runPlainStep(step, page, ai, cfg.vars);
       return true;
@@ -198,18 +199,17 @@ const record = async (argv: string[]) => {
   }
 
   console.log("Type a step and press enter. An empty line or Ctrl+D stops.");
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  for (;;) {
-    const text = (await rl.question("> ").catch(() => "")).trim();
-    if (!text) {
+  process.stdout.write("> ");
+  for await (const line of console) {
+    if (!line.trim()) {
       break;
     }
-    const [step] = parsePlain(text);
-    if (step && (await runStep(step))) {
+    const [step] = parsePlain(line);
+    if (step && (await runStep(step, false))) {
       append(step.text);
     }
+    process.stdout.write("> ");
   }
-  rl.close();
   await browser.close();
 };
 
