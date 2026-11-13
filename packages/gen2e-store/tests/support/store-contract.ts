@@ -1,17 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { StaticGenStep, StaticStore } from "@rhighs/gen2e-core";
 
-/**
- * Extra hooks a concrete store can provide to make the generic contract
- * runnable. Everything is optional so a store with fewer capabilities still
- * gets the cases it can express.
- */
 export type StoreContractOptions = {
-  /**
-   * Writes raw bytes for an identifier, bypassing the store API. Used to seed
-   * malformed and empty entries. Without it the malformed-entry case is
-   * skipped.
-   */
+  /** Writes raw bytes, bypassing the store API; without it the malformed-entry case is skipped. */
   seedRaw?: (ident: string, raw: string) => void;
 };
 
@@ -31,15 +22,6 @@ const sampleStep: StaticGenStep = {
   },
 };
 
-/**
- * Registers the behavioral contract every StaticStore implementation must
- * satisfy: misses, roundtrips, malformed entries, write contention, overwrite,
- * quarantine and versioned identity stability.
- *
- * @param name - Store name used in the describe title.
- * @param makeStore - Builds a fresh, isolated store per test case.
- * @param options - Optional capabilities the concrete store can expose.
- */
 export const runStoreContractTests = (
   name: string,
   makeStore: () => StaticStore,

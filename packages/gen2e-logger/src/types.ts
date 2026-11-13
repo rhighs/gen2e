@@ -1,4 +1,5 @@
 export type Gen2ELoggerTag = string;
+
 export type Gen2ELoggerTagColor = "white" | "red" | "green" | "yellow" | "blue";
 
 export type Gen2ELoggerRuntimeCallInfo = {
@@ -17,7 +18,9 @@ export type Gen2ELoggerArgsFmt = (
 ) => string;
 
 export type Gen2ELoggerSinkFunc = (out: string) => unknown;
+
 export type Gen2ELoggerSinkTag = "debug" | "info" | "warn" | "error";
+
 export type Gen2ELoggerSinks =
   | {
       [key in Gen2ELoggerSinkTag]: Gen2ELoggerSinkFunc;

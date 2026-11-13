@@ -1,95 +1,36 @@
-import { beforeEach, describe, expect, it, jest, mock } from "bun:test";
-import * as esprima from "esprima";
+import { describe, expect, test } from "bun:test";
 import { sanitizeCodeOutput, validateJSCode, validateJSONString } from "../../src";
 
 describe("sanitizeCodeOutput", () => {
-  it("should remove generic markdown code block tokens", () => {
-    const input = "```\nconst a = 1;\n```";
-    const expectedOutput = "const a = 1;";
-    expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
-  });
-
-  it("should remove TypeScript code block tokens", () => {
-    const input = "```typescript\nlet x: number = 10;\n```";
-    const expectedOutput = "let x: number = 10;";
-    expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
-  });
-
-  it("should remove JavaScript code block tokens", () => {
-    const input = "```javascript\nlet y = 'hello';\n```";
-    const expectedOutput = "let y = 'hello';";
-    expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
-  });
-
-  it("should remove trailing new line after markdown block tokens", () => {
-    const input = "```ts\nconsole.log('Hello World');\n```\n";
-    const expectedOutput = "console.log('Hello World');";
-    expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
-  });
-
-  it("should remove multiple leading and trailing new lines", () => {
-    const input = "```js\n\nconsole.log('Hello World');\n\n```\n";
-    const expectedOutput = "console.log('Hello World');";
-    expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
-  });
-
-  it("should remove any text prior to the markdown block", () => {
-    const input =
-      "text before it that must be stripped away:\n```js\n\nconsole.log('Hello World');\n\n```\n";
-    const expectedOutput = "console.log('Hello World');";
-    expect(sanitizeCodeOutput(input)).toBe(expectedOutput);
+  test.each([
+    ["```\nconst a = 1;\n```", "const a = 1;"],
+    ["```typescript\nlet x: number = 10;\n```", "let x: number = 10;"],
+    ["```javascript\nlet y = 'hello';\n```", "let y = 'hello';"],
+    ["```ts\nconsole.log('hi');\n```\n", "console.log('hi');"],
+    ["```js\n\nconsole.log('hi');\n\n```\n", "console.log('hi');"],
+    ["text before the block:\n```js\nconsole.log('hi');\n```\n", "console.log('hi');"],
+    ["await page.click('#go')", "await page.click('#go')"],
+  ])("%p becomes %p", (input, expected) => {
+    expect(sanitizeCodeOutput(input)).toBe(expected);
   });
 });
 
-mock.module("esprima", () => ({
-  parseScript: jest.fn(),
-}));
-
 describe("validateJSCode", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+  test("accepts top-level await inside the async wrapper", () => {
+    expect(validateJSCode("await page.click('#go'); return 1;")).toBe(true);
   });
 
-  it("should return true for valid JavaScript code", () => {
-    const code = "let x = 10;";
-    (esprima.parseScript as jest.Mock).mockImplementation(() => {});
-    const result = validateJSCode(code);
-    expect(result).toBe(true);
-    expect(esprima.parseScript).toHaveBeenCalledWith(`(async () => {${code}})`);
-  });
-
-  it("should return false for invalid JavaScript code", () => {
-    const code = "let x == 10;";
-    const error = new Error("Unexpected token");
-    (esprima.parseScript as jest.Mock).mockImplementation(() => {
-      throw error;
-    });
-    const result = validateJSCode(code);
-    expect(result).toBe(false);
-    expect(esprima.parseScript).toHaveBeenCalledWith(`(async () => {${code}})`);
+  test("rejects code that does not parse", () => {
+    expect(validateJSCode("let x == 10;")).toBe(false);
   });
 });
 
 describe("validateJSONString", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("should return false for an empty string", () => {
-    const code = "";
-    const result = validateJSONString(code);
-    expect(result).toBe(false);
-  });
-
-  it("should return true for valid JSON string", () => {
-    const code = '{"name": "John", "age": 30}';
-    const result = validateJSONString(code);
-    expect(result).toBe(true);
-  });
-
-  it("should return false for invalid JSON string", () => {
-    const code = '{"name": "John", "age": 30,}';
-    const result = validateJSONString(code);
-    expect(result).toBe(false);
+  test.each([
+    ['{"name": "John"}', true],
+    ['{"name": "John",}', false],
+    ["", false],
+  ])("%p is %p", (input, expected) => {
+    expect(validateJSONString(input)).toBe(expected);
   });
 });

@@ -1,18 +1,10 @@
 let configuredBasePath: string | undefined;
 
-/**
- * Overrides the base path used by the file system store. The gen2e library
- * calls this with `staticStorePath` from its config so the store keeps the
- * same resolution rules as before the package split.
- */
+// gen2e pushes `staticStorePath` from its config here; the store cannot read that config itself.
 export const setStaticBasePath = (value?: string): void => {
   configuredBasePath = value;
 };
 
-/**
- * Resolves the static store base path lazily so configuration and environment
- * changes made after import time are honored by every operation.
- * @returns {string} The static store base path.
- */
+// Resolved on every call so env and config changes made after import apply.
 export const staticBasePath = (): string =>
   configuredBasePath ?? process.env.GEN2E_STATIC_PATH ?? ".static";

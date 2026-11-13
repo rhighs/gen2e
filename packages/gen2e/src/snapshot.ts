@@ -138,10 +138,7 @@ export type WebSnapshotOptions = {
   pageOutlines?: boolean;
   pageDataTags?: boolean;
   debug?: boolean;
-  /**
-   * Upper bound for the network-idle wait. Defaults to 2000ms and can be
-   * overridden through `GEN2E_NETWORKIDLE_TIMEOUT_MS`.
-   */
+  /** Defaults to 2000ms, or `GEN2E_NETWORKIDLE_TIMEOUT_MS`. */
   networkIdleTimeoutMs?: number;
 };
 
@@ -150,11 +147,7 @@ export type WebSnapshotResult = {
   screenshot?: Buffer;
 };
 
-/**
- * Node-side counters describing how much a page moved. Any increase between
- * two reads means the DOM moved (navigation or mutation) and a previously
- * captured snapshot can no longer be trusted.
- */
+/** Any increase between two reads means a captured snapshot is stale. */
 export type DomRevision = {
   navigations: number;
   mutations: number;
@@ -194,10 +187,7 @@ const isTimeoutError = (error: unknown): boolean => {
   return err.name === "TimeoutError" || /timeout .*exceeded/i.test(err.message ?? "");
 };
 
-/**
- * Module-level revision counters keyed by page. Kept off the page object so
- * repeated installs stay idempotent.
- */
+// Kept off the page object so repeated installs stay idempotent.
 const pageRevisions = new WeakMap<object, PageRevisionState>();
 
 const MUTATION_COUNTER_INIT_SCRIPT = () => {
@@ -208,8 +198,7 @@ const MUTATION_COUNTER_INIT_SCRIPT = () => {
   if (typeof w.__gen2eMutations !== "number") {
     w.__gen2eMutations = 0;
   }
-  // The script is also run directly against already-open documents, where the
-  // init-script pass may have observed this document too; keep one observer.
+  // The script also runs against already-open documents the init script may have seen; keep one observer.
   if (w.__gen2eMutationObserver) {
     return;
   }
@@ -247,12 +236,7 @@ const installMutationCounterInDocument = async (
   }
 };
 
-/**
- * Runs the mutation counter against every document that is already open.
- * `addInitScript` only evaluates on navigation or frame attach, so an install
- * performed after the caller navigated would otherwise leave the current
- * document without a MutationObserver.
- */
+// `addInitScript` only runs on navigation or frame attach, so documents already open need the counter injected directly.
 const installMutationCountersInOpenDocuments = (page: Page): Promise<void> => {
   const targets: MutationCounterTarget[] = [];
 
@@ -282,15 +266,6 @@ const installMutationCountersInOpenDocuments = (page: Page): Promise<void> => {
   return Promise.all(targets.map(installMutationCounterInDocument)).then(() => undefined);
 };
 
-/**
- * Installs the DOM revision tracker for a page: a `framenavigated` listener
- * for every frame and a page-side MutationObserver counting changes in
- * `window.__gen2eMutations`. The observer is installed both for future
- * navigations (init script) and for the documents that are already open, so an
- * install that happens after `page.goto` still tracks the current document.
- * Idempotent per page and tolerant of mocks that do not implement the
- * Playwright page API. Resolves once the open documents have been instrumented.
- */
 export const installDomRevisionTracker = async (page: Page): Promise<void> => {
   try {
     if (!page || typeof page.on !== "function" || pageRevisions.has(page)) {
@@ -306,8 +281,7 @@ export const installDomRevisionTracker = async (page: Page): Promise<void> => {
 
     if (typeof page.addInitScript === "function") {
       try {
-        // Await the registration so a navigation that follows the install
-        // cannot race ahead of the init script.
+        // Awaited so a navigation right after the install cannot race the init script.
         await page.addInitScript(MUTATION_COUNTER_INIT_SCRIPT);
       } catch (_err) {
         // instrumentation must never fail the caller
@@ -320,11 +294,6 @@ export const installDomRevisionTracker = async (page: Page): Promise<void> => {
   }
 };
 
-/**
- * Reads the current DOM revision for a page. Mutations are summed across
- * every frame; cross-origin or detached frames count as zero. Never throws:
- * pages that are not real Playwright pages report zeros.
- */
 export const getDomRevision = async (page: Page): Promise<DomRevision> => {
   const navigations = pageRevisions.get(page as object)?.navigations ?? 0;
   let mutations = 0;
@@ -495,12 +464,6 @@ export const getSnapshot = async (
   };
 
   if (opts?.screenshot) {
-    // rob:
-    // outline every element in the page, this will help better recognising
-    // which element fall into a specific html tree branch.
-    // html tags are also added if specifically asked to via opts, this will show
-    // a floating text at the left-top corner of each element saying what kind of html tag
-    // the outlined element is.
     if (opts.pageOutlines) {
       await outlinePage(page);
       if (opts.pageDataTags && Array.isArray(_tags)) {
@@ -508,8 +471,7 @@ export const getSnapshot = async (
       }
     }
 
-    // rob:
-    // this is fixed due to jpeg being the only way to control output image size via `quality` param.
+    // JPEG is the only format whose size can be capped through `quality`.
     const buffer = await page.screenshot({
       type: "jpeg",
       fullPage: opts.screenshotFullPage ?? false,

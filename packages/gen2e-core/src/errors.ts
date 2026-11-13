@@ -5,10 +5,7 @@ export abstract class Gen2EError extends Error {
   }
 }
 
-/**
- * Thrown in replay-only mode when no static cache entry matches the
- * generation request. Carries the identifier that was looked up.
- */
+/** Thrown in replay-only mode when the cache has no entry for the step. */
 export class Gen2ECacheMissError extends Gen2EError {
   public readonly ident: string;
 
@@ -18,12 +15,7 @@ export class Gen2ECacheMissError extends Gen2EError {
   }
 }
 
-/**
- * Thrown when a static cache entry cannot be trusted anymore: the cached
- * expression failed at evaluation time and the failure cannot be recovered
- * from. Carries the identifier, the cached expression and classification
- * metadata.
- */
+/** A cached expression failed at evaluation and cannot be regenerated. */
 export class Gen2EStaleCacheError extends Gen2EError {
   public readonly ident: string;
   public readonly expression: string;

@@ -1,6 +1,3 @@
-/**
- * One record per generation step. Emitted only when telemetry is enabled.
- */
 export type Gen2EStepTelemetry = {
   ts: string;
   testTitle: string;

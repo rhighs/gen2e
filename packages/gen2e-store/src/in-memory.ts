@@ -5,10 +5,6 @@ import {
 } from "@rhighs/gen2e-core";
 import type { BundleableStaticStore, BundleEntry } from "./bundle";
 
-/**
- * Process-local static store. Useful for tests, sandboxes and as a CI cache
- * target that is exported to disk with the bundle helpers.
- */
 export class InMemoryStaticStore implements BundleableStaticStore {
   public readonly makeIdent = defaultMakeIdent;
   public readonly makeIdentFromContext = defaultMakeIdentFromContext;

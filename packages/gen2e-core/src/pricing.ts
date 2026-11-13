@@ -10,11 +10,7 @@ type ModelPrice = {
   completion: number;
 };
 
-/**
- * USD per 1M tokens. Small built-in catalog; unknown models report no cost.
- * `GEN2E_PRICING_FILE` can override or augment these entries with a JSON
- * object of `{ "<model>": { "prompt": number, "completion": number } }`.
- */
+// USD per 1M tokens; GEN2E_PRICING_FILE holds `{ "<model>": { "prompt", "completion" } }` overrides.
 const PRICE_PER_MILLION: Record<string, ModelPrice> = {
   "gpt-4o-mini": { prompt: 0.15, completion: 0.6 },
   "gpt-4o": { prompt: 2.5, completion: 10 },
@@ -27,10 +23,7 @@ const PRICE_PER_MILLION: Record<string, ModelPrice> = {
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-/**
- * Reads the optional pricing override file. Read lazily on every estimate so
- * changing the env var takes effect; malformed files are ignored.
- */
+// Read on every estimate so env changes apply; a malformed file is ignored.
 const readOverrideFile = (): Record<string, ModelPrice> => {
   const file = process.env.GEN2E_PRICING_FILE?.trim();
   if (!file) {
@@ -69,10 +62,6 @@ const resolvePrice = (model: string): ModelPrice | undefined => {
   return lookupPrice(key) ?? lookupPrice(bare);
 };
 
-/**
- * Estimates the USD cost of a token usage record. Returns undefined when the
- * model is not priced.
- */
 export const estimateCostUsd = (model: string, usage: Gen2ETokenUsage): number | undefined => {
   const price = resolvePrice(model);
   if (!price) {

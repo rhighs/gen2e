@@ -58,23 +58,13 @@ export type Gen2ELLMAgent<T extends Gen2ELLMAgentTask, R> = (
 
 export type Gen2ELLMAgentBuilderOptions = {
   debug?: boolean;
-  /** API key for OpenAI or the OpenAI-compatible endpoint. */
+  /** Also used for any OpenAI-compatible endpoint. */
   openaiApiKey?: string;
-  /**
-   * Base URL of an OpenAI-compatible endpoint, e.g. a self-hosted proxy or
-   * vendor API. Falls back to OPENAI_BASE_URL when omitted.
-   */
+  /** Falls back to OPENAI_BASE_URL. */
   baseURL?: string;
-  /**
-   * Version of the system prompt used by this agent. Reported back in usage
-   * stats so callers can invalidate caches when the prompt changes.
-   */
+  /** Reported in usage stats so callers can invalidate caches when the prompt changes. */
   promptVersion?: string;
-  /**
-   * Ordered list of model ids to try when the current model fails with a
-   * retryable error (rate limit, overload, timeout, 5xx). Every model is
-   * served by the same configured OpenAI-compatible endpoint.
-   */
+  /** Tried in order when the current model fails with a retryable error. */
   fallbackModels?: Gen2ELLMAgentModel[];
   /** Maximum number of fallback models to try. Defaults to 2. */
   maxFallbacks?: number;
@@ -131,8 +121,4 @@ export const Gen2ELLMAgentModels = {
 
 export type Gen2ELLMAgentOpenAIModel = keyof typeof Gen2ELLMAgentOpenAIModels;
 
-/**
- * A model id served by the configured OpenAI-compatible endpoint, or any AI
- * SDK language model instance. Known OpenAI ids are offered for autocomplete.
- */
 export type Gen2ELLMAgentModel = Gen2ELLMAgentOpenAIModel | (string & {}) | Gen2ELanguageModel;

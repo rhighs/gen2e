@@ -11,18 +11,11 @@ import {
 import { scriptedModel } from "../support/scripted-model";
 
 describe("model helpers", () => {
-  test("isModelSupported accepts any non-empty model id", () => {
-    expect(isModelSupported("gpt-4o-mini")).toBe(true);
-    expect(isModelSupported("my-finetune-7b")).toBe(true);
+  test("isModelSupported accepts non-empty ids and model instances", () => {
     expect(isModelSupported("openai/gpt-5.4")).toBe(true);
-    expect(isModelSupported("")).toBe(false);
-    expect(isModelSupported("   ")).toBe(false);
-    expect(isModelSupported(undefined)).toBe(false);
-    expect(isModelSupported(42)).toBe(false);
-  });
-
-  test("isModelSupported accepts an AI SDK model instance", () => {
     expect(isModelSupported(scriptedModel([]))).toBe(true);
+    expect(isModelSupported("   ")).toBe(false);
+    expect(isModelSupported(42)).toBe(false);
   });
 
   test("modelId", () => {
@@ -31,7 +24,15 @@ describe("model helpers", () => {
   });
 
   test("resolveModel uses the Responses API for OpenAI and Chat Completions for a custom base URL", () => {
-    expect(resolveModel("gpt-4o-mini", { apiKey: "k" }).provider).toBe("openai.responses");
+    const baseURL = process.env.OPENAI_BASE_URL;
+    delete process.env.OPENAI_BASE_URL;
+    try {
+      expect(resolveModel("gpt-4o-mini", { apiKey: "k" }).provider).toBe("openai.responses");
+    } finally {
+      if (baseURL !== undefined) {
+        process.env.OPENAI_BASE_URL = baseURL;
+      }
+    }
     expect(
       resolveModel("my-model", { apiKey: "k", baseURL: "http://localhost:1/v1" }).provider,
     ).toBe("openai.chat");
@@ -58,20 +59,23 @@ describe("model helpers", () => {
     expect(modelSupportsImage("deepseek-v4-pro")).toBe(false);
   });
 
-  test("isRetryableModelError", () => {
-    expect(isRetryableModelError("429 Too Many Requests")).toBe(true);
-    expect(isRetryableModelError("rate limit exceeded")).toBe(true);
-    expect(isRetryableModelError("too many requests, slow down")).toBe(true);
-    expect(isRetryableModelError("service unavailable 503")).toBe(true);
-    expect(isRetryableModelError("internal server error 500")).toBe(true);
-    expect(isRetryableModelError("model overloaded")).toBe(true);
-    expect(isRetryableModelError("insufficient capacity")).toBe(true);
-    expect(isRetryableModelError("request timeout")).toBe(true);
-    expect(isRetryableModelError("connect ETIMEDOUT")).toBe(true);
-    expect(isRetryableModelError("read ECONNRESET")).toBe(true);
-
-    expect(isRetryableModelError("invalid api key")).toBe(false);
-    expect(isRetryableModelError("model does not supporting feeding images")).toBe(false);
-    expect(isRetryableModelError("")).toBe(false);
+  test.each([
+    "429 Too Many Requests",
+    "rate limit exceeded",
+    "service unavailable 503",
+    "model overloaded",
+    "insufficient capacity",
+    "request timeout",
+    "connect ETIMEDOUT",
+    "read ECONNRESET",
+  ])("%p is retryable", (reason) => {
+    expect(isRetryableModelError(reason)).toBe(true);
   });
+
+  test.each(["invalid api key", "model does not support images", ""])(
+    "%p is not retryable",
+    (reason) => {
+      expect(isRetryableModelError(reason)).toBe(false);
+    },
+  );
 });

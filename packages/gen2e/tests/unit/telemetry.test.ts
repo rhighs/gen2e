@@ -24,30 +24,19 @@ const makeRecord = (overrides: Partial<Gen2EStepTelemetry> = {}): Gen2EStepTelem
 });
 
 describe("recordStepTelemetry", () => {
+  const cwd = process.cwd();
   let basePath: string;
-  let cwd: string;
-  const originalTelemetry = process.env.GEN2E_TELEMETRY;
-  const originalTelemetryPath = process.env.GEN2E_TELEMETRY_PATH;
 
   beforeEach(() => {
     basePath = mkdtempSync(path.join(tmpdir(), "gen2e-telemetry-unit-"));
-    cwd = process.cwd();
     delete process.env.GEN2E_TELEMETRY;
     delete process.env.GEN2E_TELEMETRY_PATH;
   });
 
   afterEach(() => {
     process.chdir(cwd);
-    if (originalTelemetry === undefined) {
-      delete process.env.GEN2E_TELEMETRY;
-    } else {
-      process.env.GEN2E_TELEMETRY = originalTelemetry;
-    }
-    if (originalTelemetryPath === undefined) {
-      delete process.env.GEN2E_TELEMETRY_PATH;
-    } else {
-      process.env.GEN2E_TELEMETRY_PATH = originalTelemetryPath;
-    }
+    delete process.env.GEN2E_TELEMETRY;
+    delete process.env.GEN2E_TELEMETRY_PATH;
     rmSync(basePath, { recursive: true, force: true });
   });
 

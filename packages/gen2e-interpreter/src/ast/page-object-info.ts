@@ -14,17 +14,6 @@ export type Gen2EPageObjectInfo = {
   }[];
 };
 
-/**
- * Extracts page object information from a source string.
- *
- * This function compiles a JavaScript source string and extracts information
- * about classes, specifically those with properties `gen2e_const_pageUrl`
- * and `gen2e_const_description`. The extracted information includes the class name,
- * page URL, and description.
- *
- * @param {string} source - The JavaScript source code as a string.
- * @returns {Gen2EPageObjectInfo[]} List of page object info tags values found.
- */
 export const pageObjectsInfo = (source: string): Gen2EPageObjectInfo[] =>
   makeTransformer((fileInfo: FileInfo, api: API, _logger?: Gen2ELogger) => {
     const j = api.jscodeshift;

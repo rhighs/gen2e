@@ -19,11 +19,7 @@ const messageOf = (error: unknown): string => {
   return error === undefined || error === null ? "" : String(error);
 };
 
-/**
- * Heuristic classification of an evaluation error. Used to decide whether a
- * failing cached expression can be regenerated (locator drift) or whether it
- * points at a real application regression that must surface.
- */
+// Decides whether a failing cached expression can be regenerated (locator drift) or must surface.
 export const classifyEvalError = (error: unknown): Gen2EEvalErrorClass => {
   const message = messageOf(error).toLowerCase();
 

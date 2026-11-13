@@ -1,12 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { getDomRevision, installDomRevisionTracker } from "../../src/snapshot";
 
-/**
- * Real-browser coverage for the DOM revision counters used to decide when a
- * captured snapshot can be reused. Runs against the fixture server started by
- * playwright.config.ts; keep it out of the unit run (jest only matches
- * tests/unit).
- */
+// Real-browser coverage for the DOM revision counters, against the fixture server from playwright.config.ts.
 test.describe("dom revision tracking", () => {
   test("detects an in-place dom mutation", async ({ page }) => {
     await installDomRevisionTracker(page);

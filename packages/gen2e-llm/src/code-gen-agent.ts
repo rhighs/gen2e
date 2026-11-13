@@ -64,10 +64,6 @@ const sleep = (ms: number): Promise<void> =>
     setTimeout(resolve, ms);
   });
 
-/**
- * Backoff before fallback attempt n: `retryBackoffMs * 2^n` plus up to
- * `retryBackoffMs` of random jitter, capped at 2000ms.
- */
 const fallbackDelayMs = (baseMs: number, attempt: number): number => {
   if (!Number.isFinite(baseMs) || baseMs <= 0) {
     return 0;

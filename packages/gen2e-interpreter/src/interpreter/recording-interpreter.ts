@@ -345,7 +345,6 @@ export class RecordingInterpreter {
         this.logger.error(error);
       }
 
-      // FIXME: find a way to log a better error here
       return {
         type: "error",
         reason: `attempts have failed or some other exception has occurred: ${error}`,

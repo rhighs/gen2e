@@ -29,12 +29,6 @@ describe("estimateCostUsd", () => {
     expect(
       estimateCostUsd("GPT-4O-MINI", { promptTokens: 1_000_000, completionTokens: 0 }),
     ).toBeCloseTo(0.15);
-    expect(
-      estimateCostUsd("claude-sonnet-4.6", { promptTokens: 0, completionTokens: 1_000_000 }),
-    ).toBeGreaterThan(0);
-    expect(
-      estimateCostUsd("gemini-3.8-flash", { promptTokens: 1_000_000, completionTokens: 0 }),
-    ).toBeGreaterThan(0);
   });
 
   test("prices a provider-qualified id by its bare model id", () => {

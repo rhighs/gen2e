@@ -47,7 +47,6 @@ const transformGenCall = (j: JSCodeshift, root: any, store: StaticStore, logger?
             const code = store.fetchStatic(ident);
 
             if (code) {
-              // if no expression is found for replacement, skip it
               if (!code.expression) {
                 const message = `got undefined or empty expression for ident`;
                 if (logger) {
@@ -146,22 +145,6 @@ const transform = (
   return root.toSource();
 };
 
-/**
- * Translates source code from the gen2e library into native playwright JavaScript code.
- *
- * This function processes the given source code to replace gen2e IL syntax with
- * equivalent native Playwright expressions assumed to be fetched from a static store, where the code is at.
- * It performs the following transformations:
- *
- * 1. Replaces calls to `gen("<task>", { page, test })` with corresponding static Playwright expressions
- * 2. Edits test titles to indicate the compilation output process
- * 3. Converts `gen.test(({ page, gen }) => { ... })` calls into native Playwright test expressions,
- *    removing dependencies on the gen2e library
- *
- * @param {string} source - The source code to be compiled.
- * @param {StaticStore} store - The static code store used to fetch playwright expressions.
- * @returns {string} compile step output.
- */
 export const pwCompile = (
   source: string,
   store: StaticStore = FSStaticStore,

@@ -3,6 +3,7 @@ import type { StaticStore } from "@rhighs/gen2e";
 import { pwCompile } from "../../../src";
 
 const inMemoryStatic: { [key: string]: string } = {};
+
 const staticStore: StaticStore = {
   makeIdent: (title, task) => `gen2.interpreter - [${title}](${task})`,
   fetchStatic: (ident: string) => ({

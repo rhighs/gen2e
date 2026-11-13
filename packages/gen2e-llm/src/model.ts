@@ -68,21 +68,12 @@ const VISION_HINTS = [
   "mistral-medium",
 ];
 
-/**
- * Best effort vision capability probe for a model. Text-only models return
- * false; models known to accept image inputs return true. Screenshot policy
- * `force` still attaches images to any model.
- */
+// A name-based guess; the `force` screenshot policy attaches images regardless.
 export const modelSupportsImage = (model: Gen2ELLMAgentModel): boolean => {
   const id = (typeof model === "string" ? model : model.modelId).toLowerCase();
   return VISION_HINTS.some((hint) => id.includes(hint));
 };
 
-/**
- * Whether a model error reason is worth retrying on a different model:
- * rate limiting, overload/capacity, timeouts and transient connection or
- * server failures. Authentication, validation and shape errors are not.
- */
 export const isRetryableModelError = (reason: string): boolean => {
   if (typeof reason !== "string" || reason.trim() === "") {
     return false;

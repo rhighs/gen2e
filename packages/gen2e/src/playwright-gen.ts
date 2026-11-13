@@ -78,10 +78,7 @@ You follow this set of rules when proposing solutions:
        }
 `;
 
-/**
- * Manual version of the Playwright system message. Bump whenever the system
- * message changes so cached expressions are invalidated.
- */
+// Part of every cache key: bump it whenever the system message changes.
 export const GEN2E_PROMPT_VERSION = "2026-11-13.1";
 
 export const stepPrompt = (task: string, dom: string): string => `\

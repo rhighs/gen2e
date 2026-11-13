@@ -7,6 +7,7 @@ import type { IOWriter, StaticData } from "./interface";
 const filesDir = (): string => path.join(staticBasePath(), "data");
 
 const writeFileAsync = promisify(writeFile);
+
 const readFileAsync = promisify(readFile);
 
 export const FSWriter: IOWriter = {

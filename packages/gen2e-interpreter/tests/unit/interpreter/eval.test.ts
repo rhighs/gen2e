@@ -1,41 +1,31 @@
-import { beforeEach, describe, expect, jest, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { Page } from "@rhighs/gen2e";
 import { evalGen2EExpression } from "../../../src";
 
 describe("evalGen2EExpression", () => {
-  const mockGen = jest.fn();
-  const mockPage = {};
+  const page = {} as Page;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  test("calls gen with the arguments in the expression", async () => {
+    const gen = jest.fn().mockResolvedValue(undefined);
+
+    await evalGen2EExpression("await gen('task', { page });", gen, page);
+
+    expect(gen).toHaveBeenCalledWith("task", { page });
   });
 
-  test("should evaluate the given gen expression successfully", async () => {
-    const genExpr = "await gen('task', { page });";
-    const mockGenImplementation = async () => Promise.resolve();
-    mockGen.mockImplementation(mockGenImplementation);
+  test("swallows errors thrown by the expression", async () => {
+    const gen = jest.fn().mockResolvedValue(undefined);
 
-    await evalGen2EExpression(genExpr, mockGen, mockPage as Page);
-
-    expect(mockGen).toHaveBeenCalledWith("task", { page: mockPage });
+    await expect(
+      evalGen2EExpression("await gen('task', { page }); throw new Error('x');", gen, page),
+    ).resolves.toBeUndefined();
   });
 
-  test("should handle evaluation errors gracefully", async () => {
-    const genExpr = "await gen('task', { page }); throw new Error('Test error');";
-    const mockGenImplementation = async () => Promise.resolve();
-    mockGen.mockImplementation(mockGenImplementation);
+  test("does nothing without a page", async () => {
+    const gen = jest.fn();
 
-    await evalGen2EExpression(genExpr, mockGen, mockPage as Page);
+    await evalGen2EExpression("await gen('task', { page });", gen, null as unknown as Page);
 
-    expect(mockGen).toHaveBeenCalledWith("task", { page: mockPage });
-  });
-
-  test("should not evaluate if page is null", async () => {
-    const genExpr = "await gen('task', { page });";
-    const nullPage = null;
-
-    await evalGen2EExpression(genExpr, mockGen, nullPage as unknown as Page);
-
-    expect(mockGen).not.toHaveBeenCalled();
+    expect(gen).not.toHaveBeenCalled();
   });
 });

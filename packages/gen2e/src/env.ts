@@ -5,15 +5,9 @@ export type Gen2EEnv = {
   USE_STATIC_STORE: boolean;
   LOG_STEP: boolean;
   REPLAY_ONLY: boolean;
-  /**
-   * How a cache hit that fails with locator drift is handled: "regen" falls
-   * back to generation, "fail" surfaces `Gen2EStaleCacheError`.
-   */
+  /** "regen" regenerates a cached step that drifted; "fail" throws `Gen2EStaleCacheError`. */
   STALE_CACHE: string;
-  /**
-   * Cheaper model for the first cost-ladder attempt. Setting it enables the
-   * ladder by default.
-   */
+  /** Setting it enables the cost ladder by default. */
   CHEAP_MODEL: string;
 };
 

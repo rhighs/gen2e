@@ -1,14 +1,17 @@
 const MARKDOWN_BLOCK_TOKEN = "```";
+
 const MARKDOWN_TS_BLOCK_TOKEN = "```ts";
+
 const MARKDOWN_JSON_BLOCK_TOKEN = "```json";
+
 const MARKDOWN_JS_BLOCK_TOKEN = "```js";
+
 const MARKDOWN_TYPESCRIPT_BLOCK_TOKEN = "```typescript";
+
 const MARKDOWN_JAVASCRIPT_BLOCK_TOKEN = "```javascript";
 
 export const sanitizeCodeOutput = (llmOutput: string): string => {
-  // rob: sometimes the model won't really get it to remove ``` and not style the code as markdown.
-  //      In that case we perform a check here and strip away the markdown annotations.
-
+  // Models sometimes wrap code in markdown fences despite being told not to.
   if (llmOutput.length > 6) {
     for (let k = 0; k < llmOutput.length - 6; ++k) {
       if (llmOutput.substring(k, k + MARKDOWN_BLOCK_TOKEN.length) === "```" && k > 0) {

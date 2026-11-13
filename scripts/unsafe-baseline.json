@@ -20,7 +20,7 @@
   "gen2e-interpreter": {
     "any": 24,
     "forcedCast": 1,
-    "nonNull": 2,
+    "nonNull": 0,
     "emptyCatch": 0
   },
   "gen2e-llm": {

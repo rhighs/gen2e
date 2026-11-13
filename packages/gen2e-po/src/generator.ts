@@ -30,13 +30,6 @@ export class Gen2EPOGenerator {
   logger: Gen2ELogger;
   staticDataDir: string;
 
-  /**
-   * Creates an instance of Gen2EPOGenerator.
-   *
-   * @param {Gen2EPOGeneratorOptions} options - The options for the generator.
-   * @param {Gen2EPOCodeAPI} [codeAPI=FSCodeAPI] - The code API to use, defaulting to FSCodeAPI.
-   * @param {Gen2ELogger} [logger] - Optional logger, defaulting to a new logger instance.
-   */
   constructor(
     options: Gen2EPOGeneratorOptions = {},
     codeAPI: Gen2EPOCodeAPI = FSCodeAPI,
@@ -49,16 +42,6 @@ export class Gen2EPOGenerator {
     this.staticDataDir = options.staticDataDir ?? ".";
   }
 
-  /**
-   * Generates page objects based on the provided `from` and `to` blocks.
-   *
-   * This function loads images from the specified paths in the `from` and `to` blocks, reads HTML content,
-   * constructs a task for the page object generator, and invokes the generator.
-   *
-   * @param {Gen2EPlaywrightBlock} from - The initial Playwright block containing context and references.
-   * @param {Gen2EPlaywrightBlock} [to] - The target Playwright block containing context and references (optional).
-   * @returns {Promise<void>} - A promise that resolves when the page objects have been generated.
-   */
   async generate(from: Gen2EPlaywrightBlock, to?: Gen2EPlaywrightBlock): Promise<void> {
     const images: Buffer[] = [];
     if (from.context?.refs?.screenshotPath) {

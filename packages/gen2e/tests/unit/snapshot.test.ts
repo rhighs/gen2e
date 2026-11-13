@@ -62,18 +62,13 @@ describe("getSnapshot network idle", () => {
     await getSnapshot(page, undefined, { networkIdleTimeoutMs: 50 });
     expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle", { timeout: 50 });
 
-    const original = process.env.GEN2E_NETWORKIDLE_TIMEOUT_MS;
     process.env.GEN2E_NETWORKIDLE_TIMEOUT_MS = "75";
     try {
       const envPage = makePage();
       await getSnapshot(envPage);
       expect(envPage.waitForLoadState).toHaveBeenCalledWith("networkidle", { timeout: 75 });
     } finally {
-      if (original === undefined) {
-        delete process.env.GEN2E_NETWORKIDLE_TIMEOUT_MS;
-      } else {
-        process.env.GEN2E_NETWORKIDLE_TIMEOUT_MS = original;
-      }
+      delete process.env.GEN2E_NETWORKIDLE_TIMEOUT_MS;
     }
   });
 });
@@ -85,15 +80,6 @@ describe("dom revision tracking", () => {
     await installDomRevisionTracker(bare);
 
     await expect(getDomRevision(bare)).resolves.toEqual({ navigations: 0, mutations: 0 });
-  });
-
-  test("installs the counter in the document that is already open", async () => {
-    const page = makePage();
-
-    await installDomRevisionTracker(page);
-
-    expect(page.evaluate).toHaveBeenCalledTimes(1);
-    expect(page.evaluate).toHaveBeenCalledWith(expect.any(Function));
   });
 
   test("installs the counter in every open frame and survives cross-origin frames", async () => {

@@ -5,6 +5,7 @@ import type { Gen2EBrowserOptions } from "./browser";
 import type { Gen2EInterpreterInMemStatic } from "./store";
 
 export type Gen2EInterpreterEvent = "start" | "end" | "task-success" | "task-error" | "ai-message";
+
 export type Gen2EInterpreterEventCallback = (...args: any[]) => void;
 
 export type Gen2EInterpreterOptions = {
@@ -14,7 +15,6 @@ export type Gen2EInterpreterOptions = {
   gen2eModel?: Gen2ELLMAgentModel;
   playwrightModel?: Gen2ELLMAgentModel;
   openaiApiKey?: string;
-  /** Base URL of the OpenAI-compatible endpoint. */
   baseURL?: string;
   recordUsage?: boolean;
   policies?: Gen2EGenPolicies;

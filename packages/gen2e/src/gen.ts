@@ -135,8 +135,7 @@ const step = async (
           outcome = "success";
           return cachedResult;
         } catch (error) {
-          // The entry existed and was served: a failure here is a failed hit,
-          // not a miss.
+          // A served entry that fails is a failed hit, not a miss.
           cache = "hit";
           const evalErrorClass = classifyEvalError(error);
           const stale = new Gen2EStaleCacheError(testIdent, expression, {
@@ -320,12 +319,6 @@ const step = async (
   }
 };
 
-/**
- * Normalizes the ladder option: explicit `false` disables it, `true` keeps
- * the primary model and only turns screenshots off first, an object may name
- * the cheap model, and otherwise the config file or `GEN2E_CHEAP_MODEL`
- * enable it.
- */
 const resolveLadder = (ladder: Gen2EGenOptions["ladder"]): Gen2ELadderOptions | undefined => {
   const configuredCheapModel =
     globalConfig.cheapModel ??
@@ -346,8 +339,7 @@ const resolveLadder = (ladder: Gen2EGenOptions["ladder"]): Gen2ELadderOptions | 
     };
   }
 
-  // An explicit config `ladder: false` is a hard disable, even when a cheap
-  // model is configured: config takes precedence over env and defaults.
+  // Config `ladder: false` wins over a cheap model set in the env.
   if (globalConfig.ladder === false) {
     return undefined;
   }
@@ -511,8 +503,7 @@ _gen.test = function (
       );
       return result;
     } catch (err) {
-      // Library errors carry identity and metadata consumers match on; do not
-      // bury them inside a generic Error.
+      // Consumers match on library error types and metadata, so these are not wrapped.
       if (err instanceof Gen2EError) {
         throw err;
       }

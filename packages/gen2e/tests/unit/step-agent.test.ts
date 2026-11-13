@@ -12,10 +12,13 @@ mock.module("../../src/snapshot", () => ({
 }));
 
 const mockGetSnapshot = getSnapshot as jest.Mock<typeof getSnapshot>;
+
 const mockGetDomRevision = getDomRevision as jest.Mock<typeof getDomRevision>;
 
 const page = { url: () => "https://example.com" } as Page;
+
 const submit = (code: string) => toolTurn({ name: "run_expression", input: { code } });
+
 const wrapped = (code: string) => `(async () => { ${code} })`;
 
 const run = (overrides: Partial<Gen2EStepAgentInit> & Pick<Gen2EStepAgentInit, "model">) =>

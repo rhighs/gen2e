@@ -19,13 +19,6 @@ declare global {
 
 const isWindows = (): boolean => process.platform === "win32";
 
-/**
- * Retrieves execution information from the current runtime stack trace.
- *
- * @param {number} depth - The depth of the stack trace to retrieve. Defaults to 3.
- * @param {() => string | undefined} readStack - A function that returns a stack trace string.
- * @returns {Gen2ELoggerRuntimeCallInfo} An object containing information about the function call.
- */
 export const runtimeExecutionInfo = (
   depth: number = 3,
   readStack: () => string | undefined = () => new Error().stack,
@@ -47,9 +40,9 @@ export const runtimeExecutionInfo = (
     if (match?.length) {
       const file = match[1].split(win ? "\\" : "/").pop();
       const [filepathLC] = match;
-      let filepath = "",
-        _line = "",
-        _col = "";
+      let filepath = "";
+      let _line = "";
+      let _col = "";
       if (win) {
         const [vol, path, line, col] = filepathLC.strip(")").strip("(").split(":");
         filepath = `${vol}:${path}`;
@@ -59,15 +52,13 @@ export const runtimeExecutionInfo = (
         [filepath, _line, _col] = filepathLC.strip(")").strip("(").split(":");
       }
       const [funcName] = stackLine.trim().replace("at ", "").split(" ");
-      let line = parseInt(_line, 10);
-      if (isNaN(line)) line = 0;
-      let col = parseInt(_col, 10);
-      if (isNaN(col)) col = 0;
+      const line = parseInt(_line, 10);
+      const col = parseInt(_col, 10);
       result.funcName = funcName;
       result.filepath = filepath;
       result.file = file ?? "";
-      result.line = line;
-      result.col = col;
+      result.line = Number.isNaN(line) ? 0 : line;
+      result.col = Number.isNaN(col) ? 0 : col;
     }
   }
 

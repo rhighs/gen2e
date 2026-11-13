@@ -24,10 +24,6 @@ const isEnabled = (): boolean => {
   return typeof configured === "string" && configured.trim() !== "";
 };
 
-/**
- * Resolves the telemetry file. `GEN2E_TELEMETRY_PATH` may point at a file or
- * at a directory; directories get the default file name appended.
- */
 const resolveTelemetryPath = (): string => {
   const configured = process.env.GEN2E_TELEMETRY_PATH?.trim();
   if (!configured) {
@@ -39,12 +35,7 @@ const resolveTelemetryPath = (): string => {
   return looksLikeDir ? path.join(configured, "telemetry.jsonl") : configured;
 };
 
-/**
- * Appends one JSON line to the telemetry file when enabled through
- * `GEN2E_TELEMETRY=1` (default `.gen2e/telemetry.jsonl` under the process
- * cwd) or `GEN2E_TELEMETRY_PATH` (file or directory). Never throws: write
- * failures are swallowed and debug-logged.
- */
+/** Never throws: telemetry must not fail a test, so write errors are only debug-logged. */
 export const recordStepTelemetry = (record: Gen2EStepTelemetry): void => {
   if (!isEnabled()) {
     return;

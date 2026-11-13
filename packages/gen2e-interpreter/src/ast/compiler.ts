@@ -5,6 +5,7 @@ import jscodeshift, { type API, type FileInfo } from "jscodeshift";
 const DEBUG_AST_UTILS = !!process.env.GEN2EI_DEBUG_AST;
 
 export type Gen2ETransformFunction<R> = (source: string) => R;
+
 export type Gen2ETransformer<R> = (fileInfo: FileInfo, api: API, logger?: Gen2ELogger) => R;
 
 export const makeTransformer =

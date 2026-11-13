@@ -244,25 +244,11 @@ export const tokenLimits = (model: string): TokenLimitInfo => {
 
 export const _MARGIN: number = 2;
 
-/**
- * Approximates the number of tokens in the given text. Does not use an encoder,
- * this should be a fast and reliable enough way to count tokens in a text.
- *
- * @param {string} text - The text to count tokens on.
- * @returns {number} - The approximate number of tokens in the given text.
- */
 export const countTokenApprox = (text: string): number => {
   const approx = text.length * (1 / Math.E) + _MARGIN;
   return approx;
 };
 
-/**
- * Checks if the given text fits within the context window of the model.
- *
- * @param {string} model - OpenAI model to use for context window checking.
- * @param {string} text - text to check if it fits within the context window.
- * @returns {boolean} - if the text fits within the context window.
- */
 export const fitsContext = (
   model: string,
   text: string,
@@ -271,12 +257,6 @@ export const fitsContext = (
   return maxCharactersApprox(model, getTokenLimit) > text.length;
 };
 
-/**
- * Approximates the max number of characters allowed in model context window.
- *
- * @param {string} model - OpenAI model to use for context window checking.
- * @returns {number} - approx. max no. characters allowed in model context.
- */
 export const maxCharactersApprox = (
   model: string,
   getTokenLimit: (model: string) => TokenLimitInfo = tokenLimits,

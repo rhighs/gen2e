@@ -44,8 +44,11 @@ mock.module("../../src/config", () => ({
 const mockGetSnapshot = getSnapshot as jest.Mock<typeof getSnapshot>;
 
 const page = { url: () => "https://example.com" } as Page;
+
 const code = "await page.goto('https://example.com')";
+
 const expression = `(async () => { ${code} })`;
+
 const drift = new Error(
   "locator.click: Timeout 30000ms exceeded. Call log: - waiting for locator('button')",
 );

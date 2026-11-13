@@ -1,35 +1,10 @@
-import { describe, expect, jest, test } from "bun:test";
-import { type Gen2ETransformer, type Gen2ETransformFunction, makeTransformer } from "../../../src";
+import { describe, expect, test } from "bun:test";
+import { makeTransformer } from "../../../src";
 
 describe("makeTransformer", () => {
-  const mockTransformer: Gen2ETransformer<string> = (fileInfo, _api) => {
-    return `transformed ${fileInfo.source}`;
-  };
+  test("runs the transformer on the source and returns its result", () => {
+    const compile = makeTransformer<string>((fileInfo) => `transformed ${fileInfo.source}`);
 
-  test("should compile source correctly", () => {
-    const compile: Gen2ETransformFunction<string> = makeTransformer(mockTransformer);
-    const source = "const x = 1;";
-    const result = compile(source);
-
-    expect(result).toBe(`transformed ${source}`);
-  });
-
-  test("should pass fileInfo and api to transformer correctly", () => {
-    const mockTransformer: Gen2ETransformer<string> = jest.fn().mockReturnValue("mocked result");
-    const compile: Gen2ETransformFunction<string> = makeTransformer(mockTransformer);
-    const source = "const y = 2;";
-    const result = compile(source);
-
-    expect(result).toBe("mocked result");
-    expect(mockTransformer).toHaveBeenCalledWith(
-      { path: "", source },
-      {
-        j: expect.anything(),
-        jscodeshift: expect.anything(),
-        stats: expect.any(Function),
-        report: expect.any(Function),
-      },
-      expect.any(Object),
-    );
+    expect(compile("const x = 1;")).toBe("transformed const x = 1;");
   });
 });

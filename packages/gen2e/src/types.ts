@@ -1,13 +1,17 @@
-import type { TestInfo as PlayrightTestInfo, PlaywrightTestArgs, TestType } from "@playwright/test";
-
-export type { Page };
-
-import type { Page } from "@playwright/test";
+import type {
+  Page,
+  TestInfo as PlayrightTestInfo,
+  PlaywrightTestArgs,
+  TestType,
+} from "@playwright/test";
 import type { StaticStore } from "@rhighs/gen2e-core";
 import type { Gen2ELLMAgentHooks, Gen2ELLMAgentModel } from "@rhighs/gen2e-llm";
 import type { Gen2ELogger } from "@rhighs/gen2e-logger";
 
+export type { Page };
+
 export type Gen2EScreenshotUsagePolicy = "force" | "model" | "onfail" | "off";
+
 export type Gen2EVisualDebugLevel = "none" | "medium" | "high";
 
 export type Gen2EGenPolicies = {
@@ -16,12 +20,7 @@ export type Gen2EGenPolicies = {
   maxRetries?: number;
 };
 
-/**
- * DOM-only-first ladder settings. The first attempt runs on `cheapModel`
- * (falling back to the primary model) with `cheapScreenshot` (default
- * "off", unless the configured policy is "force"); later attempts run on the
- * primary model with the configured policy.
- */
+/** The first attempt runs on `cheapModel` with `cheapScreenshot` ("off" unless the policy is "force"). */
 export type Gen2ELadderOptions = {
   cheapModel?: Gen2ELLMAgentModel;
   cheapScreenshot?: Gen2EScreenshotUsagePolicy;
@@ -29,33 +28,23 @@ export type Gen2ELadderOptions = {
 
 export type Gen2EGenOptions = {
   debug?: boolean;
-  /**
-   * Model id served by the OpenAI-compatible endpoint (OpenAI or any
-   * compatible API).
-   */
   model?: Gen2ELLMAgentModel;
   openaiApiKey?: string;
-  /** Base URL of the OpenAI-compatible endpoint. */
   baseURL?: string;
   policies?: Gen2EGenPolicies;
   saveContext?: boolean;
-  /**
-   * DOM-only-first cost ladder. `true` starts on the primary model with
-   * screenshots off and escalates to the configured policy after a failure;
-   * an object can name a cheaper model and a screenshot policy for the
-   * first attempt. Also enabled by `GEN2E_CHEAP_MODEL` or the config file.
-   */
+  /** Also enabled by `GEN2E_CHEAP_MODEL` or the config file. */
   ladder?: boolean | Gen2ELadderOptions;
-  /**
-   * Serve exclusively from the static store. A cache miss throws
-   * `Gen2ECacheMissError`; no snapshot, generation or write happens.
-   */
+  /** A cache miss throws `Gen2ECacheMissError`; nothing is generated or written. */
   replayOnly?: boolean;
 };
 
 export type Test = TestType<any, any>;
+
 export type GenFixtures = Pick<PlaywrightTestArgs, "page" | "context" | "request">;
+
 export type TestArgs = GenFixtures & { gen: GenStepFunction };
+
 export type TestInfo = PlayrightTestInfo;
 
 export type PlaywrightTestFunction = (
@@ -86,19 +75,6 @@ export type Gen2EExpression = {
 
 export type Gen2ELLMCallHooks = Gen2ELLMAgentHooks;
 
-/**
- * A standalone generation function, does not need a test instance.
- * @param {string} task - The task description.
- * @param {Object} config - The configuration object.
- * @param {Page} config.page - The Playwright page object.
- * @param {Gen2EGenOptions} [options] - Optional model options.
- * @param {Object} [init] - Optional initialization object.
- * @param {Gen2ELLMCallHooks} [init.hooks] - Optional hooks for the generation process.
- * @param {StaticStore} [init.store] - Optional static store for caching expressions.
- * @param {Gen2EPlaywriteCodeEvalFunc} [evalCode] - Optional function to evaluate the code.
- * @returns {Promise<any>} The result of the evaluation.
- * @throws Will throw an error if the `config` object or `config.page` is missing.
- */
 export type GenFunction = (
   task: string,
   config: { page: Page },
@@ -111,38 +87,18 @@ export type GenFunction = (
   evalCode?: Gen2EPlaywriteCodeEvalFunc,
 ) => Promise<any>;
 
-/**
- * Gen2E library configuration options.
- * @param {string} staticStorePath - The path use by the file system store used to preserve generated code.
- * @param {string} openaiApiKey - API key for openai services.
- * @param {debug} boolean - Enable debug mode, severe logging.
- * @param {model} string - Model to be used among all available.
- * @param {policies} Gen2EGenPolicies - Code generation agent policies.
- */
 export type Gen2EConfig = {
   staticStorePath?: string;
   openaiApiKey?: string;
-  /** Base URL of the OpenAI-compatible endpoint. */
   baseURL?: string;
   debug?: boolean;
   model?: Gen2ELLMAgentModel;
   policies?: Gen2EGenPolicies;
-  /** Serve exclusively from the static store, never generating or writing. */
   replayOnly?: boolean;
-  /** Cheaper model used for the first ladder attempt when the ladder is on. */
-  cheapModel?: string;
-  /** Enable the DOM-only-first cost ladder by default. */
+  cheapModel?: Gen2ELLMAgentModel;
   ladder?: boolean;
 };
 
-/**
- * Playwright test function wrapper, allowing the use of gen inside a test case.
- * @param {TestFunction} testFunction - The test function to execute.
- * @param {Object} [init] - Optional initialization object.
- * @param {StaticStore} [init.store] - Optional static store for caching expressions.
- * @param {Gen2ELLMCallHooks} [init.hooks] - Optional hooks for the generation process.
- * @returns {PlaywrightTestFunction} The Playwright test function.
- */
 export type GenTestFunction = (
   testFunction: TestFunction,
   init?: {
@@ -152,19 +108,6 @@ export type GenTestFunction = (
   },
 ) => PlaywrightTestFunction;
 
-/**
- * Generation function, generates static code and caches it to FS by default.
- * @param {string} task - The task description.
- * @param {Object} config - The configuration object.
- * @param {Page} config.page - The Playwright page object.
- * @param {Gen2EGenOptions} [options] - Optional model options.
- * @param {Object} [init] - Optional initialization object.
- * @param {Gen2ELLMCallHooks} [init.hooks] - Optional hooks for the generation process.
- * @param {StaticStore} [init.store] - Optional static store for caching expressions.
- * @param {Gen2EPlaywriteCodeEvalFunc} [evalCode] - Optional function to evaluate the code.
- * @returns {Promise<any>} The result of the evaluation.
- * @throws Will throw an error if the `config` object or `config.page` is missing.
- */
 export type GenStepFunction = (
   task: string,
   config: { page: Page; test: Test },

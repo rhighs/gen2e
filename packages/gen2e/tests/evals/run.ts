@@ -1,18 +1,4 @@
-/**
- * Nightly evaluation harness for the gen2e library.
- *
- * Model mode pins a model through `GEN2E_EVAL_MODEL`, generates every corpus
- * task against the local fixture app and reports pass@1, success within k
- * attempts, attempts, retries, tool calls, tokens, cost and wall-clock.
- *
- * Replay mode never calls a model and never writes expressions: it serves the
- * corpus from the static store, counts hits and misses and quarantines entries
- * whose cached expression fails at evaluation time.
- *
- * Run from the repository root:
- *   bun run eval            # model mode
- *   bun run eval:replay     # replay mode
- */
+// Nightly eval harness: model mode scores generation, replay mode serves the corpus from a cache without any model call.
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -28,6 +14,7 @@ import {
 import env from "../../src/env";
 
 export type EvalMode = "model" | "replay";
+
 export type EvalTaskKind = "query" | "action" | "assertion" | "multi-step";
 
 export type EvalExpectation =
@@ -60,25 +47,16 @@ export type EvalCorpus = {
 
 export type EvalRunOptions = {
   mode?: EvalMode;
-  /** Pinned model id. Defaults to `GEN2E_EVAL_MODEL`. */
   model?: string;
-  /** Repetitions per task. Defaults to `EVAL_RUNS` (1). */
   runs?: number;
-  /** Minimum per-task pass@1 in model mode. Defaults to `EVAL_MIN_PASS` (0). */
   minPass?: number;
-  /** Attempts per generation, i.e. k in success-within-k. Defaults to `EVAL_MAX_ATTEMPTS` (3). */
+  /** The k in success-within-k. */
   maxAttempts?: number;
-  /** Screenshot policy for eval runs. Defaults to `EVAL_SCREENSHOT` ("off"). */
   screenshot?: Gen2EScreenshotUsagePolicy;
-  /** Cache base directory. Defaults to `EVAL_STATIC_PATH` or a run-scoped path. */
   staticPath?: string;
-  /** Report path. Defaults to `EVAL_REPORT` ("eval-report.json"). */
   reportPath?: string;
-  /** Telemetry JSONL path. Defaults to `EVAL_TELEMETRY_PATH` or `<runDir>/telemetry.jsonl`. */
   telemetryPath?: string;
-  /** Corpus path. Defaults to `tests/evals/corpus.json` next to this file. */
   corpusPath?: string;
-  /** Fixture server port. Defaults to the fixture's own 9999. */
   port?: number;
   /** When false, assumes the fixture app is already reachable and never spawns it. */
   manageServer?: boolean;
@@ -164,10 +142,15 @@ type FixtureServer = {
 };
 
 const FIXTURE_PORT = 9999;
+
 const DEFAULT_CORPUS = path.resolve(__dirname, "corpus.json");
+
 const PACKAGE_DIR = path.resolve(__dirname, "..", "..");
+
 const SERVER_SCRIPT = path.resolve(__dirname, "..", "bin", "start-test-server.ts");
+
 const TASK_KINDS = new Set<string>(["query", "action", "assertion", "multi-step"]);
+
 const SCREENSHOT_POLICIES: Gen2EScreenshotUsagePolicy[] = ["force", "model", "onfail", "off"];
 
 const USAGE = `gen2e eval harness
@@ -275,10 +258,7 @@ const parseVerification = (value: unknown, where: string): EvalVerification => {
   return verification;
 };
 
-/**
- * Loads and validates the corpus. Fails loudly on malformed tasks so a broken
- * corpus never produces a misleading report.
- */
+// Fails loudly on a malformed task so a broken corpus never produces a misleading report.
 export const loadCorpus = (corpusPath: string): EvalCorpus => {
   let raw: unknown;
   try {
@@ -331,11 +311,7 @@ export const loadCorpus = (corpusPath: string): EvalCorpus => {
   return { version: typeof version === "number" ? version : 1, tasks: parsed };
 };
 
-/**
- * Compares a generation result against a corpus expectation. Numbers and
- * booleans are compared through their string form so model output that is
- * semantically equal but differently typed still passes.
- */
+// Compares through the string form so `"3"` and `3` both pass.
 export const checkExpectation = (
   expectation: EvalExpectation,
   actual: unknown,
@@ -374,9 +350,6 @@ export const checkExpectation = (
   }
 };
 
-/**
- * Verifies page state after an action task, independently of the model.
- */
 export const checkVerification = async (
   verification: EvalVerification,
   page: Page,
@@ -438,11 +411,7 @@ const checkTask = async (
     : { ok: false, detail: `${task.id}: ${failures.join("; ")}` };
 };
 
-/**
- * Reads telemetry records appended to a JSONL file. Sequential task execution
- * makes a consumed-line cursor enough; records from earlier tasks are never
- * re-counted.
- */
+// Tasks run sequentially, so a consumed-line cursor is enough to avoid re-counting records.
 class TelemetryReader {
   private consumed = 0;
 
@@ -509,10 +478,7 @@ const isFixtureReachable = async (url: string): Promise<boolean> => {
   }
 };
 
-/**
- * Starts the fixture app as a child process on its own port, or reuses an
- * already reachable instance. The returned `stop` is a no-op when reused.
- */
+// Reuses an already reachable fixture app, in which case `stop` is a no-op.
 const ensureFixtureServer = async (port: number): Promise<FixtureServer> => {
   const baseUrl = fixtureUrl(port);
   if (await isFixtureReachable(baseUrl)) {
@@ -552,11 +518,7 @@ const ensureFixtureServer = async (port: number): Promise<FixtureServer> => {
   throw new Error(`fixture server did not become reachable at ${baseUrl} within 30s:\n${output}`);
 };
 
-/**
- * Resolves the cache directory used by replay mode. A model run with
- * `EVAL_RUNS > 1` writes per-repetition directories, so replay falls back to
- * the most recent `rep-*` directory that contains steps.
- */
+// A run with `EVAL_RUNS > 1` writes `rep-*` directories, so replay falls back to the newest one with steps.
 export const resolveReplayStaticPath = (basePath: string): string => {
   if (existsSync(path.join(basePath, "steps"))) {
     return basePath;
@@ -806,9 +768,6 @@ const resultLabel = (task: EvalTaskReport): string => {
   return "partial";
 };
 
-/**
- * Renders the compact table printed at the end of a run.
- */
 export const formatReport = (report: EvalReport): string => {
   const widths = [26, 11, 7, 9, 9, 8, 6, 10, 12, 9, 10];
   const columns = [
@@ -895,11 +854,7 @@ const restoreEnv = (previous: PreviousEnv): void => {
   }
 };
 
-/**
- * Runs the corpus and returns the full report. Throws on configuration and
- * infrastructure failures; task-level failures are reported in the result and
- * reflected in `summary.exitCode`.
- */
+// Throws on configuration and infrastructure failures; task failures only show in `summary.exitCode`.
 export const run = async (options: EvalRunOptions = {}): Promise<EvalReport> => {
   const mode: EvalMode =
     options.mode ?? (process.env.EVAL_MODE?.trim().toLowerCase() === "replay" ? "replay" : "model");
@@ -1025,10 +980,6 @@ export const run = async (options: EvalRunOptions = {}): Promise<EvalReport> => 
   return report;
 };
 
-/**
- * Parses CLI flags. Kept separate from `run` so the harness can be driven by
- * tests through the exported function.
- */
 export const parseArgs = (argv: string[]): EvalRunOptions => {
   const options: EvalRunOptions = {};
   const number = (raw: string, flag: string): number => {

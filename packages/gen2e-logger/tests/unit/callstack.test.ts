@@ -1,39 +1,25 @@
-import { describe, expect, it, jest } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { runtimeExecutionInfo } from "../../src";
 
+const empty = { funcName: "", filepath: "", file: "", line: 0, col: 0 };
+
 describe("String.prototype.strip", () => {
-  it("should remove leading and trailing spaces by default", () => {
-    expect("  hello  ".strip()).toBe("hello");
-  });
-
-  it("should remove specified characters from the beginning and end", () => {
-    expect("xxhelloxx".strip("x")).toBe("hello");
-  });
-
-  it("should remove multiple characters from the beginning and end", () => {
-    expect("xyzhelloxyz".strip("xyz")).toBe("hello");
-  });
-
-  it("should not remove characters from the middle", () => {
-    expect("xyhelloxy".strip("xy")).toBe("hello");
-  });
-
-  it("should return the same string if the chars are not present", () => {
-    expect("hello".strip("x")).toBe("hello");
+  test.each([
+    ["  hello  ", undefined, "hello"],
+    ["xxhelloxx", "x", "hello"],
+    ["xyzhelloxyz", "xyz", "hello"],
+    ["xyhelxylo", "xy", "helxylo"],
+    ["hello", "x", "hello"],
+  ])("%p.strip(%p) is %p", (input, chars, expected) => {
+    expect(input.strip(chars)).toBe(expected);
   });
 });
 
 describe("runtimeExecutionInfo", () => {
-  it("should extract runtime call information correctly", () => {
-    const mockStack = `Error
-      at mockFunc (/path/to/file.ts:10:15)
-      at someOtherFunction (anotherFile.ts:20:25)`;
+  test("reads the function, path, line and column of a stack frame", () => {
+    const stack = "Error\n  at mockFunc (/path/to/file.ts:10:15)\n  at other (b.ts:20:25)";
 
-    const mockReadStack = jest.fn(() => mockStack);
-
-    const result = runtimeExecutionInfo(1, mockReadStack);
-
-    expect(result).toEqual({
+    expect(runtimeExecutionInfo(1, () => stack)).toEqual({
       funcName: "mockFunc",
       filepath: "/path/to/file.ts",
       file: "file.ts",
@@ -42,61 +28,31 @@ describe("runtimeExecutionInfo", () => {
     });
   });
 
-  it("should handle missing stack trace gracefully", () => {
-    const mockReadStack = jest.fn(() => undefined);
-
-    const result = runtimeExecutionInfo(1, mockReadStack);
-
-    expect(result).toEqual({
-      funcName: "",
-      filepath: "",
-      file: "",
-      line: 0,
-      col: 0,
-    });
+  test.each([
+    ["no stack", undefined],
+    ["an unparsable frame", "Error\n  at unknownFunction (unknownfile)"],
+  ])("returns empty info for %s", (_name, stack) => {
+    expect(runtimeExecutionInfo(1, () => stack)).toEqual(empty);
   });
 
-  it("should handle stack trace without match gracefully", () => {
-    const mockStack = `Error
-      at unknownFunction (unknownfile)`;
+  test("handles Windows paths", () => {
+    const platform = process.platform;
+    Object.defineProperty(process, "platform", { value: "win32" });
 
-    const mockReadStack = jest.fn(() => mockStack);
-
-    const result = runtimeExecutionInfo(1, mockReadStack);
-
-    expect(result).toEqual({
-      funcName: "",
-      filepath: "",
-      file: "",
-      line: 0,
-      col: 0,
-    });
-  });
-
-  it("should handle Windows file paths correctly", () => {
-    const mockStack = `Error
-      at mockFunc (C:\\path\\to\\file.ts:10:15)
-      at someOtherFunction (anotherFile.ts:20:25)`;
-
-    const mockReadStack = jest.fn(() => mockStack);
-
-    const originalPlatform = process.platform;
-    Object.defineProperty(process, "platform", {
-      value: "win32",
-    });
-
-    const result = runtimeExecutionInfo(1, mockReadStack);
-
-    Object.defineProperty(process, "platform", {
-      value: originalPlatform,
-    });
-
-    expect(result).toEqual({
-      funcName: "mockFunc",
-      filepath: "C:\\path\\to\\file.ts",
-      file: "file.ts",
-      line: 10,
-      col: 15,
-    });
+    try {
+      const res = runtimeExecutionInfo(
+        1,
+        () => "Error\n  at mockFunc (C:\\path\\to\\file.ts:10:15)",
+      );
+      expect(res).toEqual({
+        funcName: "mockFunc",
+        filepath: "C:\\path\\to\\file.ts",
+        file: "file.ts",
+        line: 10,
+        col: 15,
+      });
+    } finally {
+      Object.defineProperty(process, "platform", { value: platform });
+    }
   });
 });
